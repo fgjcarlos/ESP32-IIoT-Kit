@@ -53,11 +53,11 @@ ESP-NOW no tiene mesh nativo. Espressif ofrece ESP-MESH (basado en WiFi, no ESP-
 
 ### Machine Learning en el edge: inteligencia local
 
-Hasta ahora, las alertas se basan en umbrales fijos: si la temperatura supera 28°C, alerta. Pero los problemas reales en una piscifactoria rara vez son tan simples. A veces es una combinacion sutil: el pH baja ligeramente mientras la temperatura sube y el oxigeno disminuye — individualmente cada valor esta dentro del rango, pero la combinacion indica un problema.
+Hasta ahora, las alertas se basan en umbrales fijos: si la temperatura supera 28°C, alerta. Pero los problemas reales en una instalacion industrial rara vez son tan simples. A veces es una combinacion sutil: el pH baja ligeramente mientras la temperatura sube y el oxigeno disminuye — individualmente cada valor esta dentro del rango, pero la combinacion indica un problema.
 
 Machine Learning (ML) puede detectar estos patrones. La idea es:
 
-1. **Entrenar**: En un PC potente, alimentar al modelo con semanas de datos "normales" de la piscifactoria. El modelo aprende que patrones son normales.
+1. **Entrenar**: En un PC potente, alimentar al modelo con semanas de datos "normales" de la instalacion. El modelo aprende que patrones son normales.
 
 2. **Desplegar**: Convertir el modelo a un formato ultraligero (TFLite Micro, ~50KB) y cargarlo en el ESP32-S3 del gateway.
 
@@ -78,7 +78,7 @@ Las limitaciones son reales: el entrenamiento requiere un PC (no puedes entrenar
 
 ### IoT celular: cuando WiFi no es una opcion
 
-No todas las piscifactorias tienen cobertura WiFi. Algunas estan en ubicaciones remotas donde la unica conectividad disponible es la red movil. Un modulo 4G/LTE como el SIM7600 permite al gateway conectarse a internet a traves de la red de telefonia movil.
+No todas las instalaciones industriales tienen cobertura WiFi. Algunas estan en ubicaciones remotas donde la unica conectividad disponible es la red movil. Un modulo 4G/LTE como el SIM7600 permite al gateway conectarse a internet a traves de la red de telefonia movil.
 
 La comunicacion funciona via comandos AT: instrucciones de texto que el ESP32 envia al modulo por UART (conexion serie). Son herencia de los modems telefonicos de los años 80. El proceso:
 
@@ -140,7 +140,7 @@ Consideraciones: la SD tiene capacidad finita (32GB son muchos meses de datos), 
 
 Un sistema de produccion necesita integrarse con otros sistemas y servir a multiples usuarios con diferentes necesidades:
 
-**Multi-usuario con roles**: El gerente de la piscifactoria necesita ver todo y configurar alertas. El operario necesita ver datos y controlar actuadores. El visitante solo necesita ver datos. Cada uno debe tener su cuenta con permisos adecuados.
+**Multi-usuario con roles**: El responsable de la instalacion necesita ver todo y configurar alertas. El operario necesita ver datos y controlar actuadores. El visitante solo necesita ver datos. Cada uno debe tener su cuenta con permisos adecuados.
 
 Los roles tipicos son:
 - **Admin**: Gestiona usuarios, configura todo el sistema
@@ -149,7 +149,7 @@ Los roles tipicos son:
 
 La autenticacion se implementa con JWT (JSON Web Tokens): el usuario se identifica una vez (login), recibe un token firmado que incluye su identidad y rol. En cada peticion posterior, el servidor verifica el token sin necesidad de consultar la base de datos. Es como un pase de acceso: lo muestras al entrar y el guardia verifica que es autentico y que tu nivel de acceso te permite entrar a esa zona.
 
-**API publica**: Permite que otros programas (no solo el dashboard) accedan a los datos. Un ERP de la piscifactoria podria consultar datos de sensores. Un servicio de SMS podria suscribirse a alertas. Un investigador podria descargar historicos para analisis.
+**API publica**: Permite que otros programas (no solo el dashboard) accedan a los datos. Un ERP de la planta podria consultar datos de sensores. Un servicio de SMS podria suscribirse a alertas. Un investigador podria descargar historicos para analisis.
 
 La API publica debe ser:
 - Documentada (OpenAPI/Swagger genera documentacion interactiva automaticamente)
