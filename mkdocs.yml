@@ -1,0 +1,88 @@
+site_name: "Piscifactoria ESP32 — Tutorial"
+site_description: "Sistema de monitorizacion inteligente para piscifactorias con ESP32. Proyecto educativo con ESP-IDF."
+site_url: "https://fgjcarlos.github.io/ESP32-fg/"
+repo_url: "https://github.com/fgjcarlos/ESP32-fg"
+repo_name: fgjcarlos/ESP32-fg
+
+theme:
+  name: material
+  language: es
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Modo claro
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - roamlinks
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+docs_dir: docs_site
+
+nav:
+  - Inicio: index.md
+  - Arquitectura: arquitectura.md
+  - Tutorial:
+    - Introduccion: tutorial/README.md
+    - "Fase 0: Preparacion": tutorial/tutorial-00-preparacion.md
+    - "Fase 1: Gateway": tutorial/tutorial-01-gateway-nucleo.md
+    - "Fase 2: Nodos + ESP-NOW": tutorial/tutorial-02-nodos-espnow.md
+    - "Fase 3: Sensores": tutorial/tutorial-03-sensores-actuadores.md
+    - "Fase 4: MQTT + Dashboard": tutorial/tutorial-04-mqtt-dashboard.md
+    - "Fase 5: OTA + Seguridad": tutorial/tutorial-05-ota-optimizacion.md
+    - "Fase 6: Mejoras futuras": tutorial/tutorial-06-mejoras-futuras.md
+  - Tareas:
+    - Vista general: tareas/README.md
+    - "Fase 0": tareas/fase-00-preparacion.md
+    - "Fase 1": tareas/fase-01-gateway-nucleo.md
+    - "Fase 2": tareas/fase-02-nodos-espnow.md
+    - "Fase 3": tareas/fase-03-sensores-actuadores.md
+    - "Fase 4": tareas/fase-04-mqtt-dashboard.md
+    - "Fase 5": tareas/fase-05-ota-optimizacion.md
+    - "Fase 6": tareas/fase-06-mejoras-futuras.md
+  - Referencia:
+    - Protocolo ESP-NOW: referencia/protocolo.md
+    - Errores comunes: referencia/errores-comunes.md
+    - Decisiones:
+      - "C vs TinyGo": decisiones/001-c-vs-tinygo.md
+      - "ESP-NOW sin cifrado": decisiones/002-esp-now-sin-cifrado.md
+      - "Protocolo unificado": decisiones/003-protocolo-unificado.md

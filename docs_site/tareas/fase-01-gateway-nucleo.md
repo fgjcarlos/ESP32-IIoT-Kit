@@ -1,0 +1,1 @@
+../../Fases/fase-01-gateway-nucleo.md

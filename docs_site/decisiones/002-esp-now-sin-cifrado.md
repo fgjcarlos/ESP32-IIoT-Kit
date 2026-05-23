@@ -1,0 +1,1 @@
+../../knowledge/Decisiones/002-esp-now-sin-cifrado.md
