@@ -1,8 +1,8 @@
 site_name: "ESP32-IIoT-Kit — Tutorial"
 site_description: "Plataforma generica de monitorizacion industrial con ESP32. Proyecto educativo con ESP-IDF."
-site_url: "https://fgjcarlos.github.io/ESP32-fg/"
-repo_url: "https://github.com/fgjcarlos/ESP32-fg"
-repo_name: fgjcarlos/ESP32-fg
+site_url: "https://fgjcarlos.github.io/ESP32-IIoT-Kit/"
+repo_url: "https://github.com/fgjcarlos/ESP32-IIoT-Kit"
+repo_name: fgjcarlos/ESP32-IIoT-Kit
 
 theme:
   name: material
