@@ -3,7 +3,7 @@
 > **Nota historica**: Este documento fue redactado cuando el proyecto se llamaba "Piscifactoria ESP32". En mayo de 2026 el proyecto fue renombrado a ESP32-IIoT-Kit para reflejar su caracter de plataforma generica de monitorizacion industrial. El caso de uso de piscifactoria permanece como ejemplo en `examples/fish-farm/`. El contenido tecnico de este documento no ha cambiado.
 
 Fecha: 2026-05-23
-Estado: Propuesta (pendiente de aprobacion)
+Estado: **Aprobada** (2026-05-23)
 
 ## Motivacion
 

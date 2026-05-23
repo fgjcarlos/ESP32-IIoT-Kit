@@ -55,7 +55,7 @@ A generic IIoT monitoring and control platform built on ESP32 microcontrollers. 
 
 ## Current Phase
 
-> **Update this manually**: Fase 0 - Preparacion y aprendizaje (pre-inicio, iiot-kit-transformation in progress, 2026-05-23)
+> **Update this manually**: Fase 0 - Preparacion y aprendizaje (replanificacion aprobada, listo para implementacion)
 
 ## Project Structure
 
