@@ -24,6 +24,7 @@ Source of truth: `docs/replanificacion/02-protocolo-unificado.md`
 | ORP | 0x04 | [0]=mV |
 | LEVEL | 0x05 | [0]=centimetros |
 | TURBIDITY | 0x06 | [0]=NTU |
+| CUSTOM | 0xFF | Punto de extension para tipos definidos por el usuario. La interpretacion de values[] es especifica de la aplicacion. `protocol_sensor_type_str()` retorna `"CUSTOM"`. |
 
 ## Header comun (13 bytes)
 
