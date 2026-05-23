@@ -1,0 +1,15 @@
+change: iiot-kit-transformation
+status: planned
+current_phase: tasks
+completed_phases:
+  - explore
+  - proposal
+  - spec
+  - design
+  - tasks
+next_phase: apply
+artifact_store: openspec
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+created: 2026-05-23
+tasks_completed: 2026-05-23
