@@ -42,7 +42,7 @@ El gateway esta en una instalacion que puede ser remota. Cada vez que corriges u
 ### Tarea T5.1.2: Implementar OTA via HTTPS
 
 - **Dificultad**: [Intermedio]
-- **Descripcion**: Crear o ampliar `firmware/gateway/main/ota_manager.c/.h`. Implementar funcion `ota_manager_start(const char *url)` que descargue un binario firmware desde una URL HTTPS y lo escriba en la particion OTA siguiente. Usar la API `esp_https_ota()` que simplifica todo el proceso. El certificado CA del servidor debe embeberse en el firmware. El trigger para iniciar OTA puede ser un boton en el dashboard embebido o un comando MQTT en el topic `piscifactoria/{gw_id}/control/ota`.
+- **Descripcion**: Crear o ampliar `firmware/gateway/main/ota_manager.c/.h`. Implementar funcion `ota_manager_start(const char *url)` que descargue un binario firmware desde una URL HTTPS y lo escriba en la particion OTA siguiente. Usar la API `esp_https_ota()` que simplifica todo el proceso. El certificado CA del servidor debe embeberse en el firmware. El trigger para iniciar OTA puede ser un boton en el dashboard embebido Preact o un comando MQTT en el topic `{mqtt_ns}/{gw_id}/control/ota` (ver namespace configurable en Fase 4).
 - **Archivos a crear/modificar**: `firmware/gateway/main/ota_manager.c`, `firmware/gateway/main/ota_manager.h`, `firmware/gateway/main/CMakeLists.txt` (embeber certificado)
 - **Criterio de aceptacion**:
   - [ ] Al pulsar "Actualizar firmware" en el dashboard embebido, el gateway descarga el binario y se actualiza

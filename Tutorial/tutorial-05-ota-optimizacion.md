@@ -15,7 +15,7 @@
 
 ### OTA: actualizaciones sin cables
 
-Imagina que tienes 15 nodos sensores distribuidos por una piscifactoria, algunos en lugares de dificil acceso. Descubres un bug en el firmware. ¿Vas a ir nodo por nodo con un cable USB? OTA (Over-The-Air) resuelve esto: el dispositivo descarga el nuevo firmware a traves de la red inalambrica y se actualiza solo.
+Imagina que tienes 15 nodos sensores distribuidos por una instalacion industrial, algunos en lugares de dificil acceso. Descubres un bug en el firmware. ¿Vas a ir nodo por nodo con un cable USB? OTA (Over-The-Air) resuelve esto: el dispositivo descarga el nuevo firmware a traves de la red inalambrica y se actualiza solo.
 
 El proceso simplificado es asi:
 
@@ -153,7 +153,7 @@ La metodologia es siempre la misma:
 
 ### Ingenieria de fiabilidad basica
 
-Un sistema que monitoriza una piscifactoria funciona 24 horas al dia, 7 dias a la semana, posiblemente en un lugar remoto. Si falla a las 3 de la mañana, nadie va a ir a reiniciarlo. La ingenieria de fiabilidad busca que el sistema sea robusto y se recupere solo.
+Un sistema que monitoriza una instalacion industrial funciona 24 horas al dia, 7 dias a la semana, posiblemente en un lugar remoto. Si falla a las 3 de la mañana, nadie va a ir a reiniciarlo. La ingenieria de fiabilidad busca que el sistema sea robusto y se recupere solo.
 
 Conceptos clave:
 
@@ -178,7 +178,7 @@ Si se pierde un nodo:
 
 ## Como encaja en el proyecto
 
-La Fase 5 transforma un prototipo funcional en un sistema listo para produccion. Es la diferencia entre "funciona en mi mesa" y "funciona en una piscifactoria durante meses".
+La Fase 5 transforma un prototipo funcional en un sistema listo para produccion. Es la diferencia entre "funciona en mi mesa" y "funciona en una instalacion industrial durante meses".
 
 OTA permite mantener y mejorar el sistema sin acceso fisico. La seguridad protege los datos y los actuadores contra acceso no autorizado. Las pruebas validan que el sistema funciona bajo condiciones reales. La documentacion permite que otra persona despliegue el sistema.
 
@@ -232,7 +232,7 @@ Despues de esta fase, el sistema esta listo para su primera instalacion real. No
 
 3. ¿Por que es importante que SNTP sincronice la hora ANTES de intentar una conexion TLS? ¿Que tiene que ver la hora con los certificados?
 
-4. Un atacante instala un sniffer WiFi cerca de tu piscifactoria. ¿Que informacion podria obtener si tienes: a) ninguna seguridad, b) solo ESP-NOW cifrado, c) todas las capas de seguridad?
+4. Un atacante instala un sniffer WiFi cerca de tu instalacion IIoT. ¿Que informacion podria obtener si tienes: a) ninguna seguridad, b) solo ESP-NOW cifrado, c) todas las capas de seguridad?
 
 5. ¿Que diferencia practica hay entre QoS 1 y QoS 2 en MQTT cuando se combina con TLS? ¿Son redundantes o complementarios?
 

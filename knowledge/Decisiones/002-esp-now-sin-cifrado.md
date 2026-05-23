@@ -6,7 +6,7 @@ Aceptada (2026-05-23)
 ## Contexto
 El plan original asumia 20 peers cifrados con ESP-NOW. Sin embargo, el hardware ESP-NOW solo soporta **6 peers cifrados** (con LMK/PMK). Con 20 peers no cifrados, se pueden tener hasta 20 nodos.
 
-La piscifactoria necesita al menos 10-15 nodos para cubrir todos los sensores.
+Una instalacion IIoT tipica necesita al menos 10-15 nodos para cubrir todas las zonas monitorizadas.
 
 ## Decision
 Usar **ESP-NOW sin cifrado** en v1.0, con validacion de protocolo como medida de seguridad basica. Planificar cifrado por software (AES-256 a nivel de payload) para v2.0.

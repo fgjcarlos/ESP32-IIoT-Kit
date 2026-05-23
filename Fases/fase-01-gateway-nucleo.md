@@ -71,7 +71,7 @@ Esta sub-tarea establece los cimientos del gateway. Sin una inicializacion corre
      c. Crear interfaces de red: `esp_netif_create_default_wifi_ap()` y `esp_netif_create_default_wifi_sta()`.
      d. Inicializar WiFi con `esp_wifi_init()` usando `WIFI_INIT_CONFIG_DEFAULT()`.
      e. Configurar el modo con `esp_wifi_set_mode(WIFI_MODE_APSTA)`.
-     f. Configurar AP: SSID "Piscifactoria-GW", password "piscifactoria2024", canal 1, max 4 conexiones.
+     f. Configurar AP: SSID "IIoT-Gateway", password "iiot-kit2024", canal 1, max 4 conexiones.
      g. Configurar STA: SSID y password hardcoded por ahora (se cambiara a NVS en T1.2.3).
      h. Llamar a `esp_wifi_start()`.
   4. Registrar event handlers basicos (se expandiran en T1.2.1).
@@ -82,7 +82,7 @@ Esta sub-tarea establece los cimientos del gateway. Sin una inicializacion corre
   - `firmware/gateway/main/main.c` (modificar - agregar llamada despues de nvs_config_init)
   - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar wifi_manager.c a SRCS)
 - **Criterio de aceptacion**:
-  - Al arrancar el ESP32, aparece la red WiFi "Piscifactoria-GW" visible desde un telefono o PC
+  - Al arrancar el ESP32, aparece la red WiFi "IIoT-Gateway" visible desde un telefono o PC
   - Un dispositivo puede conectarse al AP con la password configurada
   - El log serial muestra la IP asignada al AP (normalmente 192.168.4.1)
   - Si se configuran credenciales STA validas, el ESP32 obtiene IP del router
@@ -177,12 +177,12 @@ Esta sub-tarea establece los cimientos del gateway. Sin una inicializacion corre
 
 > **Checkpoint 1.1**: Al completar esta sub-tarea, el gateway debe:
 > - Arrancar sin errores en la consola serial
-> - Mostrar la red WiFi "Piscifactoria-GW" visible desde otros dispositivos
+> - Mostrar la red WiFi "IIoT-Gateway" visible desde otros dispositivos
 > - Conectarse al router WiFi si se configuran credenciales STA validas
 > - Tener ESP-NOW inicializado y listo para recibir paquetes
 > - Mostrar la hora correcta si hay conexion a internet
 > - El orden de inicializacion en `app_main()` debe ser: NVS -> WiFi -> ESP-NOW -> SNTP
-> - **Prueba rapida**: Conectarse al AP "Piscifactoria-GW" con un telefono y verificar que se asigna una IP (192.168.4.x)
+> - **Prueba rapida**: Conectarse al AP "IIoT-Gateway" con un telefono y verificar que se asigna una IP (192.168.4.x)
 
 ---
 
@@ -340,7 +340,7 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
      c. Registrar un handler para GET "/" que devuelva un HTML basico.
      d. Implementar la funcion handler: `static esp_err_t root_get_handler(httpd_req_t *req)`.
      e. En el handler, usar `httpd_resp_set_type(req, "text/html")` y `httpd_resp_send(req, html_content, HTTPD_RESP_USE_STRLEN)`.
-  4. El HTML inicial puede ser simple: `<html><body><h1>Gateway Piscifactoria</h1><p>Sistema activo</p></body></html>`.
+  4. El HTML inicial puede ser simple: `<html><body><h1>Gateway IIoT</h1><p>Sistema activo</p></body></html>`.
   5. Llamar a `http_server_start()` en `app_main()` despues de WiFi.
 - **Archivos a crear/modificar**:
   - `firmware/gateway/main/http_server.h` (crear)
@@ -348,7 +348,7 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
   - `firmware/gateway/main/main.c` (modificar - agregar llamada para iniciar servidor)
   - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar http_server.c a SRCS, agregar `esp_http_server` a REQUIRES)
 - **Criterio de aceptacion**:
-  - Al conectarse al AP del gateway (192.168.4.1) desde un navegador, se muestra la pagina "Gateway Piscifactoria"
+  - Al conectarse al AP del gateway (192.168.4.1) desde un navegador, se muestra la pagina "Gateway IIoT"
   - El servidor responde con codigo HTTP 200 y Content-Type "text/html"
   - El log serial muestra "Servidor HTTP iniciado en puerto 80"
   - El servidor no crashea al recibir multiples peticiones consecutivas
@@ -501,7 +501,7 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
 > - Mostrar un formulario de configuracion WiFi funcional en `/config`
 > - Permitir cambiar las credenciales WiFi desde el navegador sin reflashear
 > - Los archivos web estan separados del codigo C (en `firmware/gateway/web/`)
-> - **Prueba rapida**: Conectarse al AP "Piscifactoria-GW", abrir `http://192.168.4.1/` en el navegador, verificar que la pagina se muestra con estilos. Navegar a `/config`, ingresar credenciales de un router, verificar que el gateway se conecta.
+> - **Prueba rapida**: Conectarse al AP "IIoT-Gateway", abrir `http://192.168.4.1/` en el navegador, verificar que la pagina se muestra con estilos. Navegar a `/config`, ingresar credenciales de un router, verificar que el gateway se conecta.
 
 ---
 
@@ -602,7 +602,7 @@ Esta sub-tarea implementa los endpoints JSON que permitiran a la interfaz web (y
   - `cJSON_AddItemToObject(root, "nodes", nodes_array)` para agregar el array al objeto raiz
   - Para formatear MAC como string: `snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])`
   - El array estatico garantiza que no hay allocaciones dinamicas para la lista de nodos
-  - `MAX_NODES 20` es suficiente para una piscifactoria pequena; se puede parametrizar via menuconfig
+  - `MAX_NODES 20` es suficiente para una instalacion industrial pequena; se puede parametrizar via menuconfig
 - **Errores comunes**:
   - Exponer el array directamente como `extern` en lugar de usar funciones de acceso. Esto rompe el encapsulamiento y puede causar condiciones de carrera si multiples tareas acceden simultaneamente.
   - No considerar la concurrencia. El callback ESP-NOW y el handler HTTP pueden acceder al array de nodos simultaneamente. Agregar un mutex aunque sea un placeholder por ahora.
@@ -875,7 +875,7 @@ Esta sub-tarea mejora la observabilidad y confiabilidad del gateway, implementan
 ### Tarea T1.6.2: Configurar task watchdog
 
 - **Dificultad**: Intermedio
-- **Descripcion**: Configurar el Task Watchdog Timer (TWDT) para detectar y recuperarse automaticamente de bloqueos en el sistema. En un entorno de produccion (piscifactoria), el gateway debe ser capaz de reiniciarse si alguna tarea deja de responder. Paso a paso:
+- **Descripcion**: Configurar el Task Watchdog Timer (TWDT) para detectar y recuperarse automaticamente de bloqueos en el sistema. En un entorno de produccion industrial, el gateway debe ser capaz de reiniciarse si alguna tarea deja de responder. Paso a paso:
   1. En `main.c`, despues de todas las inicializaciones:
      a. Configurar el TWDT con `esp_task_wdt_config_t`:
         ```c

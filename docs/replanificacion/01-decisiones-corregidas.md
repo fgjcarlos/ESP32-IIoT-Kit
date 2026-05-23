@@ -5,7 +5,7 @@
 **Original**: 20 peers cifrados con AES-128
 **Corregido**: 20 peers SIN cifrar en v1.0
 
-**Motivo**: El hardware ESP-NOW soporta maximo 6 peers cifrados (con LMK/PMK). El plan original asumia 20 cifrados, lo cual es incorrecto. Con 6 peers cifrados, el sistema solo soportaria 6 nodos — insuficiente para una piscifactoria.
+**Motivo**: El hardware ESP-NOW soporta maximo 6 peers cifrados (con LMK/PMK). El plan original asumia 20 cifrados, lo cual es incorrecto. Con 6 peers cifrados, el sistema solo soportaria 6 nodos — insuficiente para una instalacion IIoT.
 
 **Mitigacion de seguridad sin cifrado**:
 - El rango de ESP-NOW es limitado (~200m linea de vista), lo que reduce la superficie de ataque
@@ -125,7 +125,7 @@
 **Original**: Tabla `sensor_readings` sin columna `gateway_id`
 **Corregido**: Agregar `gateway_id TEXT NOT NULL` a la tabla
 
-**Motivo**: El topic MQTT ya incluye gateway_id (`piscifactoria/{gateway_id}/nodo/...`). Si a futuro hay multiples gateways, la DB debe distinguirlos. Agregarlo ahora es gratis.
+**Motivo**: El topic MQTT ya incluye gateway_id (`{mqtt_ns}/{gateway_id}/nodo/...`). Si a futuro hay multiples gateways, la DB debe distinguirlos. Agregarlo ahora es gratis.
 
 ---
 

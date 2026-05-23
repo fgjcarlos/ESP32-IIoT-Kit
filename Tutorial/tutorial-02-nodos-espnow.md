@@ -4,7 +4,7 @@
 
 En el tutorial anterior conociste el panorama general del proyecto: un gateway central, nodos sensores distribuidos y el protocolo ESP-NOW como medio de comunicacion. Ahora vamos a sumergirnos en el corazon del sistema: los nodos autonomos.
 
-Un nodo autonomo es como un trabajador de campo en una granja acuicola. Se despierta, toma las mediciones del agua, envia su informe a la oficina central (el gateway) y se vuelve a dormir. No necesita supervision constante. No necesita estar conectado a la corriente. Funciona con bateria durante meses.
+Un nodo autonomo es como un trabajador de campo en una instalacion industrial. Se despierta, toma las mediciones del entorno monitorizado, envia su informe a la oficina central (el gateway) y se vuelve a dormir. No necesita supervision constante. No necesita estar conectado a la corriente. Funciona con bateria durante meses.
 
 En este tutorial vas a entender:
 
@@ -74,7 +74,7 @@ El ESP32 puede despertar del deep sleep por varias razones:
 
 4. Coprocesador ULP: un procesador ultra simple dentro del dominio RTC que puede ejecutar pequenos programas mientras la CPU principal duerme. Puede leer sensores analogicos y despertar a la CPU solo si el valor es interesante.
 
-Para nuestros nodos acuicolas, usamos exclusivamente el temporizador. El nodo se despierta cada N minutos (configurable, por defecto 5 minutos), hace su trabajo y vuelve a dormir.
+Para nuestros nodos IIoT, usamos exclusivamente el temporizador. El nodo se despierta cada N minutos (configurable, por defecto 5 minutos), hace su trabajo y vuelve a dormir.
 
 **Como sabe el programa si es arranque en frio o despertar de deep sleep?**
 
@@ -151,7 +151,7 @@ La alternativa: un protocolo binario con estructuras de tamano fijo.
 
 **La analogia: carta vs. telegrama**
 
-JSON es como enviar una carta: "Estimado senor, le informo que la temperatura del estanque numero tres es de veinticinco punto tres grados celsius y el pH medido a las catorce horas fue de siete punto uno".
+JSON es como enviar una carta: "Estimado senor, le informo que la temperatura de la zona numero tres es de veinticinco punto tres grados celsius y el pH medido a las catorce horas fue de siete punto uno".
 
 Un protocolo binario es como un telegrama donde cada caracter cuesta: "E3 T25.3 P7.1 H14". Cada posicion tiene un significado predefinido, ambas partes conocen el formato, no se necesitan etiquetas.
 
@@ -211,11 +211,11 @@ ESP-NOW es una maravilla de simplicidad: envias un paquete y llega al otro lado 
 Los paquetes se pueden perder por:
 - Interferencia de otras redes WiFi
 - Distancia excesiva entre nodo y gateway
-- Obstaculos fisicos (paredes, estructuras metalicas de los estanques)
+- Obstaculos fisicos (paredes, estructuras metalicas de la instalacion)
 - Colisiones si dos nodos transmiten al mismo tiempo
 - El gateway estaba ocupado procesando otro paquete
 
-Si un nodo envia una lectura de pH critico y ese paquete se pierde, nadie se entera. En una granja acuicola, eso puede significar la perdida de miles de peces.
+Si un nodo envia una lectura de pH critico y ese paquete se pierde, nadie se entera. En una instalacion industrial, eso puede significar un proceso fuera de control sin alerta.
 
 Por eso necesitamos un protocolo de fiabilidad encima de ESP-NOW. Nuestro protocolo tiene cuatro mecanismos:
 
@@ -309,7 +309,7 @@ Es como depositar un cheque con numero: si el banco recibe el cheque numero 1234
 
 ### Auto-discovery: nodos que se presentan solos
 
-Imagina que tienes 20 estanques y vas a instalar un nodo sensor en cada uno. No quieres tener que conectar cada nodo a un computador para configurarlo, ni editar un archivo en el gateway con las MAC de los 20 nodos.
+Imagina que tienes 20 zonas monitorizadas y vas a instalar un nodo sensor en cada una. No quieres tener que conectar cada nodo a un computador para configurarlo, ni editar un archivo en el gateway con las MAC de los 20 nodos.
 
 La solucion: auto-discovery. Cada nodo sabe presentarse solo.
 
@@ -448,7 +448,7 @@ El modo ahorro es un seguro: protege la bateria cuando las cosas van mal.
 
 **Otros factores que afectan la bateria:**
 
-- Temperatura: las baterias de litio rinden menos en frio. En climas tropicales (donde hay granjas acuicolas) esto generalmente no es problema.
+- Temperatura: las baterias de litio rinden menos en frio. En entornos con temperatura controlada esto generalmente no es problema.
 - Autodescarga: una bateria 18650 pierde ~2-3% de carga por mes estando quieta.
 - Regulador de voltaje: el circuito que convierte los 3.7V de la bateria a los 3.3V del ESP32 consume algo de corriente.
 - Sensores: si tus sensores consumen mucho, o tardan en estabilizarse, el tiempo activo aumenta.
@@ -527,11 +527,11 @@ Conforme avancemos al gateway en tutoriales futuros, necesitaras mas de FreeRTOS
 
 ## Como encaja en el proyecto
 
-La Fase 2 construye a los "trabajadores de campo" del sistema. Si la Fase 1 fue el plano general, la Fase 2 es donde construimos los sensores que van a estar en los estanques, midiendo 24/7.
+La Fase 2 construye a los "trabajadores de campo" del sistema. Si la Fase 1 fue el plano general, la Fase 2 es donde construimos los sensores que van a estar en las zonas monitorizadas, midiendo 24/7.
 
     Vista general del sistema:
 
-    Estanque 1        Estanque 2        Estanque 3
+    Zona 1            Zona 2            Zona 3
     +--------+        +--------+        +--------+
     | Nodo 1 |        | Nodo 2 |        | Nodo 3 |
     | pH+Temp|        | pH+T+OD|        | pH+Temp|
@@ -545,7 +545,7 @@ La Fase 2 construye a los "trabajadores de campo" del sistema. Si la Fase 1 fue 
     |  Recibe datos, guarda, envia a la nube |
     +----------------------------------------+
 
-Estos nodos autonomos son los ojos y oidos de la granja acuicola. Cada uno:
+Estos nodos autonomos son los ojos y oidos de la instalacion IIoT. Cada uno:
 
 - Se despierta periodicamente (cada 5 minutos)
 - Mide los parametros del agua (temperatura, pH, oxigeno disuelto, turbidez)
@@ -554,7 +554,7 @@ Estos nodos autonomos son los ojos y oidos de la granja acuicola. Cada uno:
 
 El protocolo de fiabilidad asegura que los datos no se pierdan silenciosamente. Si un paquete se pierde, se reintenta. Si el gateway esta caido, el nodo entra en modo ahorro para proteger la bateria.
 
-El auto-discovery hace que desplegar nuevos nodos sea trivial: sacas un nodo de la caja, lo enciendes junto al estanque y se integra al sistema solo.
+El auto-discovery hace que desplegar nuevos nodos sea trivial: sacas un nodo de la caja, lo enciendes en la zona correspondiente y se integra al sistema solo.
 
 La gestion de energia asegura meses de vida con una sola bateria, incluso en ubicaciones remotas donde cambiar baterias frecuentemente seria impráctico.
 
@@ -600,7 +600,7 @@ El RSSI (Received Signal Strength Indicator) te dice que tan fuerte llega la sen
 
 ## Experimenta
 
-Estas actividades te ayudan a internalizar los conceptos. No necesitas la granja acuicola completa, solo un ESP32 y curiosidad.
+Estas actividades te ayudan a internalizar los conceptos. No necesitas la instalacion industrial completa, solo un ESP32 y curiosidad.
 
 ---
 

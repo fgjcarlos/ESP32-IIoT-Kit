@@ -1,10 +1,12 @@
-# Fases de Implementacion: Piscifactoria ESP32
+# Fases de Implementacion: ESP32-IIoT-Kit
 
 ## Sobre estos documentos
 
-Cada fichero de esta carpeta contiene las **tareas detalladas** para una fase del proyecto. Estan diseñados para ser seguidos en orden secuencial por un programador junior. **No saltes fases**: cada una construye sobre la anterior.
+Cada fichero de esta carpeta contiene las **tareas detalladas** para una fase del proyecto ESP32-IIoT-Kit — una plataforma generica de monitorizacion industrial basada en ESP32. Estan diseñados para ser seguidos en orden secuencial por un programador junior. **No saltes fases**: cada una construye sobre la anterior.
 
 Antes de empezar una fase, lee el tutorial correspondiente en `Tutorial/` para entender los conceptos que vas a aplicar.
+
+> Si buscas implementar un caso de uso especifico (p. ej. acuicultura o planta industrial), consulta los ejemplos en `examples/fish-farm/`.
 
 ## Como usar las tareas
 
@@ -23,7 +25,7 @@ Cada tarea sigue este formato:
 | 1 | [Gateway - Nucleo](fase-01-gateway-nucleo.md) | Pendiente | - | - |
 | 2 | [Nodos sensores + ESP-NOW fiable](fase-02-nodos-espnow.md) | Pendiente | - | - |
 | 3 | [Sensores y actuadores](fase-03-sensores-actuadores.md) | Pendiente | - | - |
-| 4 | [MQTT + Dashboard web](fase-04-mqtt-dashboard.md) | Pendiente | - | - |
+| 4 | [Dashboard Embebido + API REST](fase-04-mqtt-dashboard.md) | Pendiente | - | - |
 | 5 | [OTA + Seguridad + Pruebas](fase-05-ota-optimizacion.md) | Pendiente | - | - |
 | 6 | [Mejoras futuras](fase-06-mejoras-futuras.md) | Pendiente | - | - |
 

@@ -40,7 +40,19 @@
 | Heap se agota | Verificar `cJSON_Delete()` y `free()` despues de cada uso |
 | `guru meditation error` | Null pointer, stack overflow, o division por cero. Ver backtrace |
 
+## Dashboard embebido (Preact SPA en SPIFFS)
+| Error | Solucion |
+|-------|----------|
+| HTTP 404 al pedir `/` | SPIFFS no montada, o archivo `index.html` no en la particion SPIFFS |
+| Build Vite no genera `dist/` | Ejecutar `npm run build` dentro de `firmware/gateway/web/` |
+| SPIFFS llena al flashear | Verificar `idf.py partition-table`: la particion SPIFFS debe tener suficiente espacio |
+| WebSocket se desconecta | El servidor no envia keepalive. Implementar ping cada 30s o reconectar en cliente |
+| CORS en fetch desde la SPA | Agregar `Access-Control-Allow-Origin: *` en las respuestas REST del HTTP server |
+| Valores de sensor no actualizan | WebSocket no suscrito al topic correcto, o el gateway no publica al conectar un nuevo cliente |
+
 ## Ver tambien
 - [[ESP-IDF]]
 - [[FreeRTOS]]
 - [[NVS]]
+- [[REST-API]]
+- [[WebSocket]]
