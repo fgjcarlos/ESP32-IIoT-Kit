@@ -159,3 +159,34 @@
 - T2.1.4 crea la interfaz: `sensor_manager_init()`, `sensor_manager_read()`, `sensor_manager_get_type()`
 - En Fase 2, la implementacion es simulada (valores aleatorios)
 - En Fase 3, se reemplaza la implementacion simulada por drivers reales
+
+---
+
+## DC-13: Migracion de MQTT plano a MQTT Sparkplug B en Fase 6
+
+**Original**: MQTT plano con topics custom como solucion definitiva
+**Corregido**: MQTT plano como paso formativo (Fase 4), migracion a Sparkplug B como evolucion (Fase 6)
+
+**Motivo**: Sparkplug B es el estandar de facto en IIoT/SCADA. La arquitectura gateway/nodos mapea directamente al modelo Edge of Network Node / Devices de Sparkplug. Sin embargo, implementarlo sin entender MQTT base primero elimina el valor didactico. El tutorial sigue un camino formativo: primero los fundamentos (MQTT plano), luego el estandar industrial (Sparkplug B).
+
+**Mapeo arquitectonico**:
+- EoN Node (Edge of Network) = Gateway ESP32-S3
+- Devices = Nodos sensores (representados por el gateway en el broker)
+- NBIRTH/NDEATH = estado del gateway
+- DBIRTH/DDEATH/DDATA = estado y datos de cada nodo sensor
+
+**Implementacion**:
+- Fase 4: MQTT plano con topics custom — se aprende publish/subscribe, QoS, retain, LWT
+- Fase 6 (nueva tarea T6.3): Migracion a Sparkplug B
+  - Integracion de nanopb (Protobuf lite para C) en el gateway
+  - State machine Sparkplug: NBIRTH, NDEATH, DBIRTH, DDEATH, NDATA, DDATA, NCMD, DCMD
+  - Topics estandarizados: `spBv1.0/{group_id}/{msg_type}/{edge_node_id}/{device_id}`
+  - Payloads Protobuf con metricas tipadas
+  - Birth/Death certificates automaticos
+  - Adaptacion del servidor y dashboard para consumir Sparkplug B
+- Los nodos sensores NO se ven afectados (hablan ESP-NOW, no MQTT)
+
+**Impacto en recursos del gateway**:
+- Flash: nanopb anade ~20-30KB al firmware
+- RAM: buffers de serializacion Protobuf (~1-2KB por mensaje)
+- ESP32-S3 con 8MB flash y 2MB PSRAM soporta esto sin problema

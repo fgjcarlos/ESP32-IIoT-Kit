@@ -372,6 +372,26 @@ Timeout cambiado de 60s a 120s para dar margen al init completo (WiFi + MQTT + S
 - Overhead: ~16 bytes de tag + ~16 bytes de IV = 32 bytes extra por mensaje
 - Payload efectivo: 250 - 13 (header) - 32 (crypto) = 205 bytes (suficiente)
 
+**T6.3 (nueva): Migracion a MQTT Sparkplug B**
+- Objetivo formativo: tras dominar MQTT plano en Fase 4, adoptar el estandar industrial IIoT
+- Subtareas:
+  1. Integrar nanopb como componente ESP-IDF en el gateway
+  2. Generar los .c/.h desde el .proto de Sparkplug B (`sparkplug_b.proto`)
+  3. Implementar state machine Sparkplug en `mqtt_bridge.c`:
+     - NBIRTH al conectar el gateway al broker
+     - NDEATH como LWT (Will Message) con Protobuf
+     - DBIRTH por cada nodo sensor registrado
+     - DDEATH cuando un nodo deja de reportar (timeout)
+     - DDATA para datos de sensores (reemplaza los publish custom de Fase 4)
+     - NCMD/DCMD para comandos desde el servidor
+  4. Cambiar topic namespace: `spBv1.0/piscifactoria/{msg_type}/{gateway_id}/{node_id}`
+  5. Adaptar el servidor (Bun/Node) para decodificar payloads Protobuf Sparkplug
+  6. Adaptar el dashboard para consumir la nueva estructura de datos
+  7. Mantener retrocompatibilidad temporal: flag en NVS para elegir MQTT plano o Sparkplug B
+- Los nodos sensores NO requieren cambios (hablan ESP-NOW, no MQTT)
+- Dependencias: T4.1.2 (MQTT bridge funcionando), T6.1 (relay, si se implemento)
+- Tiempo estimado: 12-16 horas (gateway 6-8h, servidor 3-4h, dashboard 3-4h)
+
 ---
 
 ## Tabla de dependencias inter-fase

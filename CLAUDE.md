@@ -124,6 +124,8 @@ piscifactoria/
 
 ## MQTT Topic Hierarchy
 
+### Fase 4: MQTT plano (paso formativo)
+
 ```
 piscifactoria/{gateway_id}/nodo/{nodo_id}/temperatura
 piscifactoria/{gateway_id}/nodo/{nodo_id}/status
@@ -133,6 +135,22 @@ piscifactoria/{gateway_id}/config/nodo/{nodo_id}
 ```
 
 - QoS 1 for sensor data, QoS 2 for actuator commands.
+
+### Fase 6: MQTT Sparkplug B (objetivo final)
+
+```
+spBv1.0/piscifactoria/NBIRTH/{gateway_id}
+spBv1.0/piscifactoria/NDEATH/{gateway_id}
+spBv1.0/piscifactoria/DBIRTH/{gateway_id}/{nodo_id}
+spBv1.0/piscifactoria/DDEATH/{gateway_id}/{nodo_id}
+spBv1.0/piscifactoria/DDATA/{gateway_id}/{nodo_id}
+spBv1.0/piscifactoria/NCMD/{gateway_id}
+spBv1.0/piscifactoria/DCMD/{gateway_id}/{nodo_id}
+```
+
+- Payloads encoded with Protobuf (nanopb on ESP32, protobufjs on server).
+- Gateway maps as EoN Node, sensor nodes map as Devices.
+- Birth/Death certificates provide automatic device state management.
 
 ## ESP-NOW Message Protocol
 
