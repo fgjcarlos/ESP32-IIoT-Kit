@@ -1,19 +1,21 @@
-# Piscifactoria ESP32
+# ESP32-IIoT-Kit
 
-Sistema de monitorizacion inteligente para piscifactorias construido con microcontroladores ESP32.
+Plataforma generica de monitorizacion industrial construida con microcontroladores ESP32.
 
-**Proyecto educativo** — aprendiendo ESP-IDF, comunicaciones inalambricas, IoT y desarrollo fullstack construyendo algo real.
+**Proyecto educativo** — aprendiendo ESP-IDF, comunicaciones inalambricas, IoT y desarrollo de interfaces embebidas construyendo algo real.
+
+> ¿Buscas una implementacion concreta? Consulta `examples/fish-farm/` para el caso de uso de piscifactoria sobre esta misma plataforma.
 
 ## Arquitectura
 
 ```
-Servidor (MQTT + API + Dashboard)
+Servidor (MQTT + API REST) — opcional
         │
-   MQTT (WiFi)
+   MQTT opcional (WiFi STA)
         │
    ┌────▼────┐
-   │ Gateway  │ ← WiFi AP (config web)
-   │ ESP32-S3 │   ESP-NOW + WiFi APSTA + MQTT
+   │ Gateway  │ ← WiFi AP + Dashboard Preact embebido (SPIFFS)
+   │ ESP32-S3 │   ESP-NOW + WiFi APSTA + API REST local
    └────┬────┘
         │ ESP-NOW
    ┌────┼────────┐
@@ -25,9 +27,9 @@ Servidor (MQTT + API + Dashboard)
 | Capa | Tecnologia |
 |------|------------|
 | Firmware | C + ESP-IDF v5.x |
-| Comunicacion | ESP-NOW + WiFi + MQTT |
-| Backend | Bun + TypeScript + SQLite |
-| Frontend | Vite + React + Tailwind |
+| Comunicacion | ESP-NOW + WiFi + MQTT (opcional) |
+| Dashboard embebido | Preact + Vite (SPIFFS en gateway) |
+| Backend opcional | Bun + TypeScript + SQLite |
 
 ## Documentacion
 
@@ -36,6 +38,7 @@ Servidor (MQTT + API + Dashboard)
 - `Fases/` — Tareas detalladas con criterios de aceptacion
 - `knowledge/` — Vault Obsidian con notas de aprendizaje
 - `docs/replanificacion/` — Decisiones tecnicas y protocolo
+- `examples/fish-farm/` — Caso de uso: monitorizacion de piscifactoria
 
 ## Fases
 
@@ -45,7 +48,7 @@ Servidor (MQTT + API + Dashboard)
 | 1 | Gateway - Nucleo | 5 |
 | 2 | Nodos + ESP-NOW fiable | 5 |
 | 3 | Sensores y actuadores | 3 |
-| 4 | MQTT + Dashboard web | 4 |
+| 4 | Dashboard Embebido + API REST | 4 |
 | 5 | OTA + Seguridad + Pruebas | 5 |
 
 ## Licencia

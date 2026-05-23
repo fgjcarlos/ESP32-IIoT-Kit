@@ -302,7 +302,7 @@ All Wave 4 tasks can run in parallel with each other. They have no dependencies 
 
 ---
 
-### T-11 — Create examples/fish-farm/ directory and README.md
+### [x] T-11 — Create examples/fish-farm/ directory and README.md
 
 **Spec requirements**: Fish-Farm Example Directory (example-projects), DS18B20 as Universal Sensor Example (example-projects)
 
@@ -322,7 +322,7 @@ All Wave 4 tasks can run in parallel with each other. They have no dependencies 
 
 ---
 
-### T-12 — Create examples/fish-farm/sensors.md
+### [x] T-12 — Create examples/fish-farm/sensors.md
 
 **Spec requirements**: Fish-Farm Example Directory (example-projects), DS18B20 as Universal Sensor Example (example-projects)
 
@@ -343,7 +343,7 @@ All Wave 4 tasks can run in parallel with each other. They have no dependencies 
 
 ---
 
-### T-13 — Create examples/fish-farm/mqtt-topics.md
+### [x] T-13 — Create examples/fish-farm/mqtt-topics.md
 
 **Spec requirements**: Fish-Farm MQTT Topics in Example (configurable-mqtt-namespace), Configurable Namespace in Protocol Docs (configurable-mqtt-namespace)
 
@@ -364,7 +364,7 @@ All Wave 4 tasks can run in parallel with each other. They have no dependencies 
 
 ---
 
-### T-14 — Create knowledge/Decisiones/004-iiot-kit-transformation.md
+### [x] T-14 — Create knowledge/Decisiones/004-iiot-kit-transformation.md
 
 **Spec requirements**: Repository Name Update (repo-rename) — ADR requirement
 
@@ -384,7 +384,7 @@ All Wave 4 tasks can run in parallel with each other. They have no dependencies 
 
 ---
 
-### T-15 — Create knowledge/Conceptos/Preact.md, REST-API.md, WebSocket.md
+### [x] T-15 — Create knowledge/Conceptos/Preact.md, REST-API.md, WebSocket.md
 
 **Spec requirements**: Project Identity Files Updated — knowledge vault updated (tutorial-narrative)
 
@@ -418,7 +418,7 @@ Wave 5 tasks touch many files but each is a contained "find fish-farm language a
 
 ---
 
-### T-16 — Narrative sweep: all remaining Fases/ files (minor updates)
+### [x] T-16 — Narrative sweep: all remaining Fases/ files (minor updates)
 
 **Spec requirements**: Generic IIoT Framing Across All Docs (tutorial-narrative)
 
@@ -451,7 +451,7 @@ Files to update (minor changes):
 
 ---
 
-### T-17 — Narrative sweep: all remaining Tutorial/ files (minor updates)
+### [x] T-17 — Narrative sweep: all remaining Tutorial/ files (minor updates)
 
 **Spec requirements**: Generic IIoT Framing Across All Docs (tutorial-narrative)
 
@@ -483,7 +483,7 @@ Files to update (minor changes):
 
 ---
 
-### T-18 — Update mkdocs.yml and docs_site/index.md
+### [x] T-18 — Update mkdocs.yml and docs_site/index.md
 
 **Spec requirements**: MkDocs Site Name and Navigation (repo-rename), Repository Name Update (repo-rename)
 
@@ -516,7 +516,7 @@ Update `docs_site/index.md`:
 
 ---
 
-### T-19 — Update README.md
+### [x] T-19 — Update README.md
 
 **Spec requirements**: Project Identity Files Updated (tutorial-narrative), Repository Name Update (repo-rename)
 
@@ -537,7 +537,7 @@ Update `docs_site/index.md`:
 
 ---
 
-### T-20 — Update docs/replanificacion/ supporting files
+### [x] T-20 — Update docs/replanificacion/ supporting files
 
 **Spec requirements**: Generic IIoT Framing Across All Docs (tutorial-narrative), Configurable Namespace in Protocol Docs (configurable-mqtt-namespace)
 
@@ -561,7 +561,7 @@ Update `docs_site/index.md`:
 
 ---
 
-### T-21 — Update remaining knowledge/ files
+### [x] T-21 — Update remaining knowledge/ files
 
 **Spec requirements**: Generic IIoT Framing Across All Docs (tutorial-narrative), Sensor Type Enum (sensor-protocol)
 

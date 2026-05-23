@@ -33,7 +33,7 @@ La diferencia fundamental esta en la arquitectura del procesador. La S3 usa Xten
 
 **Analogia**: Piensa en la S3 como el "gerente de oficina". Tiene un escritorio grande (mas RAM), dos manos para hacer varias cosas a la vez (dual-core) y herramientas avanzadas (aceleracion IA). La C3 es el "trabajador de campo": lleva una mochila ligera (menos RAM), trabaja con una mano (single-core), pero es extremadamente eficiente con la bateria y cumple su tarea sin desperdiciar recursos.
 
-En nuestro proyecto de acuicultura:
+En nuestro proyecto IIoT:
 
 - El **ESP32-S3** actua como **gateway** (puerta de enlace). Necesita gestionar WiFi, ESP-NOW, MQTT, una interfaz web y coordinar multiples nodos. Necesita musculo.
 - El **ESP32-C3** actua como **nodo sensor**. Su trabajo es leer sensores, enviar datos por ESP-NOW y dormir. Necesita eficiencia, no potencia bruta.
@@ -221,7 +221,7 @@ Para hablar con el Sensor A, el ESP32 pone CS_A en bajo. Para hablar con B, pone
 
 **1-Wire**
 
-Un solo cable de datos (mas tierra). Usado por sensores como el DS18B20 (sensor de temperatura sumergible, muy comun en acuicultura).
+Un solo cable de datos (mas tierra). Usado por sensores como el DS18B20 (sensor de temperatura sumergible, muy util en entornos IIoT).
 
     ESP32              DS18B20 #1       DS18B20 #2       DS18B20 #3
     [GPIO] ------+----------+----------------+----------------+
@@ -272,7 +272,7 @@ El ADC del ESP32 tiene resolucion de 12 bits, lo que significa que puede disting
 
 **Analogia**: El ADC es como una regla para medir voltajes. Tiene marcas del 0 al 4095. Pero imagina que las marcas de la regla no estan perfectamente espaciadas: algunas estan mas juntas, otras mas separadas. Si mides con esa regla sin corregir, tus medidas tendran error. La calibracion es como crear una tabla de correcciones: "cuando la regla dice 2000, en realidad son 1980". ESP-IDF incluye rutinas de calibracion que hacen esto automaticamente usando datos almacenados de fabrica en el eFuse del chip.
 
-Para un proyecto de acuicultura donde medimos pH con precision de 0.1, la calibracion del ADC no es opcional: es imprescindible.
+Para un proyecto IIoT donde medimos variables con precision, la calibracion del ADC no es opcional: es imprescindible. Por ejemplo, en un sistema de monitorizacion de agua donde medimos pH con precision de 0.1, un ADC sin calibrar puede introducir errores significativos.
 
 ---
 
@@ -516,6 +516,8 @@ Sin entender estos fundamentos, las fases posteriores seran como construir un ed
 - Documentacion de particiones: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/partition-tables.html
 - Guia del sistema de build (CMake): https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/build-system.html
 - Blog de Espressif (articulos tecnicos y tutoriales): https://blog.espressif.com/
+- Documentacion de Preact (dashboard embebido, Fase 4): https://preactjs.com/
+- Documentacion de Vite (bundler para el dashboard embebido): https://vitejs.dev/
 
 ---
 

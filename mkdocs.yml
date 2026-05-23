@@ -1,5 +1,5 @@
-site_name: "Piscifactoria ESP32 — Tutorial"
-site_description: "Sistema de monitorizacion inteligente para piscifactorias con ESP32. Proyecto educativo con ESP-IDF."
+site_name: "ESP32-IIoT-Kit — Tutorial"
+site_description: "Plataforma generica de monitorizacion industrial con ESP32. Proyecto educativo con ESP-IDF."
 site_url: "https://fgjcarlos.github.io/ESP32-fg/"
 repo_url: "https://github.com/fgjcarlos/ESP32-fg"
 repo_name: fgjcarlos/ESP32-fg
@@ -67,7 +67,7 @@ nav:
     - "Fase 1: Gateway": tutorial/tutorial-01-gateway-nucleo.md
     - "Fase 2: Nodos + ESP-NOW": tutorial/tutorial-02-nodos-espnow.md
     - "Fase 3: Sensores": tutorial/tutorial-03-sensores-actuadores.md
-    - "Fase 4: MQTT + Dashboard": tutorial/tutorial-04-mqtt-dashboard.md
+    - "Fase 4: Dashboard Embebido + API REST": tutorial/tutorial-04-mqtt-dashboard.md
     - "Fase 5: OTA + Seguridad": tutorial/tutorial-05-ota-optimizacion.md
     - "Fase 6: Mejoras futuras": tutorial/tutorial-06-mejoras-futuras.md
   - Tareas:

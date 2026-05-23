@@ -26,6 +26,8 @@
 | ESP-IDF Extension para VS Code | Ultima estable | https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension |
 | Git | >= 2.x | https://git-scm.com/ |
 | Python | >= 3.8 (requerido por ESP-IDF) | https://www.python.org/ |
+| Node.js | >= 18.x (para herramientas Preact/Vite en Fase 4) | https://nodejs.org/ |
+| Vite | >= 5.x (bundler para el dashboard embebido Preact) | https://vitejs.dev/ |
 
 ---
 
@@ -793,9 +795,9 @@
      ```c
      wifi_config_t ap_config = {
          .ap = {
-             .ssid = "Piscifactoria-GW",
-             .ssid_len = strlen("Piscifactoria-GW"),
-             .password = "piscifactoria123",
+             .ssid = "IIoT-Gateway",
+             .ssid_len = strlen("IIoT-Gateway"),
+             .password = "iiot-kit2024",
              .channel = 1,
              .max_connection = 4,
              .authmode = WIFI_AUTH_WPA2_PSK,
@@ -818,7 +820,7 @@
 - **Archivos a crear/modificar**:
   - `firmware/gateway/main/main.c` (modificar)
 - **Criterio de aceptacion**:
-  - El ESP32-S3 crea una red WiFi llamada "Piscifactoria-GW" visible desde un movil
+  - El ESP32-S3 crea una red WiFi llamada "IIoT-Gateway" visible desde un movil
   - El ESP32-S3 se conecta simultaneamente al router (obtiene IP por DHCP)
   - El log muestra ambos eventos: "AP started" y "STA got IP: x.x.x.x"
   - No hay errores de inicializacion en el log
@@ -837,7 +839,7 @@
   1. Flashear el firmware con la configuracion APSTA.
   2. Verificar que el log muestra que el AP ha arrancado y que STA ha obtenido IP del router.
   3. Desde un movil:
-     - Buscar redes WiFi y conectarse a "Piscifactoria-GW" con la contraseña configurada.
+     - Buscar redes WiFi y conectarse a "IIoT-Gateway" con la contraseña configurada.
      - Verificar que el movil obtiene IP (tipicamente 192.168.4.x).
      - Verificar en el log del ESP32 que muestra el evento `WIFI_EVENT_AP_STACONNECTED` con la MAC del movil.
   4. Verificar la STA:
@@ -847,7 +849,7 @@
 - **Archivos a crear/modificar**:
   - `firmware/gateway/main/main.c` (modificar si es necesario para imprimir IPs)
 - **Criterio de aceptacion**:
-  - Un movil puede conectarse a la red "Piscifactoria-GW" y obtiene IP del DHCP del ESP32
+  - Un movil puede conectarse a la red "IIoT-Gateway" y obtiene IP del DHCP del ESP32
   - El ESP32 muestra en el log cuando un cliente se conecta al AP
   - La interfaz STA obtiene IP del router
   - `ping` desde el movil conectado al AP llega al ESP32 (IP por defecto 192.168.4.1)
@@ -880,7 +882,7 @@
      (En pruebas, hardcodear el canal. En produccion, se comunicara dinamicamente.)
   5. Verificar simultaneamente:
      - ESP-NOW recibe datos del nodo C3.
-     - Un movil esta conectado al AP "Piscifactoria-GW".
+     - Un movil esta conectado al AP "IIoT-Gateway".
      - STA esta conectado al router.
   6. Documentar si hay perdida de paquetes ESP-NOW al tener APSTA activo vs solo ESP-NOW.
 - **Archivos a crear/modificar**:

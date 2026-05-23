@@ -7,7 +7,7 @@ Fase 0: Preparacion y aprendizaje .......... 3 semanas (sin cambios)
 Fase 1: Gateway - Nucleo ................... 5 semanas (+1 semana por ACK y validacion)
 Fase 2: Nodos sensores + ESP-NOW fiable .... 5 semanas (+1 semana por WiFi dormido y discovery)
 Fase 3: Sensores y actuadores .............. 3 semanas (sin cambios)
-Fase 4: MQTT + Dashboard web ............... 4 semanas (sin cambios)
+Fase 4: Dashboard Embebido + API REST ...... 4 semanas (sin cambios)
 Fase 5: OTA + Seguridad + Pruebas .......... 5 semanas (+1 semana por NVS encryption y tests)
 Fase 6: Mejoras futuras .................... Continuo
 
@@ -253,7 +253,7 @@ Motivo: acumular una lectura de hace 5 minutos con una de ahora no tiene sentido
 
 ---
 
-## Fase 4: MQTT + Dashboard web (4 semanas)
+## Fase 4: Dashboard Embebido + API REST (4 semanas)
 
 ### Cambios respecto al plan original
 
@@ -384,7 +384,7 @@ Timeout cambiado de 60s a 120s para dar margen al init completo (WiFi + MQTT + S
      - DDEATH cuando un nodo deja de reportar (timeout)
      - DDATA para datos de sensores (reemplaza los publish custom de Fase 4)
      - NCMD/DCMD para comandos desde el servidor
-  4. Cambiar topic namespace: `spBv1.0/piscifactoria/{msg_type}/{gateway_id}/{node_id}`
+  4. Cambiar topic namespace: `spBv1.0/{mqtt_ns}/{msg_type}/{gateway_id}/{node_id}`
   5. Adaptar el servidor (Bun/Node) para decodificar payloads Protobuf Sparkplug
   6. Adaptar el dashboard para consumir la nueva estructura de datos
   7. Mantener retrocompatibilidad temporal: flag en NVS para elegir MQTT plano o Sparkplug B

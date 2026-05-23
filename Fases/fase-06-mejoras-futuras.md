@@ -105,7 +105,7 @@ En v1.0, cada nodo debe poder alcanzar directamente al gateway por ESP-NOW (~200
 
 ### Contexto
 
-Los umbrales fijos (alerta si temperatura > 28°C) son utiles pero limitados. Un modelo de ML puede aprender que es "normal" para tu piscifactoria y detectar anomalias sutiles: una caida gradual de oxigeno disuelto, una correlacion inusual entre pH y temperatura, o patrones que preceden a problemas antes de que los umbrales se activen.
+Los umbrales fijos (alerta si temperatura > 28°C) son utiles pero limitados. Un modelo de ML puede aprender que es "normal" para tu instalacion IIoT y detectar anomalias sutiles: una caida gradual de un parametro, una correlacion inusual entre variables, o patrones que preceden a problemas antes de que los umbrales se activen. Por ejemplo, en un sistema de monitorizacion de calidad del agua, el modelo podria detectar correlaciones entre oxigeno disuelto, pH y temperatura antes de que cualquier umbral se active.
 
 ### Tarea T6.3.1: Entrenar modelo de deteccion de anomalias
 
@@ -145,7 +145,7 @@ Los umbrales fijos (alerta si temperatura > 28°C) son utiles pero limitados. Un
 
 ### Contexto
 
-Algunas piscifactorias no tienen cobertura WiFi o la conexion es inestable. Un modulo 4G/LTE proporciona conectividad a internet via red movil, independiente de la infraestructura local. Se usa como backup: si WiFi falla, se activa 4G automaticamente.
+Algunas instalaciones industriales no tienen cobertura WiFi o la conexion es inestable. Un modulo 4G/LTE proporciona conectividad a internet via red movil, independiente de la infraestructura local. Se usa como backup: si WiFi falla, se activa 4G automaticamente.
 
 ### Tarea T6.4.1: Integrar modulo SIM7600 con gateway
 
@@ -227,7 +227,7 @@ Si MQTT no esta disponible (WiFi caido, broker offline, sin 4G), los datos de se
 
 ### Contexto
 
-El dashboard v1.0 no tiene autenticacion (o tiene una basica compartida). Para un despliegue real, se necesitan diferentes usuarios con diferentes permisos, y una API publica para integracion con otros sistemas (ERP de la piscifactoria, sistemas de alerta por SMS, etc.).
+El dashboard v1.0 no tiene autenticacion (o tiene una basica compartida). Para un despliegue real en una instalacion industrial, se necesitan diferentes usuarios con diferentes permisos, y una API publica para integracion con otros sistemas (ERP de la planta, sistemas de alerta por SMS, etc.).
 
 ### Tarea T6.6.1: Sistema de autenticacion con roles
 

@@ -1,10 +1,10 @@
-# Tutorial: Sistema de Monitorizacion Inteligente para Piscifactoria
+# Tutorial: ESP32-IIoT-Kit — Plataforma de Monitorizacion Industrial
 
 ## Que es este proyecto
 
-Este proyecto consiste en construir un sistema completo de monitorizacion y control para piscifactorias (granjas de peces) utilizando microcontroladores ESP32. El sistema mide parametros criticos del agua como temperatura, pH, oxigeno disuelto, ORP y nivel, enviando los datos de forma inalambrica a un gateway central que los procesa, almacena y visualiza en un dashboard web.
+Este proyecto consiste en construir un sistema completo de monitorizacion y control para entornos industriales utilizando microcontroladores ESP32. El sistema mide parametros criticos del entorno como temperatura, pH, humedad, presion y nivel, enviando los datos de forma inalambrica a un gateway central que los procesa, almacena y visualiza en un dashboard embebido y una interfaz web.
 
-La arquitectura se basa en nodos sensores autonomos (ESP32-C3) que funcionan con bateria durante meses, un gateway central (ESP32-S3) que coordina todo el sistema, y un servidor con dashboard para visualizacion remota. La comunicacion entre nodos y gateway usa ESP-NOW, un protocolo ligero y eficiente de Espressif que no requiere router WiFi.
+La arquitectura se basa en nodos sensores autonomos (ESP32-C3) que funcionan con bateria durante meses, un gateway central (ESP32-S3) que coordina todo el sistema, y un dashboard Preact embebido en el propio gateway para acceso local sin servidor externo. La comunicacion entre nodos y gateway usa ESP-NOW, un protocolo ligero y eficiente de Espressif que no requiere router WiFi.
 
 Este es un **proyecto educativo**. El objetivo principal es aprender desarrollo de sistemas embebidos con ESP-IDF, comunicaciones inalambricas, protocolos IoT y desarrollo web fullstack, construyendo algo real y funcional.
 
@@ -16,7 +16,7 @@ Este es un **proyecto educativo**. El objetivo principal es aprender desarrollo 
 - **Gestion de energia**: deep sleep, presupuestos de consumo, optimizacion bateria
 - **Sensores y actuadores**: I2C, SPI, ADC, 1-Wire, calibracion
 - **Servidor web embebido**: HTTP server en un microcontrolador
-- **Backend y frontend**: Bun/TypeScript, React, bases de datos de series temporales
+- **Dashboard embebido**: Preact + Vite SPA servida desde SPIFFS del gateway
 - **OTA (Over-The-Air)**: actualizaciones remotas de firmware
 - **Seguridad en IoT**: cifrado, TLS, autenticacion
 
@@ -33,29 +33,29 @@ Antes de empezar necesitas:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              SERVIDOR (LAN / Cloud)              │
+│              SERVIDOR (LAN / Cloud) — opcional   │
 │                                                  │
-│  Mosquitto ←→ API Bun/TS + SQLite ←→ Dashboard  │
-│  (Broker MQTT)     (Backend)       (React + Vite)│
+│       Mosquitto ←→ API REST + SQLite             │
+│       (Broker MQTT)   (opcional, escalado)       │
 └────────┬─────────────────────────────────────────┘
-         │ MQTT por WiFi
+         │ MQTT por WiFi (opcional)
          │
 ┌────────▼────────┐
-│    GATEWAY       │ ←── WiFi AP (panel web embebido)
+│    GATEWAY       │ ←── WiFi AP + dashboard Preact embebido
 │    ESP32-S3      │
 │                  │     Recibe datos de todos los nodos
-│  WiFi AP + STA   │     Publica por MQTT al servidor
-│  + ESP-NOW       │     Sirve pagina web de configuracion
+│  WiFi AP + STA   │     Sirve SPA Preact desde SPIFFS
+│  + ESP-NOW       │     API REST local + MQTT opcional
 └────────┬────────┘
          │ ESP-NOW (sin router, directo por radio)
          │
     ┌────┼────────────┐
     │    │            │
  Nodo A  Nodo B    Nodo C        ← ESP32-C3 con bateria
- Temp/DO  pH/ORP   Nivel
+ Temp    Nivel     Variables
 ```
 
-**Flujo de datos**: Un nodo sensor se despierta del deep sleep, lee su sensor, envia los datos por ESP-NOW al gateway, y vuelve a dormir. El gateway recibe los datos, los muestra en su panel web local, y los publica por MQTT al servidor. El dashboard web los muestra en tiempo real con graficos.
+**Flujo de datos**: Un nodo sensor se despierta del deep sleep, lee su sensor, envia los datos por ESP-NOW al gateway, y vuelve a dormir. El gateway recibe los datos, los sirve a traves del dashboard Preact embebido, y opcionalmente los publica por MQTT a un servidor externo. Todo funciona sin infraestructura de servidor si se prefiere.
 
 ## Mapa de tutoriales
 

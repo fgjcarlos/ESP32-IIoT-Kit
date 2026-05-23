@@ -1,7 +1,7 @@
 # Tutorial 1: Construyendo el Cerebro del Sistema
 
 > **Fase 1 -- Gateway (Nucleo)**
-> Este tutorial te guia por los conceptos fundamentales que hacen funcionar el gateway de nuestro sistema de monitorizacion de piscifactoria. No vamos a copiar y pegar codigo: vamos a *entender* que hace cada pieza y por que esta ahi.
+> Este tutorial te guia por los conceptos fundamentales que hacen funcionar el gateway de nuestro sistema de monitorizacion IIoT. No vamos a copiar y pegar codigo: vamos a *entender* que hace cada pieza y por que esta ahi.
 
 ---
 
@@ -35,10 +35,10 @@ NVS funciona con un modelo de **clave-valor**. Piensa en un diccionario:
     +---------------------+---------------------------+
     | Clave               | Valor                     |
     +---------------------+---------------------------+
-    | "wifi_ssid"         | "PiscifactoriaWiFi"       |
-    | "wifi_pass"         | "truchas2025"             |
+    | "wifi_ssid"         | "IIoT-Red-Local"          |
+    | "wifi_pass"         | "clave-segura"            |
     | "sensor_intervalo"  | 30                        |
-    | "nombre_gateway"    | "GW-Estanque-Norte"       |
+    | "nombre_gateway"    | "GW-Zona-Norte"           |
     +---------------------+---------------------------+
 
 Cada entrada tiene un nombre (la clave) y un dato (el valor). Los tipos de datos soportados incluyen enteros de 8, 16, 32 y 64 bits, strings de texto y blobs (datos binarios arbitrarios, como una tabla de calibracion).
@@ -47,7 +47,7 @@ Cada entrada tiene un nombre (la clave) y un dato (el valor). Los tipos de datos
 
 **Proteccion contra corrupcion**: que pasa si se corta la luz justo cuando NVS estaba escribiendo un dato? NVS usa una tecnica llamada *journaling*: antes de modificar un dato, escribe la intencion en un registro temporal. Si la operacion se interrumpe, al reiniciar NVS puede detectar la inconsistencia y recuperarse. No es perfecto (la flash tiene un numero limitado de escrituras), pero es mucho mas robusto que escribir directamente en la flash sin proteccion.
 
-En nuestro gateway, NVS guarda las credenciales WiFi, el nombre de la red AP, parametros del sistema y cualquier configuracion que el usuario modifique desde la pagina web. Sin NVS, cada vez que el gateway se reinicia (por un corte de luz, por un watchdog, por una actualizacion) habria que reconfigurarlo manualmente. En una piscifactoria remota, eso no es una opcion.
+En nuestro gateway, NVS guarda las credenciales WiFi, el nombre de la red AP, parametros del sistema y cualquier configuracion que el usuario modifique desde la pagina web. Sin NVS, cada vez que el gateway se reinicia (por un corte de luz, por un watchdog, por una actualizacion) habria que reconfigurarlo manualmente. En una instalacion industrial remota, eso no es una opcion.
 
 ---
 
@@ -69,7 +69,7 @@ Por que necesitamos ambos? Piensa en el escenario real:
          (configuracion,                         (enviar datos al
           emergencias)                            servidor, MQTT)
 
-El **modo AP** es tu puerta de emergencia. Imagina que el router de la piscifactoria se estropea. Sin el modo AP, no tendrias forma de acceder al gateway para ver que esta pasando o cambiar la configuracion. Con el AP, simplemente te conectas directamente al gateway con tu movil, abres el navegador y accedes al panel web. Funciona aunque no haya internet.
+El **modo AP** es tu puerta de emergencia. Imagina que el router de la instalacion se estropea. Sin el modo AP, no tendrias forma de acceder al gateway para ver que esta pasando o cambiar la configuracion. Con el AP, simplemente te conectas directamente al gateway con tu movil, abres el navegador y accedes al panel web. Funciona aunque no haya internet.
 
 El **modo STA** es la conexion al mundo exterior. A traves del router de la instalacion, el gateway envia datos a la nube, sincroniza la hora, y en fases futuras publicara datos via MQTT.
 
@@ -254,7 +254,7 @@ La sincronizacion no es instantanea ni perfecta, pero para nuestro caso de uso (
 
 ### Watchdog: el guardian del sistema
 
-Imagina este escenario: tu gateway lleva funcionando tres meses sin problemas en una piscifactoria remota a 40 km de la ciudad mas cercana. Una noche, un bug raro en el software que nunca se habia manifestado causa un bloqueo. El firmware entra en un bucle infinito, o un deadlock entre dos tareas deja el sistema completamente congelado. El WiFi deja de funcionar. Los nodos siguen enviando datos pero nadie los recibe. Los peces podrian estar en peligro y nadie se entera.
+Imagina este escenario: tu gateway lleva funcionando tres meses sin problemas en una instalacion industrial remota a 40 km de la ciudad mas cercana. Una noche, un bug raro en el software que nunca se habia manifestado causa un bloqueo. El firmware entra en un bucle infinito, o un deadlock entre dos tareas deja el sistema completamente congelado. El WiFi deja de funcionar. Los nodos siguen enviando datos pero nadie los recibe. Los parametros monitorizados podrian estar fuera de rango y nadie se entera.
 
 En un PC, simplemente reiniciarias. Pero nadie va a conducir 40 km a las 3 de la madrugada para pulsar un boton de reset.
 
@@ -333,13 +333,13 @@ En nuestro gateway, el backoff se implementa con un simple multiplicador. Cada v
 
 ## Como encaja en el proyecto
 
-Esta Fase 1 construye el **cerebro** del sistema de monitorizacion. Piensa en la piscifactoria como un organismo:
+Esta Fase 1 construye el **cerebro** del sistema de monitorizacion. Piensa en la instalacion IIoT como un organismo:
 
     +-----------------------------------------------------------+
-    |                    PISCIFACTORIA                           |
+    |               INSTALACION INDUSTRIAL / IIoT               |
     |                                                           |
     |   [Nodo 1]    [Nodo 2]    [Nodo 3]    [Nodo 4]          |
-    |   Temp/pH     Temp/pH     Oxigeno     Nivel agua          |
+    |   Temp/pH     Temp/pH     Oxigeno     Nivel               |
     |      \           |           |           /                |
     |       \          |           |          /                 |
     |        \  (ESP-NOW, Fase 2) |         /                  |
@@ -429,7 +429,7 @@ La sincronizacion SNTP requiere una conexion WiFi STA activa y puede tardar vari
 
 > **Experimento 2: Explora el modo APSTA con tu movil**
 >
-> Con el gateway funcionando, busca redes WiFi desde tu movil. Deberias ver la red del AP del gateway (algo como "PisciFarm-XXXX"). Conectate a ella. Abre un navegador y accede a la IP del gateway (normalmente 192.168.4.1). Deberias ver el panel web. Ahora, *sin desconectarte del AP*, observa en el panel web si el gateway esta tambien conectado al router (modo STA). Si lo esta, veras la IP STA y la intensidad de senal. Has confirmado que ambos modos funcionan simultaneamente. Prueba a acceder a la misma pagina web usando la IP del modo STA desde un dispositivo conectado al router de la instalacion.
+> Con el gateway funcionando, busca redes WiFi desde tu movil. Deberias ver la red del AP del gateway (algo como "IIoT-Gateway" o el nombre configurado). Conectate a ella. Abre un navegador y accede a la IP del gateway (normalmente 192.168.4.1). Deberias ver el panel web. Ahora, *sin desconectarte del AP*, observa en el panel web si el gateway esta tambien conectado al router (modo STA). Si lo esta, veras la IP STA y la intensidad de senal. Has confirmado que ambos modos funcionan simultaneamente. Prueba a acceder a la misma pagina web usando la IP del modo STA desde un dispositivo conectado al router de la instalacion.
 
 ---
 
@@ -485,11 +485,11 @@ Estas preguntas no tienen una unica respuesta correcta. Su objetivo es que piens
 
 **6.** SNTP necesita conexion WiFi STA para funcionar. Si el gateway esta en un lugar sin internet (solo modo AP), como podrian los nodos tener timestamps utiles? Hay alguna alternativa a SNTP para mantener una referencia temporal basica?
 
-**7.** El backoff exponencial con un tope de 60 segundos significa que, en el peor caso, el gateway puede tardar hasta 60 segundos en reconectar despues de que el router vuelva. Es esto aceptable para una piscifactoria? Que factores considerarias para elegir un tope diferente?
+**7.** El backoff exponencial con un tope de 60 segundos significa que, en el peor caso, el gateway puede tardar hasta 60 segundos en reconectar despues de que el router vuelva. Es esto aceptable para una instalacion IIoT en produccion? Que factores considerarias para elegir un tope diferente?
 
 **8.** Cuando un usuario cambia las credenciales WiFi desde la pagina web (conectado al AP), el gateway debe desconectarse de la red STA actual y conectarse a la nueva. Que pasa con la peticion HTTP del usuario durante ese proceso? Piensa en que interfaz (AP o STA) esta usando el usuario para comunicarse.
 
 ---
 
-*Este tutorial es parte del proyecto ESP32 Fish Guard -- Sistema de monitorizacion para piscifactorias.*
+*Este tutorial es parte del proyecto ESP32-IIoT-Kit — Plataforma generica de monitorizacion industrial con ESP32.*
 *Siguiente: Tutorial 2 -- Nodos de sensores y comunicacion ESP-NOW (Fase 2)*

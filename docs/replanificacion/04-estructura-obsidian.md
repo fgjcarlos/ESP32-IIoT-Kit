@@ -59,7 +59,7 @@ Una nota por concepto. Estructura sugerida:
 (1-2 parrafos explicando el concepto en tus propias palabras)
 
 ## Por que importa en este proyecto
-(como se usa en la piscifactoria)
+(como se usa en este proyecto IIoT)
 
 ## Como funciona
 (detalle tecnico, diagramas si aplica)
