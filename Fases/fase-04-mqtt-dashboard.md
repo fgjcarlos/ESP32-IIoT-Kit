@@ -1,950 +1,1157 @@
-# Fase 4: Integracion MQTT + Dashboard Web
+# Fase 4: Dashboard Embebido + API REST
 
-> **CORRECCIONES APLICADAS** (2026-05-23): QoS corregido (QoS 1 para datos, QoS 2 solo para comandos). Tabla sensor_readings incluye gateway_id. Ver detalles en `docs/replanificacion/03-fases-corregidas.md`.
+> **Arquitectura actualizada** (2026-05-23): Esta fase ha sido completamente rediseñada. El dashboard ya no requiere un servidor externo (Bun/Node/React). El gateway ESP32-S3 es completamente autónomo: sirve una SPA Preact desde SPIFFS, expone una API REST y un WebSocket para datos en tiempo real. MQTT es una integración opcional para cloud o LAN.
 
 ## Resumen general
 
-- **Objetivo**: Conectar el gateway ESP32-S3 al mundo exterior mediante el protocolo MQTT, crear un backend servidor con API REST y WebSocket, y un dashboard web con visualizacion en tiempo real de los datos de la piscifactoria.
-- **Duracion**: 4 semanas
-- **Prerequisitos**: Fases 0, 1, 2 y 3 completadas (gateway con WiFi, ESP-NOW funcionando, sensores leyendo datos, alertas configuradas)
-- **Hardware necesario**: ESP32-S3 gateway, ESP32-C3 nodos con sensores, Raspberry Pi o PC para servidor (broker + backend + frontend)
+- **Objetivo**: Convertir el gateway ESP32-S3 en un servidor web autónomo que sirva un dashboard interactivo desde su propia memoria flash, exponiendo una API REST para datos y configuración, y un WebSocket para actualizaciones en tiempo real.
+- **Duración**: 4 semanas
+- **Prerequisitos**: Fases 0, 1, 2 y 3 completadas (gateway con WiFi AP/STA, ESP-NOW funcionando, nodos enviando datos de sensores, alertas configuradas)
+- **Hardware necesario**: ESP32-S3 gateway (8MB flash, 2MB PSRAM), ESP32-C3 nodos con sensores, cualquier dispositivo con navegador web en la misma red WiFi
 
-## Dependencias externas
-
-| Componente | Version minima | Proposito |
-|---|---|---|
-| Mosquitto | 2.0+ | Broker MQTT |
-| Bun | 1.0+ | Runtime para backend TypeScript |
-| Node.js (alternativa) | 18+ | Runtime alternativo si no se usa Bun |
-| npm/bun | - | Gestor de paquetes para dependencias |
-| SQLite | 3.x | Base de datos local para historicos |
-| Vite | 5.x | Bundler para frontend React |
-| React | 18+ | Framework frontend |
-
-## Arquitectura general de la Fase 4
+## Arquitectura de la Fase 4
 
 ```
-┌─────────────┐    ESP-NOW    ┌──────────────┐     MQTT      ┌────────────┐
-│  Nodo C3    │──────────────>│  Gateway S3  │──────────────>│  Mosquitto │
-│  (sensores) │               │  (mqtt_bridge)│<──────────────│  Broker    │
-└─────────────┘               └──────────────┘               └─────┬──────┘
-                                                                   │
-                                                                   │ MQTT
-                                                                   v
-                                                            ┌──────────────┐
-                                                            │  Backend Bun │
-                                                            │  (mqtt.ts)   │
-                                                            │  (api.ts)    │
-                                                            │  (ws.ts)     │
-                                                            └──────┬───────┘
-                                                                   │
-                                                          REST + WebSocket
-                                                                   │
-                                                                   v
-                                                            ┌──────────────┐
-                                                            │  Dashboard   │
-                                                            │  React+Vite  │
-                                                            └──────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    Gateway ESP32-S3                          │
+│                                                              │
+│  ┌──────────┐    ┌─────────────┐    ┌─────────────────────┐  │
+│  │  SPIFFS  │    │ esp_http_   │    │  espnow_manager     │  │
+│  │ (Preact  │    │ server      │    │  (recibe datos de   │  │
+│  │  SPA)    │    │ REST + WS   │    │   nodos sensor)     │  │
+│  └────┬─────┘    └──────┬──────┘    └──────────┬──────────┘  │
+│       │                 │                       │             │
+│       └─────────────────┴───────────────────────┘            │
+│                         │                                    │
+│                [WiFi AP: 192.168.4.1]                        │
+│                         │                                    │
+└─────────────────────────┼────────────────────────────────────┘
+                          │
+               ┌──────────┴──────────┐
+               │                     │
+          [Navegador]           [Opcional: MQTT]
+          cualquier            broker cloud/LAN
+          dispositivo          (configurable)
+          en la red WiFi
+
+Nodo ESP32-C3  ──[ ESP-NOW ]──►  Gateway ESP32-S3
+```
+
+El flujo de datos completo es:
+
+```
+Sensor → Nodo ESP32-C3 → [ESP-NOW] → Gateway ESP32-S3
+                                           │
+                          ┌────────────────┼────────────────┐
+                          │                │                │
+                       SPIFFS           REST API        WebSocket
+                     (Preact SPA)     GET /api/nodes   ws://gw/ws
+                          │                │                │
+                          └────────────────┼────────────────┘
+                                           │
+                                    Navegador web
+                                 (dashboard en tiempo real)
+                                           │
+                               [Opcional: MQTT → cloud]
 ```
 
 ---
 
-## Sub-tarea 4.1: MQTT Bridge en el Gateway (4 tareas)
+## Sub-tarea 4.1: API REST en el Gateway ESP32-S3 (3 tareas)
 
-### Tarea T4.1.1: Inicializar cliente MQTT en el gateway
+La API REST permite que el dashboard (y cualquier cliente HTTP) consulte el estado del gateway y sus nodos, configure parámetros y dispare actualizaciones OTA. Se implementa con `esp_http_server`, que ya está disponible en ESP-IDF sin dependencias adicionales.
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Crear el modulo `mqtt_bridge` que inicializa un cliente MQTT en el ESP32-S3 gateway. Paso a paso:
-  1. Crear los archivos `mqtt_bridge.c` y `mqtt_bridge.h` en el directorio de componentes del gateway.
-  2. Incluir la cabecera `mqtt_client.h` de ESP-IDF.
-  3. Definir una estructura de configuracion que contenga: broker URL (ej. `mqtt://192.168.1.100`), puerto (por defecto 1883), usuario y password.
-  4. Leer estos parametros desde NVS (Non-Volatile Storage) al arrancar, usando las funciones `nvs_get_str()` ya implementadas en fases anteriores.
-  5. Crear la funcion `mqtt_bridge_init()` que configure `esp_mqtt_client_config_t` con los parametros leidos de NVS.
-  6. Registrar un handler de eventos con `esp_mqtt_client_register_event()` para los eventos: `MQTT_EVENT_CONNECTED`, `MQTT_EVENT_DISCONNECTED`, `MQTT_EVENT_DATA`, `MQTT_EVENT_ERROR`.
-  7. En el handler de `MQTT_EVENT_CONNECTED`, loguear la conexion exitosa y marcar un flag global `mqtt_connected = true`.
-  8. En el handler de `MQTT_EVENT_DISCONNECTED`, marcar `mqtt_connected = false` y loguear el motivo.
-  9. Llamar a `esp_mqtt_client_start()` para iniciar la conexion.
-  10. Llamar a `mqtt_bridge_init()` desde `app_main()` despues de que el WiFi este conectado.
-- **Archivos a crear/modificar**:
-  - Crear: `components/mqtt_bridge/mqtt_bridge.c`
-  - Crear: `components/mqtt_bridge/mqtt_bridge.h`
-  - Crear: `components/mqtt_bridge/CMakeLists.txt`
-  - Modificar: `main/app_main.c` (llamar a `mqtt_bridge_init()`)
-  - Modificar: `main/CMakeLists.txt` (agregar dependencia de `mqtt_bridge`)
-- **Criterio de aceptacion**:
-  - El gateway se conecta al broker Mosquitto al arrancar.
-  - En el monitor serial aparece un log: `MQTT_BRIDGE: Conectado al broker mqtt://X.X.X.X:1883`.
-  - Si el broker se cae, aparece el log de desconexion y el gateway intenta reconectar automaticamente.
-  - Los parametros del broker se leen correctamente desde NVS.
-- **Dependencias**: Fase 1 (WiFi funcionando), Fase 2 (NVS configurado)
-- **Pistas**:
-  - Componente ESP-IDF: `esp_mqtt` (habilitar en `menuconfig` -> Component config -> ESP-MQTT)
-  - La reconexion automatica ya viene incluida en `esp_mqtt_client` por defecto.
-  - Usar `ESP_LOGI(TAG, ...)` para todos los logs con tag `"MQTT_BRIDGE"`.
-  - Documentacion: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/protocols/mqtt.html
-- **Errores comunes**:
-  - Intentar iniciar MQTT antes de que WiFi este conectado. Siempre esperar al evento `WIFI_EVENT_STA_CONNECTED` o `IP_EVENT_STA_GOT_IP` antes de llamar a `mqtt_bridge_init()`.
-  - No incluir `esp_mqtt` en las dependencias del `CMakeLists.txt` del componente, lo que causa errores de enlazado.
-- **Tiempo estimado**: 3-4 horas
-
----
-
-### Tarea T4.1.2: Publicar datos de sensores en topics MQTT
+### Tarea T4.1.1: Diseñar e implementar los endpoints REST
 
 - **Dificultad**: Intermedio
-- **Descripcion**: Cuando el gateway recibe un dato de un nodo sensor via ESP-NOW, publicarlo en el broker MQTT con un topic jerarquico. Paso a paso:
-  1. Definir la estructura de topics MQTT. Formato: `piscifactoria/{gateway_id}/nodo/{nodo_mac}/{tipo_sensor}`. Ejemplo: `piscifactoria/GW01/nodo/AA:BB:CC:DD:EE:FF/temperatura`.
-  2. Crear la funcion `mqtt_bridge_publish_sensor_data()` que reciba: MAC del nodo, tipo de sensor (temperatura, ph, oxigeno_disuelto), valor, unidad.
-  3. Construir el payload JSON con los campos: `value` (float), `unit` (string), `timestamp` (epoch en segundos obtenido con `time()`), `node_id` (MAC del nodo).
-  4. Usar `cJSON` para construir el JSON (ya disponible en ESP-IDF).
-  5. Publicar con `esp_mqtt_client_publish()` usando QoS 1 (at least once) y retain = 0.
-  6. Verificar que `mqtt_connected == true` antes de intentar publicar. Si no esta conectado, loguear una advertencia y descartar el mensaje (o encolarlo si quieres un nivel extra).
-  7. En el callback de recepcion ESP-NOW (donde ya se procesan los datos de sensores), llamar a `mqtt_bridge_publish_sensor_data()` con los datos parseados.
-  8. Probar con `mosquitto_sub -h localhost -t "piscifactoria/#" -v` para ver los mensajes publicados.
-- **Archivos a crear/modificar**:
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.c` (agregar funcion de publicacion)
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.h` (declarar la funcion publica)
-  - Modificar: `main/espnow_handler.c` (o equivalente, llamar a la funcion de publicacion al recibir datos)
-- **Criterio de aceptacion**:
-  - Cada lectura de sensor de cada nodo genera un mensaje MQTT visible con `mosquitto_sub`.
-  - El payload JSON es valido y contiene los 4 campos requeridos (value, unit, timestamp, node_id).
-  - El topic sigue la jerarquia definida (verificable con `mosquitto_sub -t "piscifactoria/+/nodo/+/+" -v`).
-  - Se usa QoS 1 (verificable en logs de Mosquitto con log_type all).
-- **Dependencias**: T4.1.1, Fase 2 (recepcion ESP-NOW), Fase 3 (sensores leyendo datos)
-- **Pistas**:
-  - Para el gateway_id, puedes usar los ultimos 4 caracteres de la MAC del gateway o un nombre configurable desde NVS.
-  - `cJSON_CreateObject()`, `cJSON_AddNumberToObject()`, `cJSON_AddStringToObject()`, `cJSON_PrintUnformatted()` son las funciones clave de cJSON.
-  - No olvides llamar a `cJSON_Delete()` y `free()` para liberar la memoria del JSON generado.
-  - El timestamp se obtiene con `time(NULL)` si el reloj SNTP esta sincronizado.
-- **Errores comunes**:
-  - Memory leak: no liberar el string generado por `cJSON_PrintUnformatted()`. Esta funcion devuelve un puntero a memoria dinamica que DEBES liberar con `free()` despues de publicar.
-  - Publicar la MAC con formato incorrecto (con o sin los `:` de separacion). Manten un formato consistente en todo el proyecto.
-- **Tiempo estimado**: 3-4 horas
+- **Descripción**: Crear el módulo `http_api` que registra los handlers REST en el servidor HTTP del gateway. El servidor ya existe desde la Fase 1; en esta tarea se añaden los endpoints de datos.
+
+**Endpoints a implementar**:
+
+#### GET /api/status
+
+Estado general del gateway.
+
+```
+Petición: GET /api/status
+Cabeceras: ninguna requerida
+
+Respuesta 200 OK:
+{
+  "gateway_id": "GW-AABBCCDD",
+  "uptime_s": 3600,
+  "free_heap_bytes": 245760,
+  "wifi_rssi_dbm": -62,
+  "wifi_ap_clients": 2,
+  "espnow_nodes_registered": 3,
+  "espnow_nodes_active": 2,
+  "mqtt_connected": false,
+  "firmware_version": "1.0.0"
+}
+```
+
+#### GET /api/nodes
+
+Lista de nodos registrados con su último dato recibido.
+
+```
+Petición: GET /api/nodes
+
+Respuesta 200 OK:
+[
+  {
+    "node_id": "AA:BB:CC:DD:EE:01",
+    "last_seen_epoch": 1716480000,
+    "status": "active",
+    "last_readings": [
+      { "sensor_type": "temperatura", "value": 24.5, "unit": "C" }
+    ]
+  },
+  {
+    "node_id": "AA:BB:CC:DD:EE:02",
+    "last_seen_epoch": 1716479950,
+    "status": "active",
+    "last_readings": [
+      { "sensor_type": "temperatura", "value": 22.1, "unit": "C" }
+    ]
+  }
+]
+```
+
+#### GET /api/nodes/{id}/readings
+
+Últimas N lecturas de un nodo específico. `{id}` es la MAC del nodo con `:` reemplazados por `-` (ejemplo: `AA-BB-CC-DD-EE-01`).
+
+```
+Petición: GET /api/nodes/AA-BB-CC-DD-EE-01/readings?limit=20
+
+Parámetros query:
+  limit: número de lecturas a devolver (default: 10, max: 100)
+  sensor_type: filtro opcional ("temperatura", "ph", etc.)
+
+Respuesta 200 OK:
+{
+  "node_id": "AA:BB:CC:DD:EE:01",
+  "readings": [
+    { "epoch": 1716480000, "sensor_type": "temperatura", "value": 24.5, "unit": "C" },
+    { "epoch": 1716479700, "sensor_type": "temperatura", "value": 24.3, "unit": "C" }
+  ]
+}
+
+Respuesta 404 Not Found (nodo no registrado):
+{ "error": "node_not_found", "node_id": "AA:BB:CC:DD:EE:01" }
+```
+
+> **Nota de implementación**: El gateway almacena las últimas 100 lecturas por nodo en un ring buffer en RAM. No hay base de datos en disco: la memoria flash del ESP32-S3 no está diseñada para escrituras frecuentes.
+
+#### POST /api/config
+
+Configura parámetros del gateway. Los valores se persisten en NVS.
+
+```
+Petición: POST /api/config
+Content-Type: application/json
+
+Body:
+{
+  "wifi_ssid": "MiRedWiFi",
+  "wifi_password": "password123",
+  "mqtt_enabled": true,
+  "mqtt_broker": "192.168.1.100",
+  "mqtt_port": 1883,
+  "mqtt_namespace": "mi-instalacion",
+  "alert_temp_max": 35.0,
+  "alert_temp_min": 5.0
+}
+
+Respuesta 200 OK:
+{ "status": "saved", "reboot_required": true }
+
+Respuesta 400 Bad Request (JSON inválido o campo fuera de rango):
+{ "error": "invalid_config", "detail": "alert_temp_max must be between -40 and 85" }
+```
+
+#### POST /api/ota
+
+Dispara una actualización OTA. El firmware se descarga desde la URL proporcionada.
+
+```
+Petición: POST /api/ota
+Content-Type: application/json
+
+Body:
+{
+  "url": "http://192.168.1.50/firmware/gateway_v1.1.0.bin"
+}
+
+Respuesta 202 Accepted:
+{ "status": "ota_started", "url": "http://192.168.1.50/firmware/gateway_v1.1.0.bin" }
+
+Respuesta 400 Bad Request:
+{ "error": "invalid_url" }
+```
+
+> **Pista**: El handler OTA devuelve 202 inmediatamente y ejecuta la descarga en una tarea FreeRTOS separada. El gateway se reinicia automáticamente al completar la actualización.
+
+**Archivos a crear/modificar**:
+- Crear: `firmware/gateway/main/http_api.c`
+- Crear: `firmware/gateway/main/http_api.h`
+- Modificar: `firmware/gateway/main/http_server.c` (registrar los nuevos handlers)
+
+**Criterio de aceptación**:
+- `curl http://192.168.4.1/api/status` devuelve JSON válido con los campos definidos
+- `curl http://192.168.4.1/api/nodes` devuelve el array de nodos registrados
+- `curl -X POST http://192.168.4.1/api/config -H "Content-Type: application/json" -d '{"alert_temp_max":30.0}'` devuelve 200 y el valor se persiste en NVS
+- Los campos fuera de rango devuelven HTTP 400 con mensaje de error descriptivo
+
+**Errores comunes**:
+- Olvidar registrar el handler OPTIONS para CORS. Los navegadores envían un preflight OPTIONS antes de POST con `Content-Type: application/json`. Sin respuesta 204, las peticiones del dashboard fallarán con error CORS.
+- No liberar la memoria del body parseado con `cJSON_Delete()`. Cada petición POST con body JSON debe liberar el objeto cJSON después de procesarlo.
+
+**Tiempo estimado**: 4-5 horas
 
 ---
 
-### Tarea T4.1.3: Publicar estado del gateway y alertas
+### Tarea T4.1.2: Serialización JSON con cJSON
 
-- **Dificultad**: Basico
-- **Descripcion**: Publicar periodicamente el estado del gateway y enviar alertas cuando se disparen. Paso a paso:
-  1. Crear la funcion `mqtt_bridge_publish_status()` que publique en el topic `piscifactoria/{gateway_id}/status`.
-  2. El payload JSON de status debe contener: `uptime` (segundos desde el arranque, usando `esp_timer_get_time() / 1000000`), `nodos_conectados` (numero de nodos activos), `wifi_rssi` (intensidad de senal WiFi), `free_heap` (memoria libre con `esp_get_free_heap_size()`), `timestamp`.
-  3. Crear un timer periodico con `esp_timer_create()` que llame a `mqtt_bridge_publish_status()` cada 60 segundos.
-  4. Crear la funcion `mqtt_bridge_publish_alert()` que publique en el topic `piscifactoria/{gateway_id}/alertas`.
-  5. El payload JSON de alerta debe contener: `tipo` (temperatura_alta, ph_bajo, etc.), `node_id`, `value` (valor que disparo la alerta), `threshold` (umbral configurado), `timestamp`, `severity` (warning/critical).
-  6. Llamar a `mqtt_bridge_publish_alert()` desde el modulo de alertas (Fase 3) cuando se detecte una condicion fuera de rango.
-  7. Usar QoS 1 para status y QoS 1 para alertas.
-  8. Publicar el status con retain = 1 para que nuevos suscriptores reciban el ultimo estado conocido.
-- **Archivos a crear/modificar**:
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.c` (agregar funciones de status y alertas)
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.h` (declarar funciones publicas)
-  - Modificar: `main/alert_handler.c` (o equivalente, llamar a publicacion de alerta)
-- **Criterio de aceptacion**:
-  - Cada 60 segundos aparece un mensaje en el topic `piscifactoria/{gateway_id}/status` visible con `mosquitto_sub`.
-  - El JSON de status contiene al menos 4 de los 5 campos definidos.
-  - Cuando se fuerza una alerta (ej. sensor de temperatura fuera de rango), aparece un mensaje en el topic de alertas.
-  - El mensaje de status tiene retain=1 (verificable suscribiendose despues de que se publique: el ultimo mensaje se recibe inmediatamente).
-- **Dependencias**: T4.1.1, Fase 3 (sistema de alertas)
-- **Pistas**:
-  - `esp_wifi_sta_get_ap_info()` te da el RSSI actual de la conexion WiFi.
-  - Para el conteo de nodos conectados, consulta la tabla/lista de nodos que ya mantienes desde Fase 2.
-  - El flag `retain = 1` en `esp_mqtt_client_publish()` es el cuarto parametro.
-- **Errores comunes**:
-  - No arrancar el timer de status hasta que MQTT este conectado. Si publicas sin conexion, los mensajes se pierden silenciosamente (o se encolan hasta llenar la memoria).
-  - Olvidar que `esp_timer_get_time()` devuelve microsegundos, no segundos. Dividir por 1.000.000.
-- **Tiempo estimado**: 2-3 horas
+- **Dificultad**: Básico
+- **Descripción**: Implementar las funciones de serialización y deserialización JSON usando cJSON, que ya viene incluido en ESP-IDF. Este módulo centraliza toda la lógica de generación de respuestas JSON para los endpoints REST.
+
+**Funciones a implementar en `http_api.c`**:
+
+```c
+// Serializa el estado del gateway a JSON
+// Caller es responsable de llamar cJSON_Delete() sobre el resultado
+cJSON *http_api_build_status_json(void);
+
+// Serializa la lista de nodos a JSON array
+cJSON *http_api_build_nodes_json(void);
+
+// Serializa las lecturas de un nodo a JSON
+// node_mac: dirección MAC en formato "AA:BB:CC:DD:EE:FF"
+// limit: máximo número de lecturas a incluir
+cJSON *http_api_build_readings_json(const uint8_t *node_mac, uint8_t limit);
+
+// Parsea el body de una petición POST /api/config
+// Devuelve ESP_OK si el JSON es válido y los valores están en rango
+// Devuelve ESP_ERR_INVALID_ARG si hay campos inválidos
+esp_err_t http_api_parse_config_body(const char *body, gateway_config_t *config_out);
+```
+
+**Patrón estándar de respuesta JSON**:
+
+```c
+// En cada handler HTTP:
+cJSON *root = http_api_build_status_json();
+char *json_str = cJSON_PrintUnformatted(root);
+cJSON_Delete(root);  // liberar el árbol cJSON inmediatamente
+
+httpd_resp_set_type(req, "application/json");
+httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+httpd_resp_sendstr(req, json_str);
+free(json_str);  // liberar el string generado por cJSON_PrintUnformatted
+return ESP_OK;
+```
+
+> **Importante**: `cJSON_PrintUnformatted()` devuelve memoria dinámica que DEBES liberar con `free()`. `cJSON_Delete()` libera el árbol cJSON pero NO el string. Son dos punteros independientes.
+
+**Criterio de aceptación**:
+- No hay memory leaks: `esp_get_free_heap_size()` permanece estable tras 100 peticiones consecutivas a la API
+- El JSON generado pasa validación con `python3 -m json.tool`
+- Los handlers devuelven la cabecera `Content-Type: application/json`
+
+**Tiempo estimado**: 2-3 horas
 
 ---
 
-### Tarea T4.1.4: Suscribirse a topics de control remoto
+### Tarea T4.1.3: WebSocket para datos en tiempo real
 
 - **Dificultad**: Avanzado
-- **Descripcion**: Permitir que el gateway reciba comandos remotos via MQTT para controlar actuadores y configurar nodos. Paso a paso:
-  1. En el handler de `MQTT_EVENT_CONNECTED`, suscribirse al topic `piscifactoria/{gateway_id}/control/#` usando `esp_mqtt_client_subscribe()` con QoS 2.
-  2. En el handler de `MQTT_EVENT_DATA`, parsear el topic recibido para determinar la accion.
-  3. Si el topic coincide con `piscifactoria/{gateway_id}/control/actuador/{id}`, parsear el payload JSON que contendra: `action` ("on" o "off"), `duration` (opcional, en segundos). Llamar a la funcion correspondiente para activar/desactivar el actuador.
-  4. Si el topic coincide con `piscifactoria/{gateway_id}/control/config/nodo/{mac}`, parsear el payload JSON que contendra parametros de configuracion (ej. `intervalo_lectura`, `umbrales`). Reenviar esta configuracion al nodo via ESP-NOW.
-  5. Crear la funcion `mqtt_bridge_handle_command()` que haga el dispatch segun el topic.
-  6. Implementar validacion basica: verificar que el JSON es valido, que los campos requeridos existen, que los valores estan en rangos razonables.
-  7. Publicar una respuesta/ACK en `piscifactoria/{gateway_id}/control/response` confirmando la ejecucion o reportando un error.
-  8. Probar con: `mosquitto_pub -h localhost -t "piscifactoria/GW01/control/actuador/1" -m '{"action":"on","duration":30}'`.
-- **Archivos a crear/modificar**:
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.c` (agregar handler de comandos)
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.h` (declarar funciones)
-  - Modificar: `main/actuator_handler.c` (o equivalente, exponer funcion para activar/desactivar)
-  - Modificar: `main/espnow_handler.c` (o equivalente, exponer funcion para enviar config a nodo)
-- **Criterio de aceptacion**:
-  - Enviar un mensaje MQTT de control de actuador desde `mosquitto_pub` activa/desactiva el actuador en el gateway.
-  - Enviar un mensaje de configuracion de nodo resulta en un mensaje ESP-NOW enviado al nodo correspondiente.
-  - Se recibe un ACK en el topic de respuesta confirmando la accion.
-  - Un payload JSON invalido genera un mensaje de error en el topic de respuesta (no un crash del gateway).
-- **Dependencias**: T4.1.1, Fase 2 (comunicacion ESP-NOW), Fase 3 (actuadores configurados)
-- **Pistas**:
-  - Para parsear el topic, puedes usar `strncmp()` y `strtok()` o una funcion personalizada que extraiga los segmentos del topic.
-  - QoS 2 (exactly once) es importante para comandos de actuadores: no quieres que se ejecute un comando dos veces.
-  - `cJSON_Parse()` devuelve NULL si el JSON es invalido; siempre verificar antes de acceder a los campos.
-  - El topic recibido en `MQTT_EVENT_DATA` NO esta null-terminated. Usar `event->topic_len` para copiar el topic a un buffer local con `\0`.
-- **Errores comunes**:
-  - No null-terminar el topic y el payload recibidos en `MQTT_EVENT_DATA`. Los campos `event->topic` y `event->data` NO son strings C validos. Copiarlos a un buffer local y agregar `\0` manualmente usando `event->topic_len` y `event->data_len`.
-  - No validar el payload antes de actuar. Un JSON malformado o con campos faltantes puede causar un crash si se accede directamente con `cJSON_GetObjectItem()` sin verificar NULL.
-- **Tiempo estimado**: 5-6 horas
+- **Descripción**: Implementar un handler WebSocket en `esp_http_server` que hace push de datos de sensores a los clientes conectados cada vez que el gateway recibe una lectura de un nodo via ESP-NOW. `esp_http_server` soporta WebSocket nativamente desde ESP-IDF 4.4.
+
+**URL del endpoint WebSocket**:
+
+```
+ws://192.168.4.1/ws
+```
+
+**Formato de mensaje (JSON)**:
+
+Cada vez que el gateway recibe datos de un nodo, envía a todos los clientes WebSocket conectados:
+
+```json
+{
+  "type": "sensor_data",
+  "node_id": "AA:BB:CC:DD:EE:01",
+  "sensor_type": "temperatura",
+  "value": 24.5,
+  "unit": "C",
+  "epoch": 1716480000,
+  "sequence": 142
+}
+```
+
+Para alertas:
+
+```json
+{
+  "type": "alert",
+  "node_id": "AA:BB:CC:DD:EE:01",
+  "sensor_type": "temperatura",
+  "value": 38.2,
+  "threshold": 35.0,
+  "severity": "warning",
+  "epoch": 1716480120
+}
+```
+
+Para cambios de estado del gateway:
+
+```json
+{
+  "type": "gateway_status",
+  "free_heap_bytes": 245760,
+  "espnow_nodes_active": 2,
+  "mqtt_connected": false,
+  "epoch": 1716480300
+}
+```
+
+**Implementación del handler WebSocket**:
+
+```c
+// En http_server.c, registrar el handler:
+static const httpd_uri_t ws_handler = {
+    .uri       = "/ws",
+    .method    = HTTP_GET,
+    .handler   = ws_handler_func,
+    .user_ctx  = NULL,
+    .is_websocket = true  // CRÍTICO: marcar como WebSocket
+};
+
+// El handler gestiona el handshake automáticamente
+// La función ws_broadcast() envía a todos los clientes activos:
+void ws_broadcast(const char *json_payload, size_t len);
+```
+
+**Lista de file descriptors de clientes conectados**:
+
+```c
+// Mantener un array de fds activos (máx. 4 clientes simultáneos)
+#define WS_MAX_CLIENTS 4
+static int ws_clients[WS_MAX_CLIENTS];
+static int ws_client_count = 0;
+
+// Proteger con mutex para acceso desde múltiples tareas FreeRTOS
+static SemaphoreHandle_t ws_clients_mutex;
+```
+
+**Guía de reconexión para el cliente JavaScript**:
+
+```javascript
+// En el dashboard Preact (firmware/gateway/web/src/hooks/useWebSocket.js):
+function useWebSocket(url) {
+  const [data, setData] = useState(null);
+  const ws = useRef(null);
+
+  function connect() {
+    ws.current = new WebSocket(url);
+
+    ws.current.onmessage = (event) => {
+      setData(JSON.parse(event.data));
+    };
+
+    ws.current.onclose = () => {
+      // Reconectar tras 3 segundos (backoff simple)
+      setTimeout(connect, 3000);
+    };
+
+    ws.current.onerror = () => {
+      ws.current.close();
+    };
+  }
+
+  useEffect(() => {
+    connect();
+    return () => ws.current?.close();
+  }, [url]);
+
+  return data;
+}
+```
+
+> **Nota**: Si no hay clientes WebSocket conectados, los datos de sensores siguen procesándose y almacenándose en los ring buffers internos del gateway. El WebSocket es solo el canal de push; no es necesario para la recogida de datos.
+
+**Criterio de aceptación**:
+- Desde la consola del navegador: `new WebSocket('ws://192.168.4.1/ws')` se conecta sin errores
+- Cada lectura de sensor enviada por un nodo llega al navegador en menos de 500ms
+- Si se cierra el navegador, el gateway limpia el fd del cliente sin crashear
+- Hasta 4 clientes pueden estar conectados simultáneamente
+- El ciclo reconexión (WebSocket cerrado → reconectar tras 3s) funciona sin intervención manual
+
+**Errores comunes**:
+- No marcar el uri handler con `.is_websocket = true`. Sin esta propiedad, `esp_http_server` trata la petición como HTTP GET normal y el handshake WebSocket falla.
+- Intentar enviar a un fd de cliente que ya se cerró. Siempre verificar el retorno de `httpd_ws_send_frame_async()` y eliminar el fd si devuelve error.
+- No proteger el array `ws_clients[]` con un mutex. La recepción ESP-NOW ocurre en una tarea diferente a la del servidor HTTP; el acceso concurrente sin sincronización puede corromper el array.
+
+**Tiempo estimado**: 5-6 horas
 
 ---
 
-### Checkpoint 4.1: Verificacion del MQTT Bridge
+### Checkpoint 4.1: Verificación de la API REST y WebSocket
 
 Antes de continuar con la Sub-tarea 4.2, verifica lo siguiente:
 
-- [ ] El gateway se conecta automaticamente al broker Mosquitto al arrancar.
-- [ ] Los datos de sensores aparecen en los topics MQTT correctos (verificar con `mosquitto_sub -v -t "piscifactoria/#"`).
-- [ ] El status del gateway se publica cada 60 segundos.
-- [ ] Las alertas se publican cuando un sensor supera un umbral.
-- [ ] Los comandos de control enviados por MQTT ejecutan la accion correspondiente en el gateway.
-- [ ] El gateway reconecta automaticamente si el broker se reinicia.
-- [ ] No hay memory leaks (monitorear `esp_get_free_heap_size()` durante 10 minutos de operacion).
+- [ ] `curl http://192.168.4.1/api/status` devuelve JSON válido
+- [ ] `curl http://192.168.4.1/api/nodes` devuelve el array de nodos (vacío `[]` si no hay nodos aún)
+- [ ] `curl -X POST http://192.168.4.1/api/config -H "Content-Type: application/json" -d '{}'` devuelve 200
+- [ ] El endpoint WebSocket acepta conexiones: `new WebSocket('ws://192.168.4.1/ws')` en la consola del navegador
+- [ ] Cuando un nodo envía datos, aparece el mensaje JSON en la consola del navegador sin recargar la página
+- [ ] `esp_get_free_heap_size()` es estable tras 100 peticiones (sin memory leaks)
 
-**Prueba integradora**: Abrir dos terminales. En la primera, ejecutar `mosquitto_sub -v -t "piscifactoria/#"`. En la segunda, enviar un comando con `mosquitto_pub`. Verificar que fluyen datos en ambas direcciones.
-
----
-
-## Sub-tarea 4.2: Instalacion y configuracion del broker (2 tareas)
-
-### Tarea T4.2.1: Instalar y configurar Mosquitto en el servidor
-
-- **Dificultad**: Basico
-- **Descripcion**: Instalar el broker MQTT Mosquitto en la Raspberry Pi o PC que hara de servidor. Paso a paso:
-  1. Instalar Mosquitto: `sudo apt update && sudo apt install mosquitto mosquitto-clients`.
-  2. Verificar que el servicio esta corriendo: `sudo systemctl status mosquitto`.
-  3. Editar la configuracion en `/etc/mosquitto/conf.d/piscifactoria.conf`:
-     ```
-     listener 1883
-     allow_anonymous false
-     password_file /etc/mosquitto/passwd
-     log_type all
-     ```
-  4. Crear usuario y password: `sudo mosquitto_passwd -c /etc/mosquitto/passwd piscifactoria`. Introducir password cuando lo pida (ej. `piscifactoria2024`).
-  5. Reiniciar Mosquitto: `sudo systemctl restart mosquitto`.
-  6. Probar la autenticacion en una terminal: `mosquitto_sub -h localhost -t "test/#" -u piscifactoria -P piscifactoria2024 -v`.
-  7. En otra terminal: `mosquitto_pub -h localhost -t "test/hola" -m "funciona" -u piscifactoria -P piscifactoria2024`.
-  8. Verificar que el mensaje aparece en la primera terminal.
-  9. Verificar que sin credenciales la conexion es rechazada: `mosquitto_sub -h localhost -t "test/#"` debe fallar con "Connection Refused: not authorised".
-  10. Anotar la IP del servidor (usar `hostname -I`) para configurar el gateway.
-- **Archivos a crear/modificar**:
-  - Crear: `/etc/mosquitto/conf.d/piscifactoria.conf` (en el servidor)
-  - Crear: `/etc/mosquitto/passwd` (generado por mosquitto_passwd)
-- **Criterio de aceptacion**:
-  - Mosquitto esta corriendo como servicio (`systemctl status mosquitto` muestra `active (running)`).
-  - Se puede publicar y suscribir con usuario y password.
-  - Sin credenciales, la conexion es rechazada.
-  - El puerto 1883 esta escuchando (`sudo ss -tlnp | grep 1883`).
-- **Dependencias**: Ninguna (puede hacerse en paralelo con T4.1.x)
-- **Pistas**:
-  - En Raspberry Pi OS (basado en Debian), Mosquitto se instala directamente desde los repositorios oficiales.
-  - Si usas firewall (`ufw`), abre el puerto: `sudo ufw allow 1883`.
-  - Los logs de Mosquitto se ven con: `sudo journalctl -u mosquitto -f`.
-  - El flag `-c` en `mosquitto_passwd` CREA el archivo (borra existente). Para agregar usuarios adicionales, usar `-b` sin `-c`.
-- **Errores comunes**:
-  - Usar `mosquitto_passwd -c` para agregar un segundo usuario, lo que borra el primer usuario. Para usuarios adicionales, omitir el flag `-c`.
-  - Dejar `allow_anonymous true` en la configuracion por defecto. Mosquitto 2.0+ requiere configuracion explicita del listener; sin ella, solo escucha en localhost.
-- **Tiempo estimado**: 1-2 horas
+**Prueba integradora**: Abre la consola del navegador en `http://192.168.4.1`, conecta el WebSocket y activa un nodo sensor. Verifica que los datos llegan en tiempo real al navegador.
 
 ---
 
-### Tarea T4.2.2: Verificar comunicacion gateway-broker
+## Sub-tarea 4.2: SPA Preact Embebida en SPIFFS (3 tareas)
 
-- **Dificultad**: Basico
-- **Descripcion**: Conectar el gateway ESP32-S3 al broker Mosquitto y verificar que los datos fluyen correctamente. Paso a paso:
-  1. Configurar en el gateway (via NVS o interfaz web de Fase 1) los parametros del broker: IP del servidor, puerto 1883, usuario `piscifactoria`, password `piscifactoria2024`.
-  2. Flashear y reiniciar el gateway.
-  3. En el monitor serial del gateway, verificar que aparece el log de conexion exitosa al broker.
-  4. En el servidor, abrir una terminal con `mosquitto_sub -h localhost -t "piscifactoria/#" -u piscifactoria -P piscifactoria2024 -v`.
-  5. Verificar que aparecen los datos de sensores de los nodos en formato JSON.
-  6. Verificar que aparece el status del gateway cada 60 segundos.
-  7. Probar enviar un comando de control desde el servidor y verificar que el gateway lo recibe y ejecuta.
-  8. Desconectar el broker (parar Mosquitto) y verificar que el gateway detecta la desconexion y reconecta cuando el broker vuelve.
-  9. Documentar los topics observados y un ejemplo del payload JSON de cada tipo.
-- **Archivos a crear/modificar**:
-  - Modificar: NVS del gateway (via interfaz web o `nvs_set` en codigo) con los parametros del broker.
-  - Crear (opcional): `docs/mqtt_topics.md` con la documentacion de topics y payloads.
-- **Criterio de aceptacion**:
-  - El gateway se conecta al broker remoto (no localhost) exitosamente.
-  - Los mensajes de sensores aparecen en `mosquitto_sub` con el formato JSON esperado.
-  - El status del gateway aparece periodicamente.
-  - Un comando de control enviado desde `mosquitto_pub` se ejecuta en el gateway.
-  - La reconexion funciona tras reiniciar Mosquitto.
-- **Dependencias**: T4.1.1, T4.1.2, T4.1.3, T4.2.1
-- **Pistas**:
-  - Si el gateway no conecta, verificar: 1) Que el servidor es accesible (`ping` desde el PC de desarrollo), 2) Que el puerto 1883 esta abierto, 3) Que las credenciales son correctas.
-  - Usar `mosquitto_sub` con el flag `-v` (verbose) para ver el topic junto con el mensaje.
-  - Si hay problemas de red, habilitar logs detallados de MQTT en el gateway con `esp_log_level_set("MQTT_CLIENT", ESP_LOG_DEBUG)`.
-- **Errores comunes**:
-  - La IP del broker configurada en el gateway es incorrecta o ha cambiado (DHCP). Considerar usar una IP fija para el servidor o mDNS.
-  - El firewall del servidor bloquea las conexiones entrantes en el puerto 1883. Verificar con `sudo ufw status` o `iptables -L`.
-- **Tiempo estimado**: 1-2 horas
+Preact es una alternativa a React de 3KB que tiene la misma API. Con Vite como bundler, el resultado es una SPA que cabe cómodamente en la partición SPIFFS de 1.9MB del gateway. El código fuente vive en `firmware/gateway/web/` y el proceso de build genera los assets gzipados que se flashean a SPIFFS.
+
+### Presupuesto de tamaño SPIFFS
+
+| Recurso | Objetivo | Límite duro |
+|---------|----------|-------------|
+| Preact SPA gzipada (total) | ≤200 KB | 500 KB |
+| Partición SPIFFS total | 1.9 MB | 1.9 MB (fijo en partitions.csv) |
+| Margen para futuros assets | ≥1.4 MB | — |
+
+> Si tu build supera los 500 KB gzipados, consulta la sección de troubleshooting al final de T4.2.3.
 
 ---
 
-### Checkpoint 4.2: Verificacion del broker MQTT
+### Tarea T4.2.1: Scaffold del proyecto Preact + Vite
+
+- **Dificultad**: Básico
+- **Descripción**: Crear el proyecto frontend en `firmware/gateway/web/` y configurar Vite para generar assets optimizados para SPIFFS.
+
+**Pasos**:
+
+1. Crear el proyecto Preact con Vite:
+   ```bash
+   cd firmware/gateway
+   npm create vite@latest web -- --template preact
+   cd web && npm install
+   ```
+
+2. Instalar dependencias mínimas:
+   ```bash
+   npm install preact
+   npm install -D vite @preact/preset-vite
+   # NO instalar React, React-DOM, React-Router ni otras librerías pesadas
+   ```
+
+3. Configurar `firmware/gateway/web/vite.config.js` para output optimizado:
+   ```javascript
+   import { defineConfig } from 'vite';
+   import preact from '@preact/preset-vite';
+   import { createGzip } from 'zlib';
+   import { createReadStream, createWriteStream } from 'fs';
+   import { readdir, stat } from 'fs/promises';
+   import path from 'path';
+
+   // Plugin para gzipar los assets tras el build
+   function gzipPlugin() {
+     return {
+       name: 'gzip-assets',
+       closeBundle: async () => {
+         const distDir = 'dist';
+         const files = await readdir(distDir, { recursive: true });
+         for (const file of files) {
+           const fullPath = path.join(distDir, file);
+           const info = await stat(fullPath);
+           if (info.isFile() && !file.endsWith('.gz')) {
+             await new Promise((resolve, reject) => {
+               createReadStream(fullPath)
+                 .pipe(createGzip({ level: 9 }))
+                 .pipe(createWriteStream(fullPath + '.gz'))
+                 .on('finish', resolve)
+                 .on('error', reject);
+             });
+             console.log(`Gzipped: ${file}`);
+           }
+         }
+       }
+     };
+   }
+
+   export default defineConfig({
+     plugins: [preact(), gzipPlugin()],
+     build: {
+       outDir: 'dist',
+       assetsInlineLimit: 4096,  // inline assets < 4KB
+       rollupOptions: {
+         output: {
+           manualChunks: undefined  // un solo chunk para minimizar requests
+         }
+       }
+     }
+   });
+   ```
+
+4. Verificar el tamaño del bundle:
+   ```bash
+   npm run build
+   du -sh dist/assets/*.gz  # debe ser < 200KB en total
+   ```
+
+5. Estructura de directorios resultante:
+   ```
+   firmware/gateway/web/
+   ├── src/
+   │   ├── app.jsx          # componente raíz
+   │   ├── main.jsx         # punto de entrada
+   │   ├── components/      # componentes reutilizables
+   │   ├── pages/           # páginas de la SPA
+   │   └── hooks/           # custom hooks (useWebSocket, useApi)
+   ├── index.html
+   ├── vite.config.js
+   └── package.json
+   ```
+
+**Criterio de aceptación**:
+- `npm run build` en `firmware/gateway/web/` completa sin errores
+- `du -sh firmware/gateway/web/dist/*.gz` muestra < 200KB total
+- `npm run dev` sirve la app en `http://localhost:5173` para desarrollo
+
+**Tiempo estimado**: 2-3 horas
+
+---
+
+### Tarea T4.2.2: Páginas de la SPA
+
+- **Dificultad**: Intermedio
+- **Descripción**: Implementar las tres páginas del dashboard: vista en tiempo real de nodos, configuración del gateway, y estado del sistema. Toda la lógica de red usa los hooks `useWebSocket` y `useApi` que conectan con los endpoints de T4.1.
+
+**Página 1: Dashboard (ruta `/`)**
+
+Muestra tarjetas en tiempo real, una por nodo registrado:
+
+```jsx
+// src/pages/Dashboard.jsx
+import { useState, useEffect } from 'preact/hooks';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useApi } from '../hooks/useApi';
+import { NodeCard } from '../components/NodeCard';
+
+export function Dashboard() {
+  const { data: nodes, loading } = useApi('/api/nodes');
+  const wsData = useWebSocket('ws://' + window.location.host + '/ws');
+
+  // Actualizar el nodo correspondiente al recibir datos por WebSocket
+  const [nodeMap, setNodeMap] = useState({});
+
+  useEffect(() => {
+    if (nodes) {
+      const map = {};
+      nodes.forEach(n => { map[n.node_id] = n; });
+      setNodeMap(map);
+    }
+  }, [nodes]);
+
+  useEffect(() => {
+    if (wsData?.type === 'sensor_data') {
+      setNodeMap(prev => ({
+        ...prev,
+        [wsData.node_id]: {
+          ...prev[wsData.node_id],
+          last_readings: [{ sensor_type: wsData.sensor_type, value: wsData.value, unit: wsData.unit }],
+          last_seen_epoch: wsData.epoch
+        }
+      }));
+    }
+  }, [wsData]);
+
+  if (loading) return <div>Cargando nodos...</div>;
+
+  return (
+    <div class="grid">
+      {Object.values(nodeMap).map(node => (
+        <NodeCard key={node.node_id} node={node} />
+      ))}
+    </div>
+  );
+}
+```
+
+Cada `NodeCard` muestra: ID del nodo (últimos 8 chars de la MAC), tipo de sensor, valor, unidad, y un indicador de estado (verde si `last_seen` hace < 2 minutos, rojo si más).
+
+**Página 2: Configuración (ruta `/config`)**
+
+Formulario para configurar parámetros del gateway:
+- Campo: SSID WiFi y contraseña (STA mode)
+- Campo: URL del broker MQTT y namespace (opcionales)
+- Campo: umbrales de alerta (temperatura máxima/mínima)
+- Botón "Guardar" → `POST /api/config`
+- Botón "Aplicar y reiniciar" → guarda + POST /api/config con flag `reboot: true`
+
+**Página 3: Estado (ruta `/status`)**
+
+Muestra datos del endpoint `GET /api/status` actualizados cada 10 segundos:
+- Uptime del gateway
+- Memoria libre (heap)
+- RSSI WiFi
+- Número de nodos activos / registrados
+- Estado de la conexión MQTT (si está configurado)
+- Versión del firmware
+
+**Navegación entre páginas**:
+
+Usar Preact Router (muy pequeño, ~2KB) o una navegación manual con `window.location.hash` para evitar dependencias extra:
+
+```jsx
+// Routing mínimo sin librería externa
+function Router() {
+  const [page, setPage] = useState(window.location.hash || '#/');
+
+  useEffect(() => {
+    window.addEventListener('hashchange', () => setPage(window.location.hash));
+  }, []);
+
+  return page === '#/config' ? <Config /> :
+         page === '#/status' ? <Status /> :
+         <Dashboard />;
+}
+```
+
+**Criterio de aceptación**:
+- La página Dashboard muestra tarjetas de nodos y se actualiza en tiempo real via WebSocket
+- Los valores de los nodos cambian en pantalla cuando llegan datos nuevos por WebSocket
+- La página Configuración envía POST a `/api/config` y muestra confirmación
+- La página Estado muestra los valores de `/api/status`
+- La navegación entre páginas funciona sin recargar la página completa
+
+**Tiempo estimado**: 5-6 horas
+
+---
+
+### Tarea T4.2.3: Integración con SPIFFS — CMake build hook
+
+- **Dificultad**: Avanzado
+- **Descripción**: Conectar el proceso de build de Vite con el sistema de build CMake de ESP-IDF. El objetivo es que `idf.py build` compile automáticamente la SPA Preact y la incluya en la imagen SPIFFS que se flashea al gateway.
+
+**Partición SPIFFS en `firmware/gateway/partitions.csv`**:
+
+```csv
+# Name,   Type, SubType, Offset,   Size,  Flags
+nvs,      data, nvs,     0x9000,   0x6000,
+otadata,  data, ota,     0xf000,   0x2000,
+ota_0,    app,  ota_0,   0x10000,  0x300000,
+ota_1,    app,  ota_1,   0x310000, 0x300000,
+spiffs,   data, spiffs,  0x610000, 0x1E0000,
+```
+
+> La partición `spiffs` tiene 1.9MB (0x1E0000 bytes). Es donde viven los assets del dashboard.
+
+**Hook CMake en `firmware/gateway/CMakeLists.txt`**:
+
+```cmake
+# Al final del CMakeLists.txt principal del proyecto:
+
+# 1. Construir la SPA Preact antes de generar la imagen SPIFFS
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/web/dist/index.html.gz
+    COMMAND npm install
+    COMMAND npm run build
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/web
+    COMMENT "Building Preact SPA..."
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/src/app.jsx
+)
+
+add_custom_target(preact_build
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/dist/index.html.gz
+)
+
+# 2. Generar la imagen SPIFFS a partir de dist/
+set(SPIFFS_IMAGE_PATH ${CMAKE_BINARY_DIR}/spiffs_image.bin)
+
+add_custom_command(
+    OUTPUT ${SPIFFS_IMAGE_PATH}
+    COMMAND python3 ${IDF_PATH}/components/spiffs/spiffsgen.py
+            0x1E0000
+            ${CMAKE_CURRENT_SOURCE_DIR}/web/dist
+            ${SPIFFS_IMAGE_PATH}
+    DEPENDS preact_build
+    COMMENT "Generating SPIFFS image..."
+)
+
+add_custom_target(spiffs_image ALL DEPENDS ${SPIFFS_IMAGE_PATH})
+
+# 3. Flashear la imagen SPIFFS con idf.py flash
+# El target esptool_py_flash_project se encarga de esto automáticamente
+# si se configura la dirección de la partición spiffs (0x610000)
+```
+
+**Flashear la partición SPIFFS por separado** (útil durante desarrollo):
+
+```bash
+# Solo flashear el dashboard (sin reflashear el firmware):
+python3 $IDF_PATH/components/spiffs/spiffsgen.py \
+    0x1E0000 \
+    firmware/gateway/web/dist \
+    spiffs.bin
+
+esptool.py --port /dev/ttyUSB0 write_flash 0x610000 spiffs.bin
+```
+
+**Servir assets gzipados desde el gateway**:
+
+El handler HTTP para assets estáticos DEBE detectar si el cliente acepta gzip (cabecera `Accept-Encoding: gzip`) y servir el archivo `.gz` directamente:
+
+```c
+// En el handler de archivos estáticos:
+void serve_static_file(httpd_req_t *req, const char *path) {
+    // Intentar servir la versión gzipada
+    char gz_path[256];
+    snprintf(gz_path, sizeof(gz_path), "%s.gz", path);
+
+    FILE *f = fopen(gz_path, "rb");
+    if (f) {
+        httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+        // Servir el archivo...
+    } else {
+        f = fopen(path, "rb");
+        // Servir sin compresión...
+    }
+}
+```
+
+**Troubleshooting: bundle size overruns**
+
+Si el bundle supera los 500KB gzipados:
+
+1. **Auditar dependencias**: `npm run build -- --analyze` (con el plugin `rollup-plugin-visualizer`) muestra qué módulos ocupan más espacio.
+
+2. **Verificar que no se importó React**: `grep -r "react" firmware/gateway/web/src/` — si aparece algún resultado, reemplazar por la equivalente de Preact.
+
+3. **Eliminar fuentes externas**: Si el CSS importa Google Fonts u otras fuentes externas, reemplazar por fuentes del sistema (`font-family: system-ui, sans-serif`).
+
+4. **Reducir el número de iconos**: Las librerías de iconos (heroicons, lucide, etc.) son pesadas. Usar solo SVG inline para los 3-5 iconos necesarios.
+
+5. **Comprimir imágenes**: Si hay imágenes PNG/JPEG, convertirlas a WebP y reducir su resolución.
+
+6. **Medir progreso**:
+   ```bash
+   npm run build && du -sh firmware/gateway/web/dist/assets/*.gz
+   ```
+
+**Criterio de aceptación**:
+- `idf.py build` completa sin errores e incluye la imagen SPIFFS
+- `curl -H "Accept-Encoding: gzip" http://192.168.4.1/` devuelve la SPA con la cabecera `Content-Encoding: gzip`
+- El dashboard carga en el navegador sin errores en la consola
+- `du -sh firmware/gateway/web/dist/assets/*.gz` muestra ≤ 200KB total
+
+**Tiempo estimado**: 3-4 horas
+
+---
+
+### Checkpoint 4.2: Verificación de la SPA Preact
 
 Antes de continuar con la Sub-tarea 4.3, verifica lo siguiente:
 
-- [ ] Mosquitto esta corriendo como servicio en el servidor con autenticacion habilitada.
-- [ ] El gateway se conecta al broker remoto y publica datos de sensores.
-- [ ] Se puede ver el flujo completo: Nodo sensor -> ESP-NOW -> Gateway -> MQTT -> Broker.
-- [ ] Los comandos de control fluyen en la direccion inversa: Broker -> MQTT -> Gateway.
-- [ ] La reconexion automatica funciona correctamente.
+- [ ] `npm run build` en `firmware/gateway/web/` completa sin errores
+- [ ] El bundle total gzipado ocupa ≤ 200KB
+- [ ] `idf.py build && idf.py flash` incluye la imagen SPIFFS con la SPA
+- [ ] Al abrir `http://192.168.4.1/` en el navegador, carga el dashboard
+- [ ] Las tarjetas de nodos se actualizan en tiempo real cuando llegan datos por ESP-NOW
+- [ ] La navegación entre Dashboard / Config / Status funciona sin recargar la página
+- [ ] No hay errores en la consola del navegador
 
-**Prueba integradora**: Con al menos un nodo sensor activo, ejecutar `mosquitto_sub -v -t "piscifactoria/#"` durante 5 minutos y verificar que llegan datos de sensores y status del gateway sin interrupciones.
-
----
-
-## Sub-tarea 4.3: Backend Bun/TypeScript (4 tareas)
-
-### Tarea T4.3.1: Scaffold del proyecto backend
-
-- **Dificultad**: Basico
-- **Descripcion**: Crear la estructura del proyecto backend usando Bun y TypeScript. Paso a paso:
-  1. Crear el directorio del servidor: `mkdir -p server/src`.
-  2. Dentro de `server/`, inicializar el proyecto: `bun init` (o `npm init -y` si usas Node.js).
-  3. Instalar dependencias: `bun add mqtt` (cliente MQTT para JavaScript), `bun add better-sqlite3` (base de datos SQLite) y `bun add @types/better-sqlite3 -d` (tipos TypeScript).
-  4. Nota: Si usas Bun, puedes usar `bun:sqlite` integrado en lugar de `better-sqlite3`.
-  5. Crear el archivo `server/src/index.ts` como punto de entrada. Por ahora, solo un `console.log("Servidor piscifactoria iniciado")`.
-  6. Crear el archivo `server/src/database.ts` con la inicializacion de SQLite:
-     - Crear la base de datos en `server/data/piscifactoria.db`.
-     - Crear la tabla `sensor_readings` con columnas: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `node_id` (TEXT NOT NULL), `sensor_type` (TEXT NOT NULL), `value` (REAL NOT NULL), `unit` (TEXT NOT NULL), `timestamp` (INTEGER NOT NULL).
-     - Crear la tabla `alerts` con columnas: `id`, `node_id`, `alert_type`, `value`, `threshold`, `severity`, `timestamp`.
-     - Crear indices en `node_id` y `timestamp` para ambas tablas.
-  7. Verificar que el proyecto arranca sin errores: `bun run src/index.ts`.
-  8. Agregar script en `package.json`: `"dev": "bun --watch src/index.ts"` para desarrollo con recarga automatica.
-- **Archivos a crear/modificar**:
-  - Crear: `server/package.json` (generado por `bun init`)
-  - Crear: `server/tsconfig.json` (generado por `bun init`)
-  - Crear: `server/src/index.ts`
-  - Crear: `server/src/database.ts`
-  - Crear: `server/data/` (directorio para la base de datos)
-- **Criterio de aceptacion**:
-  - `bun run src/index.ts` ejecuta sin errores.
-  - La base de datos SQLite se crea automaticamente en `server/data/piscifactoria.db`.
-  - Las tablas `sensor_readings` y `alerts` existen con las columnas correctas (verificar con `sqlite3 data/piscifactoria.db ".schema"`).
-  - Los indices estan creados (verificar con `.indices`).
-- **Dependencias**: T4.2.1 (broker instalado para las tareas siguientes)
-- **Pistas**:
-  - Con Bun, puedes usar `import { Database } from "bun:sqlite"` sin instalar paquetes adicionales.
-  - Con Node.js, usa `import Database from "better-sqlite3"`.
-  - Usa `CREATE TABLE IF NOT EXISTS` para que el script sea idempotente (se pueda ejecutar multiples veces sin error).
-  - Crea un archivo `.gitignore` que excluya `node_modules/`, `data/*.db`.
-- **Errores comunes**:
-  - No crear el directorio `data/` antes de intentar crear la base de datos. SQLite no crea directorios intermedios automaticamente.
-  - Usar `TEXT` para el timestamp en lugar de `INTEGER`. Usar epoch (segundos desde 1970) como INTEGER facilita las consultas de rango.
-- **Tiempo estimado**: 1-2 horas
+**Prueba integradora**: Con al menos un nodo ESP32-C3 activo enviando datos por ESP-NOW, abrir el dashboard en un teléfono móvil conectado al WiFi AP del gateway (`192.168.4.1`). Verificar que los datos del nodo aparecen y se actualizan automáticamente.
 
 ---
 
-### Tarea T4.3.2: Servicio MQTT subscriber en el backend
+## Sub-tarea 4.3: MQTT como Integración Opcional (2 tareas)
+
+> **Importante**: MQTT no es un requisito del sistema. El gateway funciona completamente sin MQTT configurado: el dashboard embebido, la API REST y el WebSocket son independientes de MQTT. Esta sub-tarea añade MQTT como canal opcional para integración con sistemas cloud o LAN existentes.
+
+### Tarea T4.3.1: Módulo mqtt_bridge como componente opcional
 
 - **Dificultad**: Intermedio
-- **Descripcion**: Crear el modulo que se conecta al broker MQTT, se suscribe a todos los topics de la piscifactoria, y guarda los datos en SQLite. Paso a paso:
-  1. Crear `server/src/mqtt.ts`.
-  2. Importar `mqtt` de la libreria `mqtt` (mqtt.js) y la instancia de la base de datos.
-  3. Crear la funcion `connectMqtt()` que:
-     a. Conecte al broker con `mqtt.connect("mqtt://IP_SERVIDOR:1883", { username: "piscifactoria", password: "piscifactoria2024" })`.
-     b. En el evento `connect`, suscribirse a `piscifactoria/#`.
-     c. En el evento `message`, recibir `(topic: string, payload: Buffer)`.
-  4. Parsear el topic para extraer: gateway_id, nodo_mac, tipo_sensor.
-     - Usar `topic.split("/")` para descomponer el topic.
-     - Si el topic tiene formato `.../nodo/{mac}/{tipo}`, es un dato de sensor.
-     - Si el topic termina en `/status`, es un status de gateway.
-     - Si el topic termina en `/alertas`, es una alerta.
-  5. Para datos de sensor: parsear el payload JSON con `JSON.parse(payload.toString())` y ejecutar un INSERT en `sensor_readings`.
-  6. Para alertas: parsear el JSON e insertar en la tabla `alerts`.
-  7. Usar prepared statements de SQLite para eficiencia: `db.prepare("INSERT INTO sensor_readings (...) VALUES (?, ?, ?, ?, ?)").run(...)`.
-  8. Loguear cada insercion con `console.log()` mostrando nodo, sensor, valor.
-  9. Manejar errores de parseo JSON con try/catch (un mensaje malformado no debe crashear el servidor).
-  10. Llamar a `connectMqtt()` desde `index.ts`.
-- **Archivos a crear/modificar**:
-  - Crear: `server/src/mqtt.ts`
-  - Modificar: `server/src/index.ts` (importar e inicializar MQTT)
-- **Criterio de aceptacion**:
-  - El servidor se conecta al broker y se suscribe a `piscifactoria/#`.
-  - Los datos de sensores recibidos via MQTT se insertan en la tabla `sensor_readings`.
-  - Las alertas se insertan en la tabla `alerts`.
-  - Despues de 2 minutos de operacion con nodos activos, la tabla `sensor_readings` tiene registros (verificar con `sqlite3 data/piscifactoria.db "SELECT COUNT(*) FROM sensor_readings"`).
-  - Un payload JSON invalido genera un log de error pero no crashea el servidor.
-- **Dependencias**: T4.3.1, T4.2.1
-- **Pistas**:
-  - La libreria `mqtt` de npm es mqtt.js: `import mqtt from "mqtt"`.
-  - `payload` es un `Buffer`, convertir a string con `payload.toString()` antes de `JSON.parse()`.
-  - Para extraer la MAC del topic `piscifactoria/GW01/nodo/AA:BB:CC:DD:EE:FF/temperatura`, hacer `const parts = topic.split("/")` y acceder a `parts[3]` para la MAC y `parts[4]` para el tipo.
-  - Considera exportar un EventEmitter o callback para que otros modulos (WebSocket) puedan reaccionar a datos nuevos.
-- **Errores comunes**:
-  - No manejar el caso donde `JSON.parse()` falla. Envolver siempre en try/catch, ya que mensajes corruptos o de otros clientes MQTT pueden tener formatos inesperados.
-  - Insertar el `timestamp` del mensaje MQTT tal cual sin validar que es un numero razonable. Verificar que es un epoch valido (mayor que 1700000000 aproximadamente).
-- **Tiempo estimado**: 3-4 horas
+- **Descripción**: Refactorizar la documentación del módulo `mqtt_bridge` para que quede claro que es opcional y documentar el namespace configurable. El módulo solo se inicializa si hay una URL de broker configurada en NVS.
+
+**Lógica de inicialización condicional**:
+
+```c
+// En app_main.c, DESPUÉS de inicializar WiFi y el servidor HTTP:
+esp_err_t err = nvs_get_str(nvs_handle, "mqtt_broker", broker_url, &len);
+if (err == ESP_OK && strlen(broker_url) > 0) {
+    ESP_LOGI(TAG, "MQTT configurado: %s — iniciando mqtt_bridge", broker_url);
+    mqtt_bridge_init(broker_url);
+} else {
+    ESP_LOGI(TAG, "MQTT no configurado — el gateway opera en modo standalone");
+}
+```
+
+**Namespace MQTT configurable**:
+
+El prefijo de todos los topics MQTT es configurable via NVS:
+
+| Parámetro NVS | Clave | Valor por defecto |
+|---------------|-------|-------------------|
+| Namespace MQTT | `mqtt_namespace` | `iiot-kit` |
+| URL del broker | `mqtt_broker` | `` (vacío = deshabilitado) |
+| Puerto del broker | `mqtt_port` | `1883` |
+
+El patrón de topic resultante:
+
+```
+{mqtt_namespace}/{gateway_id}/nodo/{nodo_id}/{tipo_sensor}
+```
+
+Ejemplos con distintas configuraciones:
+
+```
+# Con mqtt_namespace = "iiot-kit" (default):
+iiot-kit/GW-AABBCCDD/nodo/AA:BB:CC:DD:EE:01/temperatura
+
+# Con mqtt_namespace = "invernadero":
+invernadero/GW-AABBCCDD/nodo/AA:BB:CC:DD:EE:01/temperatura
+
+# Con mqtt_namespace = "fabrica-norte":
+fabrica-norte/GW-AABBCCDD/nodo/AA:BB:CC:DD:EE:01/temperatura
+```
+
+**Configurar desde la interfaz web**:
+
+En la página de Configuración de la SPA (T4.2.2), el formulario incluye los campos MQTT. Al guardar, se hace `POST /api/config` con:
+
+```json
+{
+  "mqtt_enabled": true,
+  "mqtt_broker": "mqtt://192.168.1.100",
+  "mqtt_port": 1883,
+  "mqtt_namespace": "mi-instalacion"
+}
+```
+
+El gateway almacena estos valores en NVS y, en el próximo reinicio, inicializa `mqtt_bridge` con la configuración guardada.
+
+**Criterio de aceptación**:
+- El gateway arranca y sirve el dashboard correctamente SIN ningún broker MQTT configurado
+- Si se configura un broker, los datos de sensores aparecen en el topic `{namespace}/{gateway_id}/nodo/{nodo_id}/{tipo_sensor}`
+- Cambiar `mqtt_namespace` via la web y reiniciar el gateway usa el nuevo namespace en todos los topics
+- El log de arranque indica claramente si MQTT está activo o en modo standalone
+
+**Tiempo estimado**: 2-3 horas
 
 ---
 
-### Tarea T4.3.3: API REST para datos historicos
+### Tarea T4.3.2: Documentar topics MQTT genéricos
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Crear endpoints HTTP para que el frontend pueda consultar datos historicos de sensores, lista de nodos y alertas. Paso a paso:
-  1. Crear `server/src/api.ts`.
-  2. Usar el servidor HTTP nativo de Bun (`Bun.serve()`) o, si usas Node.js, instalar Express (`npm install express @types/express`).
-  3. Implementar los siguientes endpoints:
+- **Dificultad**: Básico
+- **Descripción**: Documentar la jerarquía completa de topics MQTT con el namespace genérico `{mqtt_ns}`. Los topics específicos de dominio (por ejemplo, para una instalación de monitorización de agua) se documentan en `examples/fish-farm/mqtt-topics.md`.
 
-     **GET /api/nodes**
-     - Consulta: `SELECT DISTINCT node_id FROM sensor_readings ORDER BY node_id`.
-     - Para cada nodo, obtener la ultima lectura: `SELECT * FROM sensor_readings WHERE node_id = ? ORDER BY timestamp DESC LIMIT 1`.
-     - Respuesta: `[{ "node_id": "AA:BB:...", "last_seen": 1700000000, "last_value": 25.3, "last_sensor": "temperatura" }]`.
+**Jerarquía de topics con namespace configurable**:
 
-     **GET /api/nodes/:id/readings**
-     - Parametros query: `from` (timestamp inicio), `to` (timestamp fin), `type` (tipo sensor, opcional).
-     - Consulta: `SELECT * FROM sensor_readings WHERE node_id = ? AND timestamp BETWEEN ? AND ? [AND sensor_type = ?] ORDER BY timestamp ASC`.
-     - Limitar a 1000 registros maximo con `LIMIT 1000`.
-     - Respuesta: `[{ "id": 1, "node_id": "...", "sensor_type": "temperatura", "value": 25.3, "unit": "C", "timestamp": 1700000000 }]`.
+```
+{mqtt_ns}/{gateway_id}/nodo/{nodo_id}/temperatura
+{mqtt_ns}/{gateway_id}/nodo/{nodo_id}/humedad
+{mqtt_ns}/{gateway_id}/nodo/{nodo_id}/presion
+{mqtt_ns}/{gateway_id}/nodo/{nodo_id}/custom   ← SENSOR_TYPE_CUSTOM (0xFF)
+{mqtt_ns}/{gateway_id}/status
+{mqtt_ns}/{gateway_id}/alertas
+{mqtt_ns}/{gateway_id}/control/actuador/{id}
+{mqtt_ns}/{gateway_id}/config/nodo/{nodo_id}
+```
 
-     **GET /api/alerts**
-     - Parametros query: `limit` (default 50), `severity` (opcional).
-     - Consulta: `SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?`.
-     - Respuesta: `[{ "id": 1, "node_id": "...", "alert_type": "temp_alta", "value": 35.0, "threshold": 30.0, "severity": "critical", "timestamp": 1700000000 }]`.
+**Payload JSON para datos de sensor**:
 
-  4. Agregar cabeceras CORS en todas las respuestas: `Access-Control-Allow-Origin: *`, `Content-Type: application/json`.
-  5. Manejar errores con respuestas HTTP apropiadas: 400 para parametros invalidos, 404 para nodo no encontrado, 500 para errores internos.
-  6. Iniciar el servidor HTTP en el puerto 3000.
-  7. Probar cada endpoint con `curl` o un navegador.
-- **Archivos a crear/modificar**:
-  - Crear: `server/src/api.ts`
-  - Modificar: `server/src/index.ts` (iniciar servidor HTTP)
-- **Criterio de aceptacion**:
-  - `curl http://localhost:3000/api/nodes` devuelve un JSON con la lista de nodos.
-  - `curl http://localhost:3000/api/nodes/AA:BB:CC:DD:EE:FF/readings?from=0&to=9999999999` devuelve lecturas de ese nodo.
-  - `curl http://localhost:3000/api/alerts` devuelve las alertas recientes.
-  - Las cabeceras CORS estan presentes en las respuestas.
-  - Parametros invalidos devuelven HTTP 400 con mensaje de error.
-- **Dependencias**: T4.3.1, T4.3.2 (para tener datos en la BD)
-- **Pistas**:
-  - Con Bun, puedes usar `Bun.serve({ fetch(req) { ... } })` que recibe un `Request` y retorna un `Response` (API estandar Web).
-  - Para parsear la URL: `const url = new URL(req.url); const params = url.searchParams;`.
-  - Para extraer el `:id` de la ruta, puedes usar `url.pathname.split("/")` o una libreria de routing.
-  - Los query params `from` y `to` son strings; convertir a numero con `parseInt()` y validar que son numeros validos.
-- **Errores comunes**:
-  - Olvidar las cabeceras CORS. Sin ellas, el navegador bloqueara las peticiones del frontend (que corre en otro puerto). Agregar `Access-Control-Allow-Origin: *` en TODAS las respuestas, incluyendo las de error.
-  - No manejar el preflight OPTIONS request de CORS. Si el frontend envia headers custom o POST con JSON, el navegador primero envia un OPTIONS. Responder con 204 y las cabeceras CORS correspondientes.
-- **Tiempo estimado**: 4-5 horas
+```json
+{
+  "value": 24.5,
+  "unit": "C",
+  "timestamp": 1716480000,
+  "node_id": "AA:BB:CC:DD:EE:01",
+  "sequence": 142
+}
+```
 
----
+**QoS recomendado por tipo de topic**:
 
-### Tarea T4.3.4: WebSocket server para datos en tiempo real
+| Topic | QoS | Retain | Motivo |
+|-------|-----|--------|--------|
+| Datos de sensor | 1 | 0 | Al menos una vez; los duplicados son tolerables |
+| Status del gateway | 1 | 1 | Con retain: los nuevos suscriptores ven el último estado |
+| Alertas | 1 | 0 | No retener: las alertas son eventos puntuales |
+| Comandos de actuador | 2 | 0 | Exactamente una vez: un duplicado podría activar dos veces |
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Crear un servidor WebSocket que reenvie a los clientes conectados (el dashboard) cada dato de sensor recibido via MQTT en tiempo real. Paso a paso:
-  1. Crear `server/src/websocket.ts`.
-  2. Con Bun, el servidor WebSocket se integra en `Bun.serve()` usando la opcion `websocket`. Con Node.js, instalar `ws` (`npm install ws @types/ws`).
-  3. Mantener un `Set<WebSocket>` con todos los clientes conectados.
-  4. En el evento `open` del WebSocket, agregar el cliente al Set. Enviarle un mensaje de bienvenida con la lista de nodos activos.
-  5. En el evento `close`, eliminar el cliente del Set.
-  6. En el evento `message`, parsear el mensaje del cliente. Implementar un sistema basico de suscripcion: el cliente puede enviar `{"action": "subscribe", "node_id": "AA:BB:..."}` para recibir solo datos de un nodo especifico, o `{"action": "subscribe", "node_id": "*"}` para recibir todos.
-  7. Exportar una funcion `broadcastSensorData(data)` que sera llamada desde `mqtt.ts` cada vez que llega un nuevo dato de sensor.
-  8. En `broadcastSensorData()`, iterar sobre todos los clientes conectados y enviarles el dato si coincide con su suscripcion. Formato: `{ "type": "sensor_data", "node_id": "...", "sensor_type": "...", "value": 25.3, "unit": "C", "timestamp": 1700000000 }`.
-  9. Tambien crear `broadcastAlert(data)` para alertas en tiempo real.
-  10. Modificar `mqtt.ts` para llamar a `broadcastSensorData()` y `broadcastAlert()` al recibir datos.
-  11. El WebSocket debe escuchar en el mismo puerto que la API HTTP (3000) o en un puerto separado (ej. 3001).
-  12. Probar con una herramienta como `websocat` o un script JavaScript simple en el navegador.
-- **Archivos a crear/modificar**:
-  - Crear: `server/src/websocket.ts`
-  - Modificar: `server/src/mqtt.ts` (llamar a broadcast al recibir datos)
-  - Modificar: `server/src/index.ts` (integrar WebSocket en el servidor)
-- **Criterio de aceptacion**:
-  - Un cliente WebSocket puede conectarse a `ws://localhost:3000` (o el puerto elegido).
-  - Al conectarse, recibe un mensaje de bienvenida.
-  - Datos de sensores recibidos por MQTT se reenvian al cliente WebSocket en menos de 1 segundo.
-  - Las alertas tambien se reenvian en tiempo real.
-  - Al desconectar un cliente, no se producen errores al intentar enviarle datos.
-  - Multiples clientes pueden estar conectados simultaneamente.
-- **Dependencias**: T4.3.1, T4.3.2
-- **Pistas**:
-  - Con Bun: `Bun.serve({ fetch(req, server) { if (server.upgrade(req)) return; /* HTTP normal */ }, websocket: { open(ws) {...}, message(ws, msg) {...}, close(ws) {...} } })`.
-  - Antes de enviar a un cliente, verificar que el WebSocket esta en estado `OPEN` (readyState === 1).
-  - Usar `JSON.stringify()` para enviar objetos como string al cliente.
-  - Para pruebas rapidas, instalar `websocat`: `sudo apt install websocat` y conectar con `websocat ws://localhost:3000`.
-- **Errores comunes**:
-  - Intentar enviar datos a un WebSocket que ya se cerro. Siempre verificar el estado antes de enviar y manejar la excepcion.
-  - No eliminar el cliente del Set cuando se desconecta, causando un memory leak progresivo y errores de envio.
-- **Tiempo estimado**: 3-4 horas
+> Para topics y configuración específicos de una instalación de tipo fish-farm, consulta `examples/fish-farm/mqtt-topics.md`.
+
+**Criterio de aceptación**:
+- `mosquitto_sub -t "{mqtt_ns}/#" -v` muestra los mensajes publicados con el namespace correcto
+- El payload JSON de datos de sensor contiene los 5 campos definidos (value, unit, timestamp, node_id, sequence)
+- Los topics de status usan retain=1 (verificable al suscribirse después de que se publique)
+
+**Tiempo estimado**: 1-2 horas
 
 ---
 
-### Checkpoint 4.3: Verificacion del backend
+### Checkpoint 4.3: Verificación de la integración MQTT opcional
 
-Antes de continuar con la Sub-tarea 4.4, verifica lo siguiente:
-
-- [ ] El servidor backend arranca sin errores con `bun run src/index.ts`.
-- [ ] Se conecta al broker MQTT y recibe datos de sensores.
-- [ ] Los datos se almacenan en SQLite (verificar con `sqlite3`).
-- [ ] La API REST responde correctamente a `curl` en los 3 endpoints.
-- [ ] El WebSocket reenvía datos en tiempo real (verificar con `websocat`).
-- [ ] Los headers CORS estan presentes en las respuestas HTTP.
-- [ ] El servidor no crashea con datos malformados.
-
-**Prueba integradora**: Con nodos sensores activos, abrir en el navegador `http://localhost:3000/api/nodes` y verificar que devuelve nodos. Simultaneamente, conectar con `websocat ws://localhost:3000` y verificar que llegan datos en tiempo real.
+- [ ] El gateway opera correctamente SIN broker MQTT configurado
+- [ ] Al configurar un broker, los datos aparecen con `mosquitto_sub -t "{mqtt_ns}/#" -v`
+- [ ] El namespace configurable funciona: cambiar `mqtt_namespace` cambia el prefijo de todos los topics
+- [ ] El status del gateway se publica con retain=1
+- [ ] Los comandos de actuador usan QoS 2
 
 ---
 
-## Sub-tarea 4.4: Frontend Dashboard React (4 tareas)
+## Sub-tarea 4.4: Integración y Verificación (2 tareas)
 
-### Tarea T4.4.1: Scaffold del proyecto frontend con Vite + React
+### Tarea T4.4.1: Flujo end-to-end completo
 
-- **Dificultad**: Basico
-- **Descripcion**: Crear la estructura del proyecto frontend usando Vite, React y TypeScript. Paso a paso:
-  1. Desde el directorio raiz del proyecto, crear la app: `bunx create-vite dashboard --template react-ts` (o `npx create-vite dashboard --template react-ts`).
-  2. Entrar al directorio e instalar dependencias: `cd dashboard && bun install`.
-  3. Instalar dependencias adicionales:
-     - `bun add react-router-dom` (navegacion entre paginas).
-     - `bun add recharts` (graficos).
-     - `bun add tailwindcss @tailwindcss/vite` (estilos).
-  4. Configurar Tailwind CSS:
-     - Agregar el plugin de Tailwind en `vite.config.ts`.
-     - Agregar `@import "tailwindcss"` al principio de `src/index.css`.
-  5. Crear la estructura de carpetas:
-     ```
-     dashboard/src/
-     ├── components/     (componentes reutilizables)
-     ├── pages/          (paginas principales)
-     ├── hooks/          (custom hooks)
-     ├── services/       (llamadas API y WebSocket)
-     ├── types/          (interfaces TypeScript)
-     └── App.tsx         (layout principal y rutas)
-     ```
-  6. Crear el layout basico en `App.tsx`:
-     - Sidebar con links de navegacion: Dashboard, Historicos, Configuracion.
-     - Header con el titulo "Piscifactoria - Panel de Control".
-     - Area de contenido principal donde se renderizan las paginas.
-  7. Configurar React Router en `App.tsx` con rutas: `/` (Dashboard), `/history` (Historicos), `/config` (Configuracion).
-  8. Crear paginas placeholder: `Dashboard.tsx`, `History.tsx`, `Config.tsx` con un `<h1>` del nombre de la pagina.
-  9. Verificar que todo funciona: `bun run dev` y abrir `http://localhost:5173`.
-  10. Verificar que la navegacion entre paginas funciona sin recargar.
-- **Archivos a crear/modificar**:
-  - Crear: `dashboard/` (proyecto completo generado por create-vite)
-  - Crear: `dashboard/src/pages/Dashboard.tsx`
-  - Crear: `dashboard/src/pages/History.tsx`
-  - Crear: `dashboard/src/pages/Config.tsx`
-  - Crear: `dashboard/src/types/index.ts`
-  - Crear: `dashboard/src/services/api.ts` (placeholder)
-  - Crear: `dashboard/src/services/websocket.ts` (placeholder)
-  - Modificar: `dashboard/src/App.tsx` (layout + rutas)
-  - Modificar: `dashboard/src/index.css` (Tailwind)
-  - Modificar: `dashboard/vite.config.ts` (plugin Tailwind)
-- **Criterio de aceptacion**:
-  - `bun run dev` arranca el servidor de desarrollo sin errores ni warnings.
-  - La pagina carga en `http://localhost:5173` con el layout (sidebar + header + contenido).
-  - Se puede navegar entre las 3 paginas usando la sidebar.
-  - Tailwind CSS funciona (verificar que clases como `bg-blue-500` aplican estilos).
-  - No hay errores en la consola del navegador.
-- **Dependencias**: Ninguna (puede hacerse en paralelo con T4.3.x)
-- **Pistas**:
-  - Tailwind v4 se configura diferente a v3. Con v4 y Vite, solo necesitas el plugin `@tailwindcss/vite` y el import en CSS; no hay archivo `tailwind.config.js`.
-  - Para React Router v6+: usar `<BrowserRouter>`, `<Routes>`, `<Route>`, y `<Link>`.
-  - Para el sidebar, usar `<nav>` con `<Link to="/">Dashboard</Link>`, etc.
-  - La estructura de layout con sidebar fija + contenido scroll se logra con Tailwind: `flex h-screen` en el contenedor, `w-64 bg-gray-800` en el sidebar, `flex-1 overflow-auto` en el contenido.
-- **Errores comunes**:
-  - Instalar Tailwind v3 en lugar de v4. Las instrucciones de configuracion son diferentes. Verifica la version instalada con `bun pm ls tailwindcss`.
-  - No envolver la app en `<BrowserRouter>`. Sin el provider de Router, los componentes `<Link>` y `<Route>` no funcionan y dan error.
-- **Tiempo estimado**: 2-3 horas
+- **Dificultad**: Básico (verificación)
+- **Descripción**: Verificar el flujo completo de datos desde un nodo sensor hasta el navegador web, pasando por todos los componentes de la Fase 4.
+
+**Flujo a verificar**:
+
+```
+1. Nodo ESP32-C3 → (ESP-NOW) → Gateway ESP32-S3
+2. Gateway → almacena lectura en ring buffer
+3. Gateway → hace push via WebSocket a clientes conectados
+4. Navegador → recibe el mensaje WebSocket y actualiza la tarjeta del nodo
+5. [Opcional] Gateway → publica en MQTT si está configurado
+```
+
+**Checklist de verificación end-to-end**:
+
+```bash
+# Terminal 1: Monitor del gateway
+idf.py -p /dev/ttyUSB0 monitor
+
+# Terminal 2: Cliente WebSocket desde la línea de comandos
+# (requiere: npm install -g wscat)
+wscat -c ws://192.168.4.1/ws
+
+# Deberías ver mensajes JSON cada vez que el nodo envía datos:
+# { "type": "sensor_data", "node_id": "...", "value": 24.5, ... }
+
+# Terminal 3: Verificar la API REST
+curl http://192.168.4.1/api/nodes
+curl http://192.168.4.1/api/status
+
+# [Opcional] Terminal 4: Verificar MQTT si está configurado
+mosquitto_sub -h 192.168.1.100 -t "iiot-kit/#" -v
+```
+
+**Escenario de prueba con timing**:
+
+1. Con el monitor del gateway abierto, activa el nodo sensor.
+2. En el log del gateway verás: `ESPNOW: recibido de AA:BB:... temperatura=24.5°C`
+3. En el cliente WebSocket verás el mensaje JSON en < 500ms.
+4. En el navegador con el dashboard abierto, la tarjeta del nodo se actualizará en tiempo real.
+
+**Criterio de aceptación**:
+- El dato aparece en el navegador en menos de 1 segundo desde que el nodo lo envía
+- El dashboard muestra el estado correcto de todos los nodos (activo/inactivo)
+- No hay errores en el monitor serial del gateway durante 10 minutos de operación continua
+- La memoria libre del gateway (`esp_get_free_heap_size()`) es estable (no decrece continuamente)
+
+**Tiempo estimado**: 2-3 horas
 
 ---
 
-### Tarea T4.4.2: Pagina Dashboard con estado en tiempo real
+### Tarea T4.4.2: Verificación del presupuesto de tamaño del bundle Preact
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Crear la pagina principal del dashboard que muestra el estado actual de todos los nodos con datos en tiempo real via WebSocket. Paso a paso:
-  1. Crear `dashboard/src/types/index.ts` con las interfaces TypeScript:
-     ```typescript
-     interface SensorReading { node_id: string; sensor_type: string; value: number; unit: string; timestamp: number; }
-     interface NodeStatus { node_id: string; last_seen: number; online: boolean; sensors: SensorReading[]; }
-     interface Alert { id: number; node_id: string; alert_type: string; value: number; threshold: number; severity: string; timestamp: number; }
-     ```
-  2. Crear `dashboard/src/services/websocket.ts`:
-     - Crear una funcion `connectWebSocket()` que se conecte a `ws://IP_SERVIDOR:3000`.
-     - Manejar reconexion automatica: si se cierra la conexion, reintentar en 3 segundos.
-     - Exportar un custom hook `useWebSocket()` que devuelva los ultimos datos recibidos.
-  3. Crear `dashboard/src/services/api.ts`:
-     - Definir la URL base del backend: `const API_BASE = "http://IP_SERVIDOR:3000/api"`.
-     - Crear funciones: `fetchNodes()`, `fetchAlerts()`.
-  4. En `Dashboard.tsx`:
-     - Al montar el componente, conectar al WebSocket y cargar la lista de nodos via API REST.
-     - Mostrar una tarjeta (card) por cada nodo con:
-       - MAC del nodo (o nombre si se ha configurado).
-       - Ultima lectura de cada sensor (temperatura, pH, oxigeno disuelto).
-       - Indicador de estado: circulo verde si `last_seen` fue hace menos de 2 minutos, rojo si mas.
-       - Timestamp de la ultima actualizacion.
-     - Actualizar las tarjetas en tiempo real cuando llegan datos por WebSocket.
-     - Seccion de alertas activas: mostrar las ultimas 5 alertas con icono de severidad (amarillo=warning, rojo=critical).
-  5. Usar `useState` para el estado de nodos y `useEffect` para la conexion WebSocket.
-  6. Agregar un indicador de conexion WebSocket en el header: "Conectado" (verde) o "Desconectado" (rojo).
-- **Archivos a crear/modificar**:
-  - Modificar: `dashboard/src/types/index.ts` (agregar interfaces)
-  - Crear: `dashboard/src/services/websocket.ts`
-  - Crear: `dashboard/src/services/api.ts`
-  - Modificar: `dashboard/src/pages/Dashboard.tsx`
-  - Crear: `dashboard/src/components/NodeCard.tsx` (tarjeta de nodo reutilizable)
-  - Crear: `dashboard/src/components/AlertBanner.tsx` (banner de alertas)
-  - Crear: `dashboard/src/components/ConnectionStatus.tsx` (indicador de conexion)
-- **Criterio de aceptacion**:
-  - La pagina Dashboard muestra una tarjeta por cada nodo activo con sus ultimas lecturas.
-  - Los valores se actualizan en tiempo real sin recargar la pagina (visible cuando cambia un valor de sensor).
-  - El indicador de estado del nodo muestra verde/rojo segun la ultima vez que se recibieron datos.
-  - Las alertas recientes aparecen en la parte superior o lateral.
-  - El indicador de conexion WebSocket refleja el estado real de la conexion.
-  - Si se desconecta el WebSocket, se reconecta automaticamente y vuelve a mostrar datos.
-- **Dependencias**: T4.4.1, T4.3.3, T4.3.4
-- **Pistas**:
-  - Para el custom hook de WebSocket, usar `useRef` para mantener la referencia al WebSocket y `useEffect` para la conexion/desconexion.
-  - `new WebSocket("ws://IP:3000")` es la API nativa del navegador, no necesitas libreria.
-  - Para determinar si un nodo esta "online", comparar `Date.now() / 1000 - last_seen < 120` (menos de 2 minutos).
-  - Las tarjetas se pueden hacer con Tailwind: `bg-white rounded-lg shadow p-4`.
-- **Errores comunes**:
-  - No limpiar la conexion WebSocket al desmontar el componente. Agregar `return () => ws.close()` en el `useEffect` para evitar conexiones duplicadas al navegar entre paginas.
-  - Mutar el estado directamente en lugar de crear un nuevo objeto. Con React, siempre usar `setNodes(prev => ({...prev, [nodeId]: newData}))` para que React detecte el cambio y re-renderice.
-- **Tiempo estimado**: 5-6 horas
+- **Dificultad**: Básico
+- **Descripción**: Verificar que el bundle Preact cumple con el presupuesto de tamaño definido y documentar cómo medirlo en cada iteración de desarrollo.
 
----
+**Cómo medir el tamaño del bundle**:
 
-### Tarea T4.4.3: Pagina de historicos con graficos
+```bash
+# Desde firmware/gateway/web/:
+npm run build
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Crear la pagina de datos historicos con graficos de linea interactivos usando Recharts. Paso a paso:
-  1. Agregar a `dashboard/src/services/api.ts` la funcion `fetchReadings(nodeId, from, to, sensorType)` que llama a `GET /api/nodes/:id/readings?from=&to=&type=`.
-  2. En `History.tsx`, crear los controles de filtro:
-     - **Selector de nodo**: dropdown con la lista de nodos disponibles (cargar con `fetchNodes()`).
-     - **Selector de tipo de sensor**: dropdown con opciones: Temperatura, pH, Oxigeno Disuelto.
-     - **Selector de rango de fechas**: dos inputs `<input type="datetime-local">` para fecha inicio y fecha fin. Por defecto, ultimas 24 horas.
-     - **Boton "Consultar"**: al pulsarlo, llama a la API con los filtros seleccionados.
-  3. Mostrar los resultados en un grafico de linea con Recharts:
-     - Componente `<LineChart>` con `<Line>`, `<XAxis>`, `<YAxis>`, `<Tooltip>`, `<CartesianGrid>`.
-     - Eje X: timestamp formateado como hora:minuto (o dia/mes si el rango es largo).
-     - Eje Y: valor del sensor con unidad.
-     - Tooltip: al pasar el raton, mostrar el valor exacto y el timestamp completo.
-  4. Debajo del grafico, mostrar una tabla con los datos numericos: timestamp, valor, unidad.
-  5. Agregar indicadores de estadisticas basicas: valor minimo, maximo, promedio del rango consultado.
-  6. Mostrar un spinner o indicador de carga mientras se espera la respuesta de la API.
-  7. Manejar el caso de "sin datos" con un mensaje amigable.
-- **Archivos a crear/modificar**:
-  - Modificar: `dashboard/src/services/api.ts` (agregar fetchReadings)
-  - Modificar: `dashboard/src/pages/History.tsx`
-  - Crear: `dashboard/src/components/SensorChart.tsx` (componente de grafico reutilizable)
-  - Crear: `dashboard/src/components/DataTable.tsx` (tabla de datos)
-  - Crear: `dashboard/src/components/StatsCard.tsx` (tarjeta de estadisticas)
-- **Criterio de aceptacion**:
-  - Se puede seleccionar un nodo, tipo de sensor y rango de fechas.
-  - Al pulsar "Consultar", aparece un grafico de linea con los datos historicos.
-  - El tooltip del grafico muestra el valor y timestamp al pasar el raton.
-  - Se muestran las estadisticas: min, max, promedio.
-  - La tabla debajo del grafico muestra los datos numericos.
-  - El spinner aparece durante la carga y desaparece al recibir los datos.
-  - Si no hay datos para los filtros seleccionados, se muestra un mensaje apropiado.
-- **Dependencias**: T4.4.1, T4.3.3
-- **Pistas**:
-  - Recharts basico: `<LineChart data={data}><Line dataKey="value" /><XAxis dataKey="timestamp" /><YAxis /></LineChart>`.
-  - Para formatear el timestamp en el eje X, usar el prop `tickFormatter` de `<XAxis>`: `tickFormatter={(ts) => new Date(ts * 1000).toLocaleTimeString()}`.
-  - Para calcular min/max/promedio: `Math.min(...values)`, `Math.max(...values)`, `values.reduce((a,b) => a+b, 0) / values.length`.
-  - Convertir `datetime-local` a epoch: `new Date(inputValue).getTime() / 1000`.
-- **Errores comunes**:
-  - No convertir los timestamps correctamente. El input `datetime-local` devuelve un string local, y la API espera epoch en segundos. Usar `Math.floor(new Date(value).getTime() / 1000)`.
-  - Renderizar un `<LineChart>` con un array vacio causa que Recharts muestre un grafico con ejes pero sin linea y sin mensaje de "sin datos". Verificar `data.length > 0` antes de renderizar el grafico.
-- **Tiempo estimado**: 5-6 horas
+# Tamaño de archivos individuales gzipados:
+ls -lh dist/assets/*.gz
+
+# Tamaño total de la partición SPIFFS que se va a usar:
+du -sh dist/
+
+# Verificar que el total gzipado está dentro del presupuesto:
+find dist -name "*.gz" -exec du -sb {} + | awk '{total+=$1} END {print total/1024 "KB gzipped"}'
+```
+
+**Criterios de aceptación del presupuesto**:
+
+| Métrica | Objetivo | Límite duro |
+|---------|----------|-------------|
+| JS principal gzipado | ≤150KB | 400KB |
+| CSS gzipado | ≤20KB | 50KB |
+| Total assets gzipados | ≤200KB | 500KB |
+| Partición SPIFFS usada | ≤600KB | 1.9MB |
+
+**Script de verificación automática**:
+
+```bash
+#!/bin/bash
+# firmware/gateway/web/scripts/check-size.sh
+npm run build --silent
+
+TOTAL=$(find dist -name "*.gz" -exec stat -c%s {} + | awk '{sum+=$1} END {print sum}')
+LIMIT=$((500 * 1024))  # 500KB en bytes
+
+echo "Bundle gzipado total: $((TOTAL / 1024))KB"
+
+if [ "$TOTAL" -gt "$LIMIT" ]; then
+  echo "ERROR: El bundle supera el límite de 500KB gzipados"
+  echo "Consulta la sección de troubleshooting en T4.2.3"
+  exit 1
+else
+  echo "OK: El bundle cumple el presupuesto de tamaño"
+fi
+```
+
+**Criterio de aceptación**:
+- El script `check-size.sh` termina con código 0
+- El total de assets gzipados es ≤ 200KB (objetivo) o ≤ 500KB (límite duro)
+- La partición SPIFFS tiene al menos 1.4MB libres para futuros assets
+
+**Tiempo estimado**: 1 hora
 
 ---
 
-### Tarea T4.4.4: Pagina de configuracion y control de actuadores
+### Checkpoint 4.4: Verificación final de integración
 
-- **Dificultad**: Avanzado
-- **Descripcion**: Crear la pagina de configuracion que permite ajustar umbrales de alertas, intervalos de lectura de los nodos, y controlar actuadores remotamente. Los cambios se envian al backend via API REST, que a su vez los publica en MQTT hacia el gateway. Paso a paso:
-  1. Agregar al backend (`server/src/api.ts`) los endpoints:
-     - **POST /api/control/actuador/:id** - Body: `{ "action": "on"|"off", "duration": number }`. Publica en topic MQTT `piscifactoria/{gw}/control/actuador/{id}`.
-     - **POST /api/config/nodo/:mac** - Body: `{ "intervalo_lectura": number, "umbrales": {...} }`. Publica en topic MQTT `piscifactoria/{gw}/control/config/nodo/{mac}`.
-     - **GET /api/config** - Devuelve la configuracion actual (almacenada en SQLite o en memoria).
-  2. Crear tabla `config` en SQLite: `config(key TEXT PRIMARY KEY, value TEXT)` para persistir ajustes.
-  3. En `Config.tsx`, crear tres secciones:
+- [ ] Flujo end-to-end verificado: nodo → ESP-NOW → gateway → WebSocket → navegador
+- [ ] El presupuesto de tamaño del bundle Preact se cumple (≤ 200KB gzipados)
+- [ ] El sistema funciona durante 30 minutos sin reinicios ni memory leaks
+- [ ] El dashboard es accesible desde un dispositivo móvil conectado al WiFi AP del gateway
+- [ ] Si MQTT está configurado, los datos aparecen en el broker correctamente
 
-     **Seccion 1: Umbrales de alertas**
-     - Formulario con inputs numericos para: temperatura maxima, temperatura minima, pH maximo, pH minimo, oxigeno disuelto minimo.
-     - Boton "Guardar umbrales" que envia POST al backend.
-     - Mostrar los valores actuales cargados desde GET /api/config.
-
-     **Seccion 2: Configuracion de nodos**
-     - Selector de nodo.
-     - Input para intervalo de lectura en segundos (ej. 10, 30, 60).
-     - Boton "Aplicar" que envia POST al backend.
-     - Indicador de confirmacion: "Configuracion enviada al nodo" cuando se recibe el ACK.
-
-     **Seccion 3: Control de actuadores**
-     - Lista de actuadores disponibles (ej. bomba de agua, aireador, alimentador).
-     - Por cada actuador: nombre, estado actual (on/off), boton toggle (on/off), input de duracion (minutos).
-     - Al pulsar el boton, enviar POST al backend.
-     - Actualizar el estado del boton segun la respuesta.
-
-  4. Manejar feedback visual: deshabilitar botones mientras se envia la peticion, mostrar confirmacion de exito o error con un toast/mensaje.
-  5. Validar inputs en el frontend antes de enviar: rangos razonables para umbrales, intervalo minimo de 5 segundos, etc.
-- **Archivos a crear/modificar**:
-  - Modificar: `server/src/api.ts` (agregar endpoints POST)
-  - Modificar: `server/src/database.ts` (agregar tabla config)
-  - Modificar: `server/src/mqtt.ts` (funcion para publicar comandos de control)
-  - Modificar: `dashboard/src/pages/Config.tsx`
-  - Modificar: `dashboard/src/services/api.ts` (agregar funciones POST)
-  - Crear: `dashboard/src/components/ThresholdForm.tsx`
-  - Crear: `dashboard/src/components/NodeConfigForm.tsx`
-  - Crear: `dashboard/src/components/ActuatorControl.tsx`
-- **Criterio de aceptacion**:
-  - Se pueden modificar los umbrales de alertas desde el formulario web y se guardan en la base de datos.
-  - Al cambiar la configuracion de un nodo, el comando llega al gateway via MQTT (verificar con `mosquitto_sub`).
-  - Al pulsar el boton de un actuador, el comando se ejecuta en el gateway y el estado del boton se actualiza.
-  - Los inputs validan rangos antes de enviar (ej. temperatura entre -10 y 50, pH entre 0 y 14).
-  - Se muestra feedback visual claro: exito, error, cargando.
-  - El flujo completo funciona: Frontend -> API REST -> MQTT -> Gateway -> Actuador.
-- **Dependencias**: T4.4.1, T4.3.3, T4.3.4, T4.1.4
-- **Pistas**:
-  - Para los POST desde React, usar `fetch(url, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(data) })`.
-  - El boton toggle se puede implementar con un `<button>` que cambia entre "Encender" y "Apagar" segun el estado actual.
-  - Para feedback visual, un simple `useState<"idle"|"loading"|"success"|"error">` es suficiente; no necesitas libreria de toasts.
-  - Validar con HTML5: `<input type="number" min="0" max="50" step="0.1">`.
-- **Errores comunes**:
-  - No incluir `Content-Type: application/json` en el header del POST. Sin este header, el backend no parsea el body correctamente y recibe `undefined`.
-  - Olvidar manejar el caso donde el gateway no esta conectado al broker. El POST al backend puede tener exito (HTTP 200) pero el comando no llega al gateway. Implementar un mecanismo de ACK/timeout si es posible.
-- **Tiempo estimado**: 6-8 horas
+**Prueba integradora final**: Con el sistema completo funcionando (gateway + al menos un nodo), abre el dashboard en un teléfono móvil conectado al WiFi AP. Desconecta y vuelve a conectar el teléfono. Verifica que el WebSocket se reconecta automáticamente y los datos vuelven a fluir.
 
 ---
 
-### Checkpoint 4.4: Verificacion del frontend Dashboard
+## Preguntas de autoevaluación
 
-Antes de continuar con la Sub-tarea 4.5, verifica lo siguiente:
+Responde estas preguntas para verificar tu comprensión de los conceptos de esta fase. Si no puedes responder alguna, revisa la documentación recomendada.
 
-- [ ] El dashboard React arranca sin errores con `bun run dev`.
-- [ ] La pagina Dashboard muestra los nodos con datos en tiempo real via WebSocket.
-- [ ] Los indicadores de estado (online/offline) funcionan correctamente.
-- [ ] La pagina Historicos muestra graficos con datos reales de la API.
-- [ ] Los filtros de nodo, tipo de sensor y rango de fechas funcionan.
-- [ ] La pagina Configuracion permite controlar actuadores y los comandos llegan al gateway.
-- [ ] Los formularios validan los inputs antes de enviar.
-- [ ] No hay errores en la consola del navegador.
+1. **¿Por qué Preact en lugar de React para el dashboard embebido? ¿Cuál es la diferencia de tamaño y qué implicaciones tiene para la partición SPIFFS?**
+   > Pista: Compara el tamaño gzipado de Preact (~3KB) con React (~40KB). ¿Cuántos KBs quedan disponibles en la partición SPIFFS de 1.9MB para el resto de assets?
 
-**Prueba integradora**: Con todo el sistema en marcha (nodos + gateway + broker + backend + frontend), verificar el flujo completo:
-1. Un nodo sensor envia datos.
-2. El dato aparece en el Dashboard en tiempo real (menos de 2 segundos).
-3. El dato se puede consultar en Historicos con un grafico.
-4. Un comando de control enviado desde Config activa un actuador en el gateway.
+2. **¿Por qué `esp_http_server` soporta WebSocket de forma nativa? ¿Qué ventaja tiene esto frente a implementar un servidor WebSocket separado?**
+   > Pista: El ESP32-S3 tiene un solo socket de servidor HTTP. ¿Qué pasa con la memoria si tienes dos servidores HTTP en el mismo dispositivo?
 
----
+3. **El gateway mantiene un ring buffer de las últimas 100 lecturas por nodo en RAM, en lugar de guardarlas en flash. ¿Por qué? ¿Cuáles son los trade-offs de esta decisión?**
+   > Pista: La memoria flash NOR del ESP32 soporta aproximadamente 100.000 ciclos de escritura por sector. Si escribes una lectura cada 30 segundos...
 
-## Sub-tarea 4.5: Dashboard embebido mejorado (2 tareas - opcionales pero recomendadas)
+4. **¿Qué ocurre con los datos de sensores que llegan por ESP-NOW si no hay ningún cliente WebSocket conectado? ¿Se pierden?**
+   > Pista: Revisa la nota al final de T4.1.3.
 
-### Tarea T4.5.1: Añadir datos live al panel web embebido del gateway
+5. **¿Por qué es importante que la función `ws_broadcast()` esté protegida con un mutex (SemaphoreHandle_t)?**
+   > Pista: La recepción ESP-NOW ocurre en el contexto de tarea del protocolo ESP-NOW. La tarea del servidor HTTP corre en otro contexto. ¿Qué pasa si ambas intentan modificar el array `ws_clients[]` simultáneamente?
 
-- **Dificultad**: Intermedio
-- **Descripcion**: Mejorar la interfaz web embebida del ESP32-S3 gateway (creada en Fase 1) para mostrar datos de sensores en tiempo real y estado de los nodos. Paso a paso:
-  1. Modificar el handler HTTP del servidor web embebido del gateway para agregar un nuevo endpoint: `GET /api/nodes`.
-  2. Este endpoint debe devolver un JSON con la informacion de cada nodo conectado: MAC, ultimo valor de cada sensor, timestamp de ultima lectura, estado (online/offline).
-  3. Modificar la pagina HTML embebida para agregar una seccion "Nodos conectados" con una tabla o tarjetas.
-  4. Agregar JavaScript que haga un `fetch("/api/nodes")` cada 5 segundos y actualice el contenido de la pagina.
-  5. Mostrar por cada nodo:
-     - Identificador (MAC o nombre).
-     - Ultima lectura de temperatura, pH, oxigeno disuelto.
-     - Indicador visual de estado: fondo verde si la ultima lectura fue hace menos de 2 minutos, rojo si mas.
-     - Timestamp de la ultima comunicacion.
-  6. Agregar un indicador del estado MQTT: "Conectado al broker" o "Desconectado del broker".
-  7. Minimizar el uso de memoria: el HTML/CSS/JS embebido debe ser lo mas compacto posible (el ESP32 tiene recursos limitados).
-- **Archivos a crear/modificar**:
-  - Modificar: `components/web_server/web_server.c` (o equivalente, agregar endpoint /api/nodes)
-  - Modificar: `components/web_server/index_html.h` (o equivalente, agregar seccion de nodos y JavaScript)
-- **Criterio de aceptacion**:
-  - Al acceder a `http://IP_GATEWAY/` en un navegador, se ve la seccion de nodos conectados.
-  - Los datos se actualizan automaticamente cada 5 segundos sin recargar la pagina.
-  - El indicador de estado del nodo muestra verde/rojo correctamente.
-  - El indicador de estado MQTT refleja la conexion real al broker.
-  - El endpoint `GET /api/nodes` devuelve JSON valido con la informacion de los nodos.
-  - El consumo de memoria del gateway se mantiene estable (no aumenta con cada peticion).
-- **Dependencias**: Fase 1 (servidor web embebido), T4.1.1 (MQTT conectado)
-- **Pistas**:
-  - Para el JSON de respuesta del endpoint, reutilizar la estructura de datos de nodos que ya mantienes en memoria.
-  - Usar `cJSON` para generar el JSON de respuesta en el ESP32.
-  - El JavaScript de la pagina embebida debe ser inline (dentro de `<script>`) para evitar peticiones adicionales.
-  - Usar `document.getElementById("nodos").innerHTML = ...` para actualizar el contenido dinamicamente.
-  - `setInterval(() => fetch("/api/nodes").then(r => r.json()).then(actualizarUI), 5000)` para las actualizaciones periodicas.
-- **Errores comunes**:
-  - Olvidar que el HTML/JS embebido esta como string C en un `.h`. Los caracteres especiales como `"` deben escaparse como `\"`, y los `%` como `%%` si usas `printf`.
-  - Generar el JSON de respuesta con `sprintf` en lugar de `cJSON`. Esto es propenso a buffer overflows y formatos invalidos. Siempre usar `cJSON`.
-- **Tiempo estimado**: 4-5 horas
+6. **¿Cómo afecta el tamaño del bundle a la experiencia del usuario? Compara el tiempo de carga de un asset de 50KB gzipado vs. uno de 500KB gzipado a través del WiFi AP del gateway (ancho de banda típico: ~5 Mbps).**
+   > Pista: Calcula el tiempo de descarga en ambos casos y piensa en el contexto: un operador técnico accediendo al panel de emergencia.
 
----
+7. **¿Por qué el endpoint `POST /api/ota` devuelve HTTP 202 Accepted en lugar de 200 OK?**
+   > Pista: ¿Cuánto tarda la descarga del firmware? ¿Puede el handler HTTP esperar bloqueado durante ese tiempo?
 
-### Tarea T4.5.2: Configuracion MQTT desde la web embebida del gateway
-
-- **Dificultad**: Basico
-- **Descripcion**: Agregar un formulario en la interfaz web embebida del gateway para configurar los parametros de conexion MQTT sin necesidad de reflashear. Paso a paso:
-  1. Agregar al HTML embebido un formulario con los campos:
-     - Broker Host (IP o hostname): `<input type="text" name="mqtt_host" placeholder="192.168.1.100">`.
-     - Puerto: `<input type="number" name="mqtt_port" value="1883">`.
-     - Usuario: `<input type="text" name="mqtt_user">`.
-     - Password: `<input type="password" name="mqtt_pass">`.
-     - Boton "Guardar y reconectar".
-  2. Crear un endpoint POST en el servidor web embebido: `POST /api/mqtt/config`.
-  3. En el handler del POST, parsear el body (URL-encoded o JSON) y extraer los 4 campos.
-  4. Guardar cada campo en NVS con las claves: `mqtt_host`, `mqtt_port`, `mqtt_user`, `mqtt_pass`.
-  5. Llamar a `esp_mqtt_client_stop()` para desconectar el cliente actual.
-  6. Reinicializar el cliente MQTT con los nuevos parametros y llamar a `esp_mqtt_client_start()`.
-  7. Devolver una respuesta indicando si la reconexion fue exitosa o fallo.
-  8. Al cargar la pagina, rellenar los campos del formulario con los valores actuales (excepto el password, por seguridad). Crear un endpoint `GET /api/mqtt/config` que devuelva los valores actuales (sin el password).
-- **Archivos a crear/modificar**:
-  - Modificar: `components/web_server/web_server.c` (agregar endpoints GET y POST para config MQTT)
-  - Modificar: `components/web_server/index_html.h` (agregar formulario HTML)
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.c` (exponer funcion para reinicializar con nuevos parametros)
-  - Modificar: `components/mqtt_bridge/mqtt_bridge.h` (declarar funcion de reinicializacion)
-- **Criterio de aceptacion**:
-  - El formulario de configuracion MQTT aparece en la pagina web del gateway.
-  - Los campos se pre-rellenan con los valores actuales (excepto password).
-  - Al guardar, los nuevos valores se almacenan en NVS (verificable con `nvs_get_str` o reiniciando el gateway).
-  - El cliente MQTT se reconecta al nuevo broker sin reiniciar el gateway.
-  - Si el nuevo broker no es alcanzable, se muestra un mensaje de error.
-- **Dependencias**: Fase 1 (servidor web embebido), T4.1.1
-- **Pistas**:
-  - Para parsear un body URL-encoded (`mqtt_host=192.168.1.100&mqtt_port=1883&...`), puedes usar `httpd_query_key_value()` de ESP-IDF.
-  - Para guardar en NVS: `nvs_set_str(handle, "mqtt_host", valor)` seguido de `nvs_commit(handle)`.
-  - La funcion de reinicializacion MQTT puede ser tan simple como: `esp_mqtt_client_destroy()` + crear nuevo config + `esp_mqtt_client_init()` + `esp_mqtt_client_start()`.
-  - No expongas el password en el GET. Devuelve `"password": "****"` o simplemente omitelo.
-- **Errores comunes**:
-  - No llamar a `nvs_commit()` despues de `nvs_set_str()`. Sin commit, los datos no se persisten en flash y se pierden al reiniciar.
-  - Intentar reusar el handle del cliente MQTT antiguo despues de destruirlo. Siempre crear un handle nuevo con `esp_mqtt_client_init()`.
-- **Tiempo estimado**: 3-4 horas
-
----
-
-### Checkpoint 4.5: Verificacion del dashboard embebido
-
-Verifica lo siguiente:
-
-- [ ] La pagina web del gateway muestra datos de nodos en tiempo real.
-- [ ] Los datos se actualizan cada 5 segundos sin recargar.
-- [ ] El formulario de configuracion MQTT permite cambiar el broker.
-- [ ] Los cambios de configuracion MQTT se persisten en NVS y sobreviven un reinicio.
-- [ ] La reconexion MQTT funciona correctamente tras cambiar la configuracion.
-
-**Prueba integradora**: Cambiar la IP del broker desde la interfaz web del gateway. Verificar que se reconecta al nuevo broker y que los datos siguen fluyendo al backend y al dashboard React.
-
----
-
-## Preguntas de autoevaluacion
-
-Responde estas preguntas para verificar tu comprension de los conceptos de esta fase. Si no puedes responder alguna, revisa la documentacion recomendada.
-
-1. **Que es QoS en MQTT y cuales son los tres niveles? Cuando usarias cada uno en el contexto de una piscifactoria?**
-   > Pista: Piensa en que pasa si se pierde un dato de temperatura vs. un comando para apagar una bomba.
-
-2. **Que diferencia hay entre un mensaje MQTT con retain=1 y uno con retain=0? Cuando es util el retain en este proyecto?**
-   > Pista: Que pasa cuando un nuevo suscriptor (ej. el backend despues de reiniciar) se conecta al broker?
-
-3. **Por que es necesario agregar cabeceras CORS en la API REST del backend? Que pasaria si no las agregas?**
-   > Pista: El frontend corre en `localhost:5173` y la API en `localhost:3000`. Son el mismo "origen"?
-
-4. **Cual es la diferencia entre usar HTTP polling (fetch cada N segundos) y WebSocket para datos en tiempo real? Cuales son las ventajas y desventajas de cada enfoque?**
-   > Pista: Piensa en latencia, consumo de recursos del servidor, y complejidad de implementacion.
-
-5. **Que es un prepared statement en SQLite y por que es importante usarlo en lugar de concatenar strings para las queries?**
-   > Pista: Piensa en rendimiento (la query se compila una sola vez) y en seguridad (SQL injection).
-
-6. **En el ESP32, por que es critico liberar la memoria devuelta por `cJSON_PrintUnformatted()`? Que pasaria si no lo haces en un dispositivo que corre 24/7?**
-   > Pista: El ESP32 tiene ~320KB de RAM. Un JSON de 200 bytes generado cada 10 segundos sin liberar...
-
-7. **Que ventajas tiene usar una estructura de topics MQTT jerarquica (`piscifactoria/gw01/nodo/mac/temp`) frente a topics planos (`sensor_temp_nodo1`)? Como se aprovechan los wildcards `+` y `#`?**
-   > Pista: Suscribirse a todos los datos de un nodo especifico, o a toda la temperatura de todos los nodos.
-
-8. **Si el broker MQTT se cae durante 5 minutos y luego se recupera, que pasa con los datos de sensores que el gateway intento publicar durante ese tiempo? Como podrias mitigar la perdida de datos?**
-   > Pista: Investiga el concepto de "offline buffering" en el cliente MQTT del ESP32 y las limitaciones de memoria.
+8. **Si el namespace MQTT está configurado como `"invernadero"` y el gateway_id es `"GW-001"`, ¿cuál sería el topic MQTT completo para la lectura de temperatura del nodo `AA:BB:CC:DD:EE:01`?**
+   > Respuesta esperada: `invernadero/GW-001/nodo/AA:BB:CC:DD:EE:01/temperatura`
 
 ---
 
 ## Lectura recomendada
 
-### MQTT
-- [Protocolo MQTT - Documentacion oficial](https://mqtt.org/) - Entender los conceptos basicos: topics, QoS, retain, last will testament.
-- [ESP-MQTT - Documentacion ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/protocols/mqtt.html) - API del cliente MQTT en ESP-IDF.
-- [Mosquitto - Documentacion oficial](https://mosquitto.org/documentation/) - Configuracion del broker.
-- [MQTT.js - GitHub](https://github.com/mqttjs/MQTT.js) - Cliente MQTT para JavaScript/TypeScript (usado en el backend).
+### ESP-IDF y ESP32
+- [esp_http_server — Documentación ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/protocols/esp_http_server.html) — Incluye la sección sobre soporte WebSocket nativo.
+- [SPIFFS — Documentación ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/storage/spiffs.html) — Cómo montar la partición, leer archivos, y las limitaciones de escritura.
+- [cJSON — GitHub](https://github.com/DaveGamble/cJSON) — Referencia de la API: `cJSON_CreateObject`, `cJSON_AddNumberToObject`, `cJSON_PrintUnformatted`, `cJSON_Delete`.
+- [Ejemplo SPIFFS + HTTP Server — esp-idf](https://github.com/espressif/esp-idf/tree/master/examples/protocols/http_server) — Código de referencia para servir archivos estáticos.
+- [Ejemplo WebSocket — esp-idf](https://github.com/espressif/esp-idf/tree/master/examples/protocols/http_server/ws_echo_server) — Punto de partida para el handler WebSocket.
 
-### Backend
-- [Bun - Documentacion oficial](https://bun.sh/docs) - Runtime, servidor HTTP, WebSocket, SQLite integrado.
-- [better-sqlite3 - GitHub](https://github.com/WiseLibs/better-sqlite3) - API sincrona de SQLite para Node.js (alternativa a bun:sqlite).
-- [WebSocket API - MDN](https://developer.mozilla.org/es/docs/Web/API/WebSockets_API) - Especificacion del protocolo WebSocket.
+### Preact y Vite
+- [Documentación oficial de Preact](https://preactjs.com/guide/v10/getting-started/) — La guía de inicio cubre todo lo necesario para este proyecto.
+- [Vite — Guía de configuración](https://vite.dev/guide/) — Cómo configurar el output de build, plugins y optimización.
+- [Preact Signals](https://preactjs.com/guide/v10/signals/) — Estado reactivo de Preact sin useState, muy ligero.
 
-### Frontend
-- [React - Documentacion oficial](https://react.dev/) - Hooks, componentes, estado.
-- [Recharts - Documentacion oficial](https://recharts.org/) - Graficos de linea, area, barras para React.
-- [Tailwind CSS - Documentacion](https://tailwindcss.com/docs) - Framework de estilos utility-first.
-- [React Router - Documentacion](https://reactrouter.com/) - Enrutamiento del lado del cliente.
-- [Vite - Documentacion](https://vite.dev/guide/) - Bundler y servidor de desarrollo.
+### WebSocket
+- [WebSocket API — MDN](https://developer.mozilla.org/es/docs/Web/API/WebSockets_API) — Referencia de la API del navegador: `new WebSocket()`, `onmessage`, `onclose`, `send()`.
+- [RFC 6455 — WebSocket Protocol](https://datatracker.ietf.org/doc/html/rfc6455) — La especificación del protocolo (lectura opcional para comprender el handshake).
 
-### Conceptos generales
-- [CORS - MDN](https://developer.mozilla.org/es/docs/Web/HTTP/CORS) - Entender el mecanismo de seguridad del navegador.
-- [SQLite - Documentacion](https://www.sqlite.org/docs.html) - Referencia SQL y mejores practicas.
-- [cJSON - GitHub](https://github.com/DaveGamble/cJSON) - Libreria de JSON para C usada en ESP-IDF.
+### MQTT (opcional)
+- [ESP-MQTT — Documentación ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/protocols/mqtt.html) — Para la integración opcional en T4.3.
+- [MQTT.org](https://mqtt.org/) — Conceptos: publish/subscribe, QoS, retained messages.
 
 ---
 
 ## Errores frecuentes de la Fase 4
 
-### 1. Memory leak en el ESP32 con cJSON
-**Sintoma**: El gateway funciona bien las primeras horas pero luego se reinicia aleatoriamente o deja de responder.
-**Causa**: No liberar la memoria asignada por `cJSON_CreateObject()` y `cJSON_PrintUnformatted()`.
-**Solucion**: Siempre llamar a `cJSON_Delete(root)` para el objeto JSON y `free(string)` para el string generado por `cJSON_PrintUnformatted()`. Monitorear `esp_get_free_heap_size()` periodicamente.
+### 1. Memory leak en cJSON en el ESP32
+**Síntoma**: El gateway funciona bien las primeras horas pero luego se reinicia o deja de responder.
+**Causa**: No liberar la memoria de `cJSON_PrintUnformatted()` (con `free()`) o del árbol cJSON (con `cJSON_Delete()`). Son dos operaciones distintas y ambas son necesarias.
+**Solución**: Siempre seguir el patrón: `cJSON *root = ...; char *str = cJSON_PrintUnformatted(root); cJSON_Delete(root); /* usar str */ free(str);`. Monitorear `esp_get_free_heap_size()` periódicamente.
 
-### 2. MQTT publica antes de que WiFi este listo
-**Sintoma**: Los primeros mensajes MQTT se pierden o el cliente MQTT reporta errores de conexion.
-**Causa**: Llamar a `mqtt_bridge_init()` antes de obtener una IP via DHCP.
-**Solucion**: Registrar `mqtt_bridge_init()` como callback del evento `IP_EVENT_STA_GOT_IP` o usar un semaforo/event group para esperar la conexion WiFi.
+### 2. WebSocket handler sin `.is_websocket = true`
+**Síntoma**: El navegador lanza `WebSocket connection to 'ws://...' failed`.
+**Causa**: El URI handler no está marcado como WebSocket handler, por lo que `esp_http_server` lo trata como HTTP GET normal.
+**Solución**: Añadir `.is_websocket = true` a la estructura `httpd_uri_t` del handler WebSocket.
 
-### 3. CORS bloquea las peticiones del frontend
-**Sintoma**: La pagina web carga pero las llamadas a la API fallan con error en la consola: "has been blocked by CORS policy".
-**Causa**: El backend no incluye las cabeceras CORS o no maneja las peticiones OPTIONS (preflight).
-**Solucion**: Agregar `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, POST, OPTIONS`, y `Access-Control-Allow-Headers: Content-Type` en TODAS las respuestas HTTP del backend. Manejar las peticiones OPTIONS con un 204 No Content.
+### 3. CORS bloqueando peticiones POST del dashboard
+**Síntoma**: El dashboard puede hacer GET a la API pero los POST fallan con error CORS en la consola del navegador.
+**Causa**: El servidor no responde a las peticiones preflight OPTIONS con las cabeceras CORS correctas.
+**Solución**: Registrar un handler para `HTTP_OPTIONS` en todos los endpoints que acepten POST, devolviendo 204 con las cabeceras: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type`.
 
-### 4. WebSocket no reconecta tras desconexion
-**Sintoma**: Si el backend se reinicia, el dashboard deja de recibir datos en tiempo real y no se recupera.
-**Causa**: La API nativa de WebSocket del navegador no tiene reconexion automatica.
-**Solucion**: Implementar logica de reconexion en el hook `useWebSocket()`: en el evento `onclose`, hacer `setTimeout(() => connect(), 3000)`. Incrementar el intervalo exponencialmente en caso de fallos repetidos (backoff).
+### 4. Bundle Preact demasiado grande
+**Síntoma**: `du -sh firmware/gateway/web/dist/` muestra más de 500KB.
+**Causa**: Se importó React en lugar de Preact, o se añadió una librería de iconos/gráficos pesada.
+**Solución**: Ver sección de troubleshooting en T4.2.3. Ejecutar `npm run build -- --analyze` para identificar qué módulos contribuyen más al tamaño.
 
-### 5. El topic MQTT del ESP32 no esta null-terminated
-**Sintoma**: Los mensajes MQTT recibidos en el gateway contienen basura al final del topic o del payload.
-**Causa**: Los campos `event->topic` y `event->data` del evento `MQTT_EVENT_DATA` no terminan en `\0`.
-**Solucion**: Copiar a un buffer local con `strncpy()` o `memcpy()` usando `event->topic_len` y `event->data_len`, y agregar el `\0` manualmente.
+### 5. SPIFFS no montada antes de servir archivos
+**Síntoma**: El servidor HTTP devuelve 404 para todos los archivos estáticos.
+**Causa**: `esp_vfs_spiffs_register()` no se llamó antes de iniciar el servidor HTTP, o la imagen SPIFFS no se flasheó a la dirección correcta.
+**Solución**: Verificar el orden de inicialización en `app_main()`: NVS → SPIFFS → WiFi → HTTP Server. Verificar que la imagen se flasheó a la dirección de la partición `spiffs` (0x610000 en la configuración por defecto).
 
-### 6. SQLite bloqueada por escrituras concurrentes
-**Sintoma**: Errores "database is locked" en el backend cuando llegan muchos datos de sensores simultaneamente.
-**Causa**: SQLite no soporta escrituras concurrentes por defecto.
-**Solucion**: Usar modo WAL (Write-Ahead Logging): ejecutar `PRAGMA journal_mode=WAL;` al inicializar la base de datos. Esto permite lecturas concurrentes con escrituras.
+### 6. Acceso concurrente al array `ws_clients[]` sin mutex
+**Síntoma**: El gateway se reinicia aleatoriamente con `LoadProhibited` o `StoreProhibited` (acceso a dirección inválida).
+**Causa**: La tarea de ESP-NOW y la tarea del servidor HTTP modifican `ws_clients[]` sin sincronización.
+**Solución**: Proteger todas las lecturas y escrituras de `ws_clients[]` con `xSemaphoreTake(ws_clients_mutex, portMAX_DELAY)` / `xSemaphoreGive(ws_clients_mutex)`.
 
-### 7. El grafico de Recharts no actualiza al cambiar los datos
-**Sintoma**: El grafico se renderiza con los primeros datos pero no cambia al seleccionar otro nodo o rango.
-**Causa**: React no detecta el cambio de estado porque se esta mutando el array en lugar de crear uno nuevo.
-**Solucion**: Usar `setData([...newData])` o `setData(newData)` donde `newData` es un nuevo array (no una mutacion del anterior). Verificar que la key del componente cambia cuando cambian los datos.
+### 7. WebSocket no reconecta tras reinicio del gateway
+**Síntoma**: El dashboard deja de recibir datos si el gateway se reinicia y no vuelve a actualizarse.
+**Causa**: El código JavaScript del dashboard no implementa lógica de reconexión en el evento `onclose`.
+**Solución**: Implementar el hook `useWebSocket` con reconexión automática (ver código de ejemplo en T4.1.3).
 
-### 8. Timestamps inconsistentes entre ESP32 y servidor
-**Sintoma**: Los datos en el grafico aparecen desordenados o con timestamps en el futuro/pasado.
-**Causa**: El ESP32 no tiene reloj de tiempo real (RTC) y `time()` devuelve 0 o un valor incorrecto si SNTP no esta configurado.
-**Solucion**: Configurar SNTP en el gateway al arrancar: `esp_sntp_setoperatingmode(SNTP_OPMODE_POLL)`, `esp_sntp_setservername(0, "pool.ntp.org")`, `esp_sntp_init()`. Esperar la sincronizacion antes de empezar a publicar datos. Alternativamente, asignar el timestamp en el backend al recibir el dato.
+### 8. Datos históricos no disponibles tras reinicio del gateway
+**Síntoma**: Al reiniciar el gateway, `GET /api/nodes/{id}/readings` devuelve un array vacío.
+**Causa**: El ring buffer de lecturas vive en RAM (no en NVS ni SPIFFS). Un reinicio borra todos los datos históricos.
+**Nota**: Este es el comportamiento esperado y documentado. El gateway no es una base de datos. Para histórico persistente, usa la integración MQTT opcional y guarda los datos en un sistema externo.
 
 ---
 
 ## Resumen de la Fase 4
 
-Al completar esta fase, tendras un sistema completo de monitoreo de piscifactoria con:
+Al completar esta fase, dispondrás de un gateway ESP32-S3 completamente autónomo que:
 
-- **Gateway MQTT Bridge**: El ESP32-S3 publica datos de sensores y estado al broker MQTT, y recibe comandos de control.
-- **Broker Mosquitto**: Centraliza la comunicacion MQTT con autenticacion.
-- **Backend Bun/TypeScript**: Almacena datos historicos en SQLite, expone API REST para consultas y WebSocket para tiempo real.
-- **Dashboard React**: Visualizacion en tiempo real, graficos historicos, y control remoto de actuadores.
-- **Web embebida mejorada**: El gateway tiene su propia interfaz web con datos live y configuracion MQTT.
+- **Sirve un dashboard interactivo** desde su propia memoria flash (SPIFFS), accesible desde cualquier dispositivo con navegador en la red WiFi del gateway.
+- **Expone una API REST** (`/api/status`, `/api/nodes`, `/api/nodes/{id}/readings`, `/api/config`, `/api/ota`) para consulta de datos y configuración remota.
+- **Empuja datos en tiempo real** via WebSocket a todos los navegadores conectados, sin polling.
+- **Publica opcionalmente en MQTT** con namespace configurable, para integración con sistemas cloud o LAN.
+- **Opera sin dependencias externas**: no requiere Bun, Node.js, SQLite, Mosquitto, ni ningún otro servicio externo para funcionar.
 
-El flujo de datos completo es:
+El sistema es completamente standalone: si se va la red local o el cloud, el gateway sigue funcionando, el dashboard sigue siendo accesible y los datos de sensores siguen llegando.
+
 ```
-Sensor -> Nodo ESP32-C3 -> ESP-NOW -> Gateway ESP32-S3 -> MQTT -> Broker Mosquitto
-    -> Backend Bun -> SQLite (historicos) + WebSocket (tiempo real) -> Dashboard React
+Flujo de datos completo:
+Sensor → Nodo ESP32-C3 → [ESP-NOW] → Gateway ESP32-S3 (autónomo)
+                                           ↓
+                          Dashboard embebido (Preact en SPIFFS)
+                          API REST (esp_http_server)
+                          WebSocket (push en tiempo real)
+                               ↓ [opcional]
+                          MQTT → broker cloud/LAN
 ```
 
-**Tiempo total estimado**: 50-65 horas (4 semanas a ritmo de dedicacion parcial).
+**Tiempo total estimado**: 28-38 horas (4 semanas a ritmo de dedicación parcial).

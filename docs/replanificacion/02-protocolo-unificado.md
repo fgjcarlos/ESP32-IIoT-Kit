@@ -32,8 +32,12 @@ typedef enum {
     SENSOR_TYPE_ORP         = 0x04,
     SENSOR_TYPE_LEVEL       = 0x05,
     SENSOR_TYPE_TURBIDITY   = 0x06,
+    SENSOR_TYPE_CUSTOM      = 0xFF,  // Tipo de sensor personalizado para sensores definidos por el usuario.
+                                     // La interpretacion de values[] es especifica de la aplicacion.
 } sensor_type_t;
 ```
+
+La funcion `protocol_sensor_type_str()` retorna `"CUSTOM"` para el valor `0xFF`. Los valores existentes (0x01-0x06) son inmutables y no deben modificarse para mantener compatibilidad del protocolo.
 
 ## Cabecera comun (13 bytes)
 
@@ -197,3 +201,49 @@ OTA:
 | msg_discovery_t | 21 bytes | Si |
 | msg_config_t | 16 bytes | Si |
 | msg_ota_prepare_t | 112 bytes | Si |
+
+## Espacio de Nombres MQTT
+
+El prefijo del topico MQTT es configurable por NVS para que la plataforma sirva cualquier dominio sin recompilar.
+
+### Patron de topico
+
+```
+{mqtt_ns}/{gateway_id}/nodo/{nodo_id}/{tipo_sensor}
+```
+
+| Campo | Descripcion |
+|-------|-------------|
+| `mqtt_ns` | Namespace configurable. Se almacena en NVS con clave `"mqtt_namespace"`. Valor por defecto: `"iiot-kit"`. |
+| `gateway_id` | Identificador unico del gateway (derivado del MAC o configurado manualmente). |
+| `nodo_id` | Direccion MAC del nodo sensor (formato `AA:BB:CC:DD:EE:FF`). |
+| `tipo_sensor` | Nombre del tipo de sensor en minusculas (ej. `temperature`, `ph`, `do`, `orp`, `level`, `turbidity`, `custom`). |
+
+### Ejemplos de topicos
+
+Con `mqtt_ns = "iiot-kit"` (valor por defecto):
+```
+iiot-kit/GW-001/nodo/AA:BB:CC:DD:EE:FF/temperature
+iiot-kit/GW-001/alertas
+iiot-kit/GW-001/control/actuador/0
+```
+
+Con `mqtt_ns = "greenhouse"` (instalacion de invernadero):
+```
+greenhouse/GW-001/nodo/AA:BB:CC:DD:EE:FF/temperature
+greenhouse/GW-001/alertas
+```
+
+### Configuracion en NVS
+
+```c
+// Leer el namespace MQTT desde NVS (con fallback al valor por defecto)
+nvs_handle_t h;
+nvs_open("mqtt", NVS_READONLY, &h);
+char mqtt_ns[32] = "iiot-kit";  // valor por defecto
+size_t ns_len = sizeof(mqtt_ns);
+nvs_get_str(h, "mqtt_namespace", mqtt_ns, &ns_len);
+nvs_close(h);
+```
+
+**Nota**: El prefijo historico `piscifactoria/` era el namespace por defecto en versiones anteriores del proyecto. Con la transformacion a ESP32-IIoT-Kit, ese prefijo se convierte en un ejemplo de namespace especifico de dominio. Ver `examples/fish-farm/mqtt-topics.md` para la configuracion completa del dominio de acuicultura (`mqtt_ns = "fish-farm"`).

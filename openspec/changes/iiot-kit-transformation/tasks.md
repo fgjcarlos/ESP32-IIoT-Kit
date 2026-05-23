@@ -98,7 +98,7 @@ The largest single change. Entirely replaces the old Bun/React/MQTT dashboard ar
 
 ---
 
-### T-04 — Rewrite Fases/fase-04-mqtt-dashboard.md
+### [x] T-04 — Rewrite Fases/fase-04-mqtt-dashboard.md
 
 **Spec requirements**: SPIFFS-Served Preact SPA (embedded-dashboard), REST API Documentation (embedded-dashboard), WebSocket Real-Time Data Push (embedded-dashboard), Generic IIoT Framing (tutorial-narrative), MkDocs Site Name and Navigation (repo-rename)
 
@@ -140,7 +140,7 @@ The largest single change. Entirely replaces the old Bun/React/MQTT dashboard ar
 
 ---
 
-### T-05 — Rewrite Tutorial/tutorial-04-mqtt-dashboard.md
+### [x] T-05 — Rewrite Tutorial/tutorial-04-mqtt-dashboard.md
 
 **Spec requirements**: SPIFFS-Served Preact SPA (embedded-dashboard), REST API Documentation (embedded-dashboard), WebSocket Real-Time Data Push (embedded-dashboard), Generic IIoT Framing (tutorial-narrative)
 
@@ -175,7 +175,7 @@ Language: European Spanish (Spain). Educational and didactic tone. Guide the rea
 
 ---
 
-### T-06 — Major update Fases/fase-03-sensores-actuadores.md
+### [x] T-06 — Major update Fases/fase-03-sensores-actuadores.md
 
 **Spec requirements**: DS18B20 as Universal Sensor Example (example-projects), Generic IIoT Framing (tutorial-narrative)
 
@@ -211,7 +211,7 @@ DS18B20 MUST appear as the primary worked example. Replace all fish-farm narrati
 
 ---
 
-### T-07 — Major update Tutorial/tutorial-03-sensores-actuadores.md
+### [x] T-07 — Major update Tutorial/tutorial-03-sensores-actuadores.md
 
 **Spec requirements**: DS18B20 as Universal Sensor Example (example-projects), Generic IIoT Framing (tutorial-narrative)
 
@@ -232,7 +232,7 @@ DS18B20 MUST appear as the primary worked example. Replace all fish-farm narrati
 
 ---
 
-### T-08 — Update docs/replanificacion/02-protocolo-unificado.md
+### [x] T-08 — Update docs/replanificacion/02-protocolo-unificado.md
 
 **Spec requirements**: Configurable Namespace in Protocol Docs (configurable-mqtt-namespace), Sensor Type Enum — CUSTOM=0xFF (sensor-protocol)
 
@@ -257,7 +257,7 @@ DS18B20 MUST appear as the primary worked example. Replace all fish-farm narrati
 
 ---
 
-### T-09 — Update knowledge/Proyecto/Arquitectura.md
+### [x] T-09 — Update knowledge/Proyecto/Arquitectura.md
 
 **Spec requirements**: Project Identity Files Updated (tutorial-narrative), Generic IIoT Framing (tutorial-narrative)
 
@@ -277,7 +277,7 @@ DS18B20 MUST appear as the primary worked example. Replace all fish-farm narrati
 
 ---
 
-### T-10 — Update knowledge/Referencia/Protocolo-Mensajes.md
+### [x] T-10 — Update knowledge/Referencia/Protocolo-Mensajes.md
 
 **Spec requirements**: Sensor Type Enum — CUSTOM=0xFF (sensor-protocol)
 
