@@ -9,6 +9,7 @@ on:
       - 'Fases/**'
       - 'knowledge/**'
       - 'mkdocs.yml'
+      - '.github/workflows/deploy-docs.yml'
 
   workflow_dispatch:
 
