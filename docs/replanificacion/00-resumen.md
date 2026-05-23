@@ -30,7 +30,11 @@ El plan original define el protocolo DOS veces con nombres y estructuras diferen
 
 El firmware del nodo necesita poder conectarse al AP del gateway para recibir OTA en Fase 5. Se agrega esta capacidad en Fase 2 (dormida, solo se activa cuando el gateway lo solicita via ESP-NOW).
 
-### 4. Observaciones adicionales
+### 4. MQTT plano a Sparkplug B (progresion formativa)
+
+Fase 4 implementa MQTT plano con topics custom para aprender los fundamentos. Fase 6 migra a MQTT Sparkplug B (estandar IIoT) con payloads Protobuf, birth/death certificates y auto-discovery. Los nodos sensores no se ven afectados (solo hablan ESP-NOW). Ver DC-13.
+
+### 5. Observaciones adicionales
 
 - Watchdog timeout ajustado de 30s a 90s
 - ACK del gateway movido a Fase 1
