@@ -1,0 +1,98 @@
+name: "Propuesta técnica"
+description: >-
+  Propón una mejora de hardware, firmware, integración, interfaz o
+  documentación.
+title: "[Propuesta]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por proponer una mejora para ESP32-IIoT-Kit.
+        Describe un resultado verificable y evita incluir credenciales,
+        secretos o datos privados.
+
+  - type: input
+    id: objective
+    attributes:
+      label: Objetivo
+      description: >-
+        Resume en una frase el resultado que debe conseguir esta propuesta.
+      placeholder: >-
+        Ejemplo: añadir soporte para la pantalla ST7789 de la placa C6.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto y problema
+      description: >-
+        Explica la necesidad, el comportamiento actual y la evidencia
+        disponible.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área principal
+      description: Selecciona el área responsable principal.
+      options:
+        - Producto y arquitectura
+        - Hardware y BSP
+        - Firmware
+        - Pantalla e interfaz local
+        - MQTT y Sparkplug B
+        - Branding y personalización
+        - OTA y seguridad
+        - Tests y CI
+        - Documentación
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Alcance
+      description: >-
+        Enumera qué debe incluir y qué queda explícitamente fuera.
+      placeholder: |
+        Incluye:
+        - ...
+
+        No incluye:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: Usa una lista verificable de resultados observables.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencias y bloqueos
+      description: >-
+        Indica decisiones, hardware, documentos u otras issues necesarias.
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Referencias
+      description: >-
+        Añade enlaces públicos, documentos del repositorio o
+        especificaciones relevantes.
+    validations:
+      required: false
