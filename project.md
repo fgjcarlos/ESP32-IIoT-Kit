@@ -24,7 +24,7 @@ El proyecto tiene una vocación **didáctica**: enseñar ESP-IDF, comunicaciones
 
 ### 1.2 Problemática Resuelta
 
-- **Dependencia de infraestructura externa**: los sistemas de monitorización convencionales requieren servidores, bases de datos y dashboards externos para funcionar. ESP32-IIoT-Kit es completamente autónomo: el gateway ESP32-S3 sirve su propia interfaz web desde flash.
+- **Dependencia de infraestructura externa**: los sistemas de monitorización convencionales requieren servidores, bases de datos y dashboards externos para funcionar. ESP32-IIoT-Kit está diseñado para ser completamente autónomo: el gateway candidato ESP32-S3-WROOM-1-N16R8 debe servir su propia interfaz web desde flash; la viabilidad en el hardware candidato aún requiere validación.
 - **Alta complejidad de instalación**: sin servidores externos, el despliegue se reduce a flashear el gateway y los nodos.
 - **Falta de estandarización en sensores**: el protocolo de mensajería sobre ESP-NOW es genérico y admite cualquier tipo de sensor mediante un tipo personalizable (`SENSOR_TYPE_CUSTOM`).
 - **Costes elevados** de sistemas propietarios equivalentes.
@@ -45,12 +45,12 @@ El proyecto tiene una vocación **didáctica**: enseñar ESP-IDF, comunicaciones
 
 ### 2.1 Topología de Red
 
-El gateway ESP32-S3 es el corazón del sistema. Es un dispositivo completamente autónomo que no requiere servidores externos para operar.
+El gateway candidato ESP32-S3-WROOM-1-N16R8 es el corazón previsto del sistema. Debe operar de forma completamente autónoma, sin servidores externos; el candidato aún no está validado en hardware.
 
 ```
                    ┌──────────────────────────────────┐
-                   │        ESP32-S3 GATEWAY           │
-                   │        (Totalmente Autónomo)       │
+                   │ ESP32-S3-WROOM-1-N16R8 CANDIDATE  │
+                   │ (Operación autónoma requerida)    │
                    │                                    │
                    │  ┌──────────────────────────────┐  │
   Browser ◄───────►│  │  Preact SPA (SPIFFS)         │  │
@@ -123,7 +123,7 @@ El gateway ESP32-S3 es el corazón del sistema. Es un dispositivo completamente 
 | **OTA** | `esp_ota_ops` + `esp_https_ota` | Particiones A/B con rollback |
 | **Testing** | Unity (integrado en ESP-IDF), Wokwi | Tests unitarios + simulación |
 
-### 3.2 Dashboard Embebido (Gateway ESP32-S3)
+### 3.2 Dashboard Embebido (Gateway candidato ESP32-S3-WROOM-1-N16R8)
 
 | Componente | Tecnología | Justificación |
 |------------|------------|---------------|
@@ -281,7 +281,7 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 
 | Componente | Especificación | Cantidad | Coste Aprox. |
 |------------|----------------|----------|--------------|
-| Gateway | ESP32-S3-WROOM-1 (8MB Flash, 2MB PSRAM) | 1 | 8 € |
+| Gateway | Candidato ESP32-S3-WROOM-1-N16R8 (16 MB flash Quad-SPI, 8 MB PSRAM Octal-SPI; imagen provisional de pinout del carrier proporcionada por el usuario: GPIO0–GPIO21 y GPIO35–GPIO48, con GPIO0/BOOT, GPIO19/USB D−, GPIO20/USB D+ y GPIO48/RGB_LED; GPIO35–GPIO37 no están disponibles porque el módulo los usa para PSRAM Octal-SPI; pantalla externa confirmada por el usuario: 8 pines, ST7789V2, 170(H) RGB × 320(V), SPI de 4 hilos y tamaño nominal de 1,9 in; especificaciones reportadas por el usuario/listado, no verificadas físicamente: 3,3 V, −20 a 70 °C, dirección de visión a las 12, dos LED blancos en paralelo y corriente de operación de 20 mA de alcance no aclarado; **advertencia: el usuario retiró como incorrecto el valor del vendedor de pitch `0,1155 × 0,1155 mm`; no debe usarse ni debe derivarse geometría de él, ni inferirse un pitch de reemplazo**; las dimensiones mecánicas reportadas por el dibujo del usuario son: área activa 42,720 × 22,695 mm, contorno LCD 48,520 × 24,800 mm, contorno de retroiluminación 49,720 × 25,800 mm, contorno PCB 62,000 × 29,000 mm y separación entre centros de montaje 58,000 × 25,000 mm; no son verificación física y deben compararse con el módulo exacto antes de diseñar la carcasa; el mapa de contactos no asigna GPIO del ESP32 y los niveles lógicos, el manejo de corriente de retroiluminación y todas las especificaciones eléctricas siguen sin validar) | 1 | Por confirmar |
 | Nodos | ESP32-C3-MINI-1 (4MB Flash) | 3-10 | 4 €/unidad |
 | Sensor de referencia | DS18B20 (temperatura 1-Wire) | 1+ | 2 €/unidad |
 | Baterías | Li-Ion 18650 3400mAh (ej. NCR18650B) | 3-10 | 5 €/unidad |
@@ -293,17 +293,9 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 
 ### 5.2 Tabla de Particiones ESP32
 
-**Gateway (ESP32-S3, 8MB Flash):**
+**Gateway candidato (ESP32-S3-WROOM-1-N16R8, 16 MB flash):**
 
-```
-# Name,   Type, SubType,  Offset,   Size
-nvs,      data, nvs,      0x9000,   0x6000    (24KB)
-phy_init, data, phy,      0xf000,   0x1000    (4KB)
-ota_0,    app,  ota_0,    0x10000,  0x300000  (3MB)
-ota_1,    app,  ota_1,    0x310000, 0x300000  (3MB)
-storage,  data, spiffs,   0x610000, 0x1E0000  (1.9MB - Preact SPA + assets)
-otadata,  data, ota,      0x7F0000, 0x2000    (8KB)
-```
+La asignación final de particiones debe definirse en ODD-3 a partir de tamaños medidos de firmware y dashboard. Debe preservar como requisitos el dashboard web autónomo y OTA; la viabilidad y los tamaños de las particiones aún no están demostrados.
 
 **Nodo (ESP32-C3, 4MB Flash):**
 
@@ -336,7 +328,7 @@ otadata,  data, ota,      0x310000, 0x2000    (8KB)
 ```
 ESP32-IIoT-Kit/
 ├── firmware/
-│   ├── gateway/                  # Proyecto ESP-IDF para ESP32-S3
+│   ├── gateway/                  # Proyecto ESP-IDF para el candidato ESP32-S3-WROOM-1-N16R8
 │   │   ├── main/
 │   │   │   ├── main.c
 │   │   │   ├── wifi_manager.c/.h
@@ -474,7 +466,7 @@ ESP32-IIoT-Kit/
 
 ### 9.1 Viabilidad
 
-El proyecto es **técnicamente viable**. La combinación de C/ESP-IDF + ESP32 + Preact/Vite embebido ofrece:
+El enfoque del proyecto requiere validación en el gateway candidato ESP32-S3-WROOM-1-N16R8. La combinación de C/ESP-IDF + ESP32 + Preact/Vite embebido ofrece:
 
 1. **Máxima madurez** del firmware gracias a ESP-IDF nativo en C
 2. **Documentación abundante**: miles de ejemplos oficiales y comunitarios de Espressif
@@ -487,7 +479,7 @@ El proyecto es **técnicamente viable**. La combinación de C/ESP-IDF + ESP32 + 
 | Decisión | Justificación |
 |----------|---------------|
 | **Preact en vez de React** para la SPA | React (~40KB+) es demasiado grande para SPIFFS. Preact (~3KB) es una alternativa compatible que genera builds de ~200KB con Vite |
-| **Sin servidor externo** | El gateway ESP32-S3 es suficientemente potente para servir la SPA y la API REST. Un servidor externo añade complejidad de despliegue sin beneficio para un kit IIoT |
+| **Sin servidor externo** | El gateway candidato ESP32-S3-WROOM-1-N16R8 debe servir la SPA y la API REST como requisito del kit. La viabilidad del dashboard autónomo y OTA requiere validación y una asignación de particiones en ODD-3. |
 | **WebSocket sobre MQTT** para el dashboard | El dashboard embebido se conecta directamente por WebSocket al gateway. MQTT sigue disponible como integración opcional para sistemas cloud |
 | **C en vez de Rust** para firmware | ESP-IDF es C nativo. Con experiencia en C, se accede directamente a toda la documentación oficial sin capas de indirección |
 | **ESP-NOW punto a punto, no mesh** en v1.0 | Implementar mesh routing custom es complejo. Los nodos envían directo al gateway. Relay estático planificado como mejora futura |
@@ -498,8 +490,8 @@ El proyecto es **técnicamente viable**. La combinación de C/ESP-IDF + ESP32 + 
 
 ### 9.3 Próximos Pasos
 
-1. **Adquirir hardware**: 1x ESP32-S3-DevKitC, 3x ESP32-C3-DevKitM, sensor DS18B20 (1 semana)
-2. **Setup ESP-IDF v5.x** y validar compilación para ambos targets (1 semana)
+1. **Confirmar hardware**: 1x candidato ESP32-S3-WROOM-1-N16R8, su modelo/revisión y unidad física frente a la imagen provisional de pinout proporcionada por el usuario; GPIO35–GPIO37 permanecen no disponibles por PSRAM Octal-SPI, GPIO48 queda reservado para RGB_LED y GPIO19/GPIO20 para USB D−/D+ mientras se necesite USB nativo. Panel externo de 8 pines ST7789V2 (170(H) RGB × 320(V), SPI de 4 hilos y tamaño nominal de 1,9 in), 3x ESP32-C3-DevKitM y sensor DS18B20; además de las etiquetas físicas y los GPIO del lado de la placa, verificar 3,3 V, niveles lógicos seguros, polaridad de reset, construcción y control de retroiluminación, y qué mide la corriente reportada de 20 mA. **Advertencia: el usuario retiró como incorrecto el valor del vendedor de pitch `0,1155 mm`; no debe usarse, ni su geometría derivada, ni debe inferirse un reemplazo.** Las dimensiones mecánicas ahora son reportadas por el dibujo del usuario: AA 42,720 × 22,695 mm, contorno LCD 48,520 × 24,800 mm, contorno de retroiluminación 49,720 × 25,800 mm, contorno PCB 62,000 × 29,000 mm y separación entre centros de montaje 58,000 × 25,000 mm. Compararlas con el módulo exacto entregado antes de diseñar la carcasa; no son verificación física y no usar especificaciones de la variante distinta de 30 pines (1 semana)
+2. **Setup ESP-IDF v5.x** y validar compilación para ESP32-S3 y ESP32-C3 (1 semana)
 3. **Setup Preact + Vite**: validar que un build de prueba produce un bundle < 200KB gzipped (1 semana)
 4. **Iniciar Fase 0** según cronograma
 

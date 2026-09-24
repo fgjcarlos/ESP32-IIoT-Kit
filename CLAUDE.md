@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-A generic IIoT monitoring and control platform built on ESP32 microcontrollers. The gateway (ESP32-S3) is fully autonomous: it hosts an embedded Preact SPA served from SPIFFS, a REST API, and a WebSocket server — no external server required. Sensor nodes (ESP32-C3) use ESP-NOW and deep sleep for maximum battery life. MQTT is an optional cloud/LAN integration. This is an **educational project** — the goal is learning ESP-IDF and embedded systems development.
+A generic IIoT monitoring and control platform built on ESP32 microcontrollers. The selected gateway candidate is an ESP32-S3-WROOM-1-N16R8 module/carrier with an external display that the user confirms has 8 pins, an ST7789V2 controller, 170(H) RGB × 320(V) resolution, a 4-wire SPI interface, and a nominal 1.9 in size; it is not hardware-validated. User/listing-reported, unverified display specifications are 3.3 V operating voltage, −20 to 70 °C operating temperature, 12 o'clock viewing direction, two white backlight LEDs in parallel, and 20 mA operating current. The 20 mA scope is explicitly unknown: it is not established as whole-module, backlight, per-LED, or total-backlight current. **Warning — withdrawn seller value:** the user withdrew the incorrect `0.1155 × 0.1155 mm` pixel-pitch value; do not use it or geometry derived from it, and do not infer a replacement pitch. The latest user-provided mechanical drawing reports AA 42.720 × 22.695 mm, LCD outline 48.520 × 24.800 mm, backlight outline 49.720 × 25.800 mm, PCB outline 62.000 × 29.000 mm, and mounting-hole center spacing 58.000 × 25.000 mm. These dimensions are not physically verified and must be compared with the exact delivered 8-pin module before enclosure design. Do not infer logic input levels from the reported 3.3 V supply, invent a backlight driver/current-limit circuit, or use specifications from the separate 30-pin display variant. A user-supplied provisional carrier pinout image labels GPIO0–GPIO21 and GPIO35–GPIO48, 3V3/5V/GND/RST, GPIO0 as BOOT, GPIO19 as USB_D−, GPIO20 as USB_D+, and GPIO48 as RGB_LED. This is not verified manufacturer documentation: confirm the exact carrier model, revision, and physical unit before any GPIO assignment. On the confirmed N16R8 module, GPIO35, GPIO36, and GPIO37 are occupied by Octal PSRAM and unavailable for external use despite appearing on the image. Reserve GPIO48 for the onboard RGB LED and GPIO19/GPIO20 for native USB while it is needed; do not propose them for the external LCD without a deliberate future decision. A separate user-supplied display pinout image identifies the display contacts as 1 GND, 2 VCC, 3 SCL, 4 SDA, 5 RES, 6 DC, 7 CS, and 8 BLK; these are display contact numbers, not ESP32 GPIO assignments or independent manufacturer verification. The S3 carrier GPIO mapping, VCC and logic voltage/safe levels, reset polarity, backlight current/control, and physical label verification remain unresolved. The gateway requirement is autonomous operation: an embedded Preact SPA served from SPIFFS, a REST API, and a WebSocket server — no external server required. Sensor nodes (ESP32-C3) use ESP-NOW and deep sleep for maximum battery life. MQTT is an optional cloud/LAN integration. This is an **educational project** — the goal is learning ESP-IDF and embedded systems development.
 
 ## Architecture Summary
 
 ```
                    ┌──────────────────────────────────┐
-                   │        ESP32-S3 GATEWAY           │
-                   │        (Fully Autonomous)          │
+                   │ ESP32-S3-WROOM-1-N16R8 CANDIDATE  │
+                   │ (Autonomous operation required)   │
                    │                                    │
                    │  ┌──────────────────────────────┐  │
   Browser ◄───────►│  │  Preact SPA (SPIFFS)         │  │
@@ -40,7 +40,7 @@ A generic IIoT monitoring and control platform built on ESP32 microcontrollers. 
                 (any sensor + Deep Sleep + ESP-NOW)
 ```
 
-- **Gateway**: ESP32-S3, 8MB flash, 2MB PSRAM. Runs WiFi APSTA + ESP-NOW simultaneously. Serves embedded Preact SPA from SPIFFS.
+- **Gateway**: selected ESP32-S3-WROOM-1-N16R8 module/carrier candidate, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. Carrier wiring and the external display remain unverified. Autonomous dashboard and OTA remain requirements, not proven capabilities.
 - **Sensor nodes**: ESP32-C3, 4MB flash. Deep sleep cycle: wake -> read sensor -> send ESP-NOW -> sleep.
 - **Embedded dashboard**: Preact SPA (~200KB gzipped) served from SPIFFS via `esp_http_server`. REST API + WebSocket for data and config.
 - **MQTT (optional)**: `mqtt_bridge` for cloud/LAN integration. Configurable namespace via NVS (default: `iiot-kit`).
@@ -132,8 +132,12 @@ ESP32-IIoT-Kit/
 | ESP-NOW max payload | 250 bytes per frame |
 | ESP-NOW max encrypted peers | 20 |
 | ESP-NOW + WiFi channel | Must be identical |
-| Gateway flash | 8MB: 2x 3MB OTA + 1.9MB SPIFFS (Preact SPA) + NVS |
-| SPIFFS budget for Preact SPA | Target ≤200KB gzipped; hard limit 1.9MB |
+| Gateway flash | 16 MB Quad-SPI (ESP32-S3-WROOM-1-N16R8); final allocation remains pending ODD-3 |
+| Gateway PSRAM | 8 MB Octal-SPI; GPIO35, GPIO36, and GPIO37 are unavailable for external use |
+| Provisional carrier pinout | User-supplied image labels GPIO0–GPIO21 and GPIO35–GPIO48, 3V3/5V/GND/RST, GPIO0/BOOT, GPIO19/USB_D−, GPIO20/USB_D+, and GPIO48/RGB_LED. It is not manufacturer verification; validate the exact carrier model, revision, and physical unit before assigning GPIOs. GPIO35–GPIO37 remain unavailable due to Octal PSRAM; reserve GPIO48 for RGB LED and GPIO19/GPIO20 for native USB while needed. |
+| External display | User-supplied contact map: 1 GND, 2 VCC, 3 SCL, 4 SDA, 5 RES, 6 DC, 7 CS, 8 BLK; these are display contacts, not ESP32 GPIOs. The user reaffirms a nominal 1.9 in size. The latest user-provided drawing reports AA 42.720 × 22.695 mm, LCD outline 48.520 × 24.800 mm, backlight outline 49.720 × 25.800 mm, PCB outline 62.000 × 29.000 mm, and mounting-hole center spacing 58.000 × 25.000 mm; these are not physically verified and require comparison with the exact delivered module before enclosure design. **Warning — withdrawn seller value:** `0.1155 × 0.1155 mm` pixel pitch is incorrect; do not use it or its derived geometry, and do not infer a replacement. Reported 3.3 V operating voltage does not establish logic input levels. The reported 20 mA has an explicitly unknown scope and does not establish per-LED or total-backlight current; backlight current/control and all electrical behavior remain unresolved. |
+| RGB565 framebuffer calculation | 170 × 320 × 2 = 108,800 bytes (106.25 KiB); runtime feasibility remains unmeasured |
+| SPIFFS budget for Preact SPA | Target ≤200KB gzipped; final partition size remains pending ODD-3 |
 | Node flash | 4MB: 2x 1.5MB OTA + NVS |
 | Node target battery life | 12+ months (wake every 5 min, 3400mAh 18650) |
 | FreeRTOS default task stack | 4KB (avoid large stack allocations) |
