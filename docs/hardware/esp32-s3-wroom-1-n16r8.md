@@ -7,19 +7,49 @@
 1. Use `esp32s3` when firmware work begins.
 2. Reserve GPIO35, GPIO36, and GPIO37: the N16R8 module uses them for Octal PSRAM.
 3. Do not wire the display until physical labels, board-side GPIO mapping, supply and logic levels, and backlight requirements are validated.
-4. Keep autonomous dashboard and OTA as requirements; select the final 16 MB partition allocation in ODD-3 from measured evidence.
+4. Keep autonomous dashboard and OTA as requirements; use the ODD-3 custom 16 MB partition layout and validate its runtime budgets on hardware.
 
 ## Confirmed module facts
 
 | Area | Confirmed fact | Planning consequence |
 |---|---|---|
 | Module | ESP32-S3-WROOM-1-N16R8 | The gateway candidate uses the ESP-IDF `esp32s3` target. |
-| Flash | 16 MB Quad-SPI flash | Final flash allocation remains pending ODD-3. |
+| Flash | 16 MB Quad-SPI flash | ODD-3 configures custom partitions: two 3 MiB OTA slots and a 4 MiB SPIFFS partition. |
 | PSRAM | 8 MB Octal-SPI PSRAM | Runtime memory budgets still require build and hardware measurements. |
 | Reserved GPIO | GPIO35, GPIO36, and GPIO37 are consumed by Octal PSRAM | These GPIOs are unavailable for external peripherals, including the display. |
 | Ambient operating range | −40 to 65 °C | Confirm enclosure and installation conditions separately. |
 
 These facts are from the [official Espressif ESP32-S3-WROOM-1/WROOM-1U datasheet](https://documentation.espressif.com/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf).
+
+## ODD-3 flash and RAM budget
+
+The gateway now uses ESP-IDF custom partition-table mode with `firmware/gateway/partitions.csv`. It preserves the 16 MB flash and Octal PSRAM configuration while reserving space for the autonomous dashboard and OTA requirements.
+
+| Partition | Offset | Size | Purpose |
+|---|---:|---:|---|
+| `nvs` | `0x9000` | `0x6000` | Persistent configuration |
+| `otadata` | `0xF000` | `0x2000` | OTA selection metadata |
+| `phy_init` | `0x11000` | `0x1000` | PHY initialization data |
+| `ota_0` | `0x20000` | `0x300000` (3 MiB) | First gateway application image |
+| `ota_1` | `0x320000` | `0x300000` (3 MiB) | Second gateway application image |
+| `spiffs` | `0x620000` | `0x400000` (4 MiB) | Dashboard assets and OTA staging headroom |
+
+The assigned regions end at `0xA20000`. There is also an alignment gap from the end of `phy_init` at `0x12000` to the start of `ota_0` at `0x20000`: `0xE000` (56 KiB). The trailing range from `0xA20000` to `0x1000000` is `0x5E0000` (5.875 MiB) and remains intentionally unallocated. Together, these unassigned ranges total `0x5EE000` (5.9296875 MiB). Bootloader and partition-table bytes occupy their own flash outside the app/data partitions and are not unallocated space. No speculative storage or coredump partition is included.
+
+The current minimal firmware baseline is 212,640 bytes. The gateway application target is under 1.5 MiB and its hard limit is under 2 MiB; 3 MiB OTA slots leave margin for measured growth. SPIFFS has a target budget of at most 500 KiB for gzipped dashboard assets and reserves future headroom for staging a node image of at most 1.5 MiB. These bundle and staging sizes are targets, not measured artifacts.
+
+### Measured Unity runtime evidence
+
+A separate Unity test project built and ran on the target. Before allocating and freeing one 108,800-byte RGB565 framebuffer-sized 8-bit PSRAM block, `board_profile` reported:
+
+| Measurement | Result |
+|---|---:|
+| Free internal heap | 386,295 bytes |
+| Free PSRAM | 8,386,148 bytes |
+| Largest PSRAM block | 8,257,536 bytes |
+| 108,800-byte PSRAM allocation | Passed |
+
+These heap values come from the minimal Unity test app, not the eventual full gateway firmware. The successful allocation validates PSRAM allocation only; it does not validate display DMA or throughput. ESP-IDF documents that ESP32-S3 DMA descriptors cannot reside in PSRAM and that PSRAM DMA bandwidth is limited. After the user released BOOT/GPIO0 and physically reset the board, monitor output from the already-flashed Unity app reported `2 Tests 0 Failures 0 Ignored` and `OK`. The 45-second monitor then ended with timeout exit 124 only after that successful test output.
 
 ## Provisional carrier information
 
@@ -119,7 +149,7 @@ The following dimensions come from the **latest user-provided mechanical drawing
 
 **Warning — withdrawn seller value:** The user withdrew the seller's incorrect `0.1155 × 0.1155 mm` pixel-pitch value. Do not use it or geometry derived from it, and do not infer a replacement pixel pitch. Compare the drawing with the exact delivered 8-pin module before enclosure design.
 
-A full RGB565 framebuffer calculation is 170 × 320 × 2 = 108,800 bytes (106.25 KiB); runtime feasibility and memory placement are unmeasured.
+A full RGB565 framebuffer is 170 × 320 × 2 = 108,800 bytes (106.25 KiB), and allocation of that size in PSRAM passed in the minimal Unity app. Placement in the full gateway firmware, display DMA suitability, and throughput remain unmeasured.
 
 ### Remaining open items
 
@@ -138,7 +168,7 @@ No display GPIO assignment or electrical connection is approved until the remain
 - The failed C6 candidate and its integrated LCD/TF pin map do not carry forward to this S3 candidate.
 - GPIO35–GPIO37 must remain unassigned because the N16R8 module uses them for Octal PSRAM.
 - The user-supplied candidate carrier image identifies GPIO48 as RGB_LED and GPIO19/GPIO20 as USB D−/D+; reserve them accordingly until the carrier is verified.
-- Preserve the autonomous browser dashboard and OTA as gateway requirements. The 16 MB flash partition layout, application-size budget, SPIFFS allocation, and OTA-slot allocation remain pending ODD-3; this profile does not establish their feasibility.
+- Preserve the autonomous browser dashboard and OTA as gateway requirements. ODD-3 configures the 16 MB custom partition layout and budgets; real build and hardware measurements remain required to establish feasibility.
 - Physical smoke checks for boot, carrier RGB behavior, and the exact display belong to ODD-4 after the hardware is available.
 - Compare the drawing-reported dimensions and physical labels with the delivered 8-pin module before enclosure design; confirm board-side GPIO mapping, supply and logic levels, and backlight current/control before wiring it.
 
