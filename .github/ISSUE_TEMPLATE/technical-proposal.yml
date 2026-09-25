@@ -20,7 +20,7 @@ body:
       description: >-
         Resume en una frase el resultado que debe conseguir esta propuesta.
       placeholder: >-
-        Ejemplo: añadir soporte para la pantalla ST7789 de la placa C6.
+        Ejemplo: añadir soporte para un controlador de pantalla SPI.
     validations:
       required: true
 
