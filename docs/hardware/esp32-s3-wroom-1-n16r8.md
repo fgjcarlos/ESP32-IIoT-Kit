@@ -1,6 +1,6 @@
 # ESP32-S3-WROOM-1-N16R8 gateway candidate
 
-**Current status: selected candidate; connected SoC and memory probe-confirmed, but carrier revision and display remain unvalidated.** This profile replaces the failed ESP32-C6-LCD-1.47 candidate for gateway planning. It distinguishes the read-only probe observations from the exact module marking, provisional carrier information, and unknown external-display details.
+**Current status: selected candidate; connected SoC and memory are probe-confirmed, and onboard GPIO48 RGB behavior passed a visual smoke check; carrier model/revision and external display remain unvalidated.** This profile replaces the failed ESP32-C6-LCD-1.47 candidate for gateway planning. It distinguishes read-only probe observations and the RGB smoke result from exact module/carrier identity and unknown external-display details.
 
 ## Quick path
 
@@ -53,7 +53,7 @@ These heap values come from the minimal Unity test app, not the eventual full ga
 
 ## Provisional carrier information
 
-The exact purchased carrier, revision, and physical unit have not been confirmed. The following is planning context from a **user-supplied candidate carrier pinout image**, not manufacturer documentation or a verified board pinout. Validate the physical board markings and revision before assigning any peripheral GPIO.
+The photographed physical unit is cross-matched to user-supplied seller diagrams showing a dual-USB-C carrier and WS2812 RGB LED. An on-target, low-brightness smoke test visually confirmed red → green → blue → off on GPIO48. The exact carrier model/revision and remaining board wiring are still unverified. The following pinout remains planning context from a **user-supplied candidate image**, not manufacturer documentation. Validate physical markings before assigning other peripheral GPIOs.
 
 ### Candidate carrier diagram (provisional)
 
@@ -72,7 +72,7 @@ The labels identify candidate **carrier header signals**. They do not establish 
 | GPIO0–GPIO21 | Candidate exposed GPIO set, subject to physical board/revision validation | No display assignments established. |
 | GPIO35–GPIO37 | The image labels these header positions, but the confirmed N16R8 module consumes them for Octal PSRAM | Unavailable for external peripherals; do not treat them as usable GPIOs. |
 | GPIO38–GPIO47 | Candidate exposed GPIO set, subject to physical board/revision validation | No display assignments established. |
-| GPIO48 / RGB_LED | The image identifies GPIO48 as connected to the onboard RGB LED | Reserve for the onboard LED; do not propose it for the external LCD without a deliberate future multiplexing decision. |
+| GPIO48 / RGB_LED | Seller schematic cross-matched to the board photo shows GPIO48 driving the WS2812; a target smoke test visually showed red → green → blue → off | Functionally confirmed on this physical unit by low-brightness RMT smoke; reserve for the onboard LED. This does not identify the carrier model/revision. |
 | GPIO19 / USB_D− | The image identifies GPIO19 as native USB D− | Reserve while native USB is needed; do not propose it for the LCD. |
 | GPIO20 / USB_D+ | The image identifies GPIO20 as native USB D+ | Reserve while native USB is needed; do not propose it for the LCD. |
 | GPIO0 / BOOT | The image identifies GPIO0 as BOOT | Preserve boot-function considerations until the exact carrier is validated. |
@@ -90,6 +90,7 @@ A user-authorized esptool 4.12 probe of the connected board observed:
 | PSRAM | 8 MB embedded PSRAM | Reported by esptool; consistent with the N16R8 candidate. |
 | SPI flash | 16 MB; manufacturer ID `0x5E`, device ID `0x4018` | Reported by a read-only `flash_id` query. |
 | USB interface | USB-Serial/JTAG | Reported by the connected target. |
+| Onboard RGB | GPIO48 WS2812; low-brightness red → green → blue → off was visually observed | Seller schematic was cross-matched to the photographed layout; Unity/RMT returned OK and the user confirmed the physical colors. This is not manufacturer verification of carrier identity. |
 
 These observations confirm the connected SoC and memory capacities, but do not independently identify the carrier model/revision or verify the display wiring. The probes did not write, erase, or flash the device.
 
@@ -101,7 +102,7 @@ A second user-supplied dimension drawing appears to report a **57.15 × 27.94 mm
 |---|---|---|
 | 44-pin dual-USB S3-WROOM-1 board | The [candidate seller listing](https://es.aliexpress.com/item/1005006418608267.html) identifies an S3 WROOM-1 44-pin dual-USB board, but its fetched product page did not expose complete specifications. | Compare the delivered board's markings, revision, and pinout with the listing. |
 | Two USB-C ports: CH343P USB-UART and native USB | The [third-party YD-ESP32-S3 / DevKitC-style reference](https://github.com/profharris/YD-ESP32-S3_ESP32-S3-WROOM-1_Dev) reports this arrangement. Its README is marked work in progress. | Verify both ports and their functions on the exact unit. |
-| WS2812 RGB LED on GPIO48 | The same third-party work-in-progress reference reports this wiring. | Verify the LED presence, GPIO, color order, and runtime behavior on the exact unit. |
+| WS2812 RGB LED on GPIO48 | User-supplied seller schematic matches the photographed layout; an on-target test and the user's visual observation confirmed red → green → blue → off. | Functionally confirmed on this physical unit; exact carrier make/revision remains unknown. |
 
 ## External display: partially confirmed profile
 
@@ -167,10 +168,14 @@ No display GPIO assignment or electrical connection is approved until the remain
 
 - The failed C6 candidate and its integrated LCD/TF pin map do not carry forward to this S3 candidate.
 - GPIO35–GPIO37 must remain unassigned because the N16R8 module uses them for Octal PSRAM.
-- The user-supplied candidate carrier image identifies GPIO48 as RGB_LED and GPIO19/GPIO20 as USB D−/D+; reserve them accordingly until the carrier is verified.
-- Preserve the autonomous browser dashboard and OTA as gateway requirements. ODD-3 configures the 16 MB custom partition layout and budgets; real build and hardware measurements remain required to establish feasibility.
-- Physical smoke checks for boot, carrier RGB behavior, and the exact display belong to ODD-4 after the hardware is available.
+- The user-supplied seller schematic and a low-brightness on-target smoke check confirm the onboard WS2812 is driven by GPIO48 on this physical unit; GPIO19/GPIO20 remain candidate native USB D−/D+ signals and should stay reserved while native USB is needed.
+- ODD-4's board-only checks passed: the Unity app reported `3 Tests 0 Failures 0 Ignored`; the user visually confirmed red → green → blue → off at 1,000 ms per state. This does not independently establish the carrier's make or revision.
+- Preserve the autonomous browser dashboard and OTA as gateway requirements. ODD-3 configures the 16 MB custom partition layout and budgets; real full-gateway runtime measurements remain required to establish feasibility.
 - Compare the drawing-reported dimensions and physical labels with the delivered 8-pin module before enclosure design; confirm board-side GPIO mapping, supply and logic levels, and backlight current/control before wiring it.
+
+### ODD-4 display status
+
+The external ST7789 remains disconnected and untested. Do not assign its RES/DC/CS/SCL/SDA/BLK pins or connect its VCC/backlight until the exact module is matched and its logic-level, backlight-current, and control requirements are confirmed.
 
 ## Sources
 
