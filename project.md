@@ -228,8 +228,8 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 **Preact SPA (SPIFFS):**
 - Proyecto Preact + Vite en `firmware/gateway/web/`
 - Páginas: dashboard (tarjetas de nodos en tiempo real), configuración (WiFi, umbrales), estado (salud del gateway)
-- Build con Vite → gzip → flash a partición SPIFFS (1.9MB)
-- Presupuesto de tamaño: objetivo ≤ 200KB gzipped, límite duro 1.9MB SPIFFS
+- Build con Vite → gzip → flash a la partición SPIFFS de 4 MiB
+- Presupuesto de tamaño: objetivo ≤ 200KB gzipped, límite ≤ 500KB para activos del dashboard; el espacio restante conserva margen para staging OTA futuro
 - CMake hook para construir Preact antes del flash
 
 **MQTT como integración opcional:**
@@ -295,7 +295,22 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 
 **Gateway candidato (ESP32-S3-WROOM-1-N16R8, 16 MB flash):**
 
-La asignación final de particiones debe definirse en ODD-3 a partir de tamaños medidos de firmware y dashboard. Debe preservar como requisitos el dashboard web autónomo y OTA; la viabilidad y los tamaños de las particiones aún no están demostrados.
+ODD-3 configura la tabla de particiones personalizada de ESP-IDF en `firmware/gateway/partitions.csv`. Preserva los requisitos de dashboard web autónomo y OTA; sus presupuestos requieren validación posterior mediante builds y mediciones reales de hardware.
+
+| Nombre | Tipo/Subtipo | Offset | Tamaño | Propósito |
+|---|---|---:|---:|---|
+| `nvs` | `data/nvs` | `0x9000` | `0x6000` | Configuración persistente |
+| `otadata` | `data/ota` | `0xF000` | `0x2000` | Metadatos de selección OTA |
+| `phy_init` | `data/phy` | `0x11000` | `0x1000` | Datos de inicialización PHY |
+| `ota_0` | `app/ota_0` | `0x20000` | `0x300000` (3 MiB) | Primera imagen de gateway |
+| `ota_1` | `app/ota_1` | `0x320000` | `0x300000` (3 MiB) | Segunda imagen de gateway |
+| `spiffs` | `data/spiffs` | `0x620000` | `0x400000` (4 MiB) | Activos del dashboard y margen para staging OTA |
+
+Las regiones asignadas terminan en `0xA20000`. También existe un hueco de alineación entre el final de `phy_init` en `0x12000` y el inicio de `ota_0` en `0x20000`: `0xE000` (56 KiB). El rango final desde `0xA20000` hasta `0x1000000` es `0x5E0000` (5,875 MiB) y queda sin asignar intencionalmente. En conjunto, ambos rangos sin asignar suman `0x5EE000` (5,9296875 MiB). Los bytes del bootloader y de la tabla de particiones ocupan su propio espacio de flash fuera de las particiones de aplicación/datos y no son espacio sin asignar. No se añaden particiones especulativas de almacenamiento ni coredump.
+
+La línea base mínima actual del firmware es 212.640 bytes. El objetivo para la aplicación del gateway es menor de 1,5 MiB y su límite duro es menor de 2 MiB, por lo que las ranuras OTA de 3 MiB dejan margen para crecimiento medido. SPIFFS reserva un presupuesto objetivo de activos gzip de hasta 500 KiB y margen futuro para staging de una imagen de nodo de hasta 1,5 MiB. Los tamaños futuros de bundle y staging son objetivos, no artefactos medidos.
+
+**Medición de runtime ODD-3:** el modo de tabla personalizada de ESP-IDF v5.4 generó y seleccionó `partitions.csv`; la acción `partition-table` y el build normal del gateway pasaron. `gateway.bin` mide 212.640 bytes y deja 2.933.088 bytes libres (93 %) en cada ranura OTA de 3 MiB; el bootloader mide 21.008 bytes de 32 KiB y DIRAM estático usa 57.499 de 341.760 bytes (284.261 libres). La fila IRAM de 16.383/16.384 representa la ventana asignable del linker tras reservar I-cache, no toda la RAM interna. Una aplicación Unity mínima separada midió 386.295 bytes de heap interno libre, 8.386.148 bytes de PSRAM libre y un bloque PSRAM máximo de 8.257.536 bytes; asignar 108.800 bytes RGB565 en PSRAM pasó. Estos resultados validan la asignación de PSRAM, no el rendimiento/DMA de la pantalla ni la memoria del firmware completo. La tabla personalizada se validó en build/parser, no se flasheó; el dispositivo ejecutó la aplicación Unity con su tabla predeterminada, sin borrado completo del chip.
 
 **Nodo (ESP32-C3, 4MB Flash):**
 
@@ -479,7 +494,7 @@ El enfoque del proyecto requiere validación en el gateway candidato ESP32-S3-WR
 | Decisión | Justificación |
 |----------|---------------|
 | **Preact en vez de React** para la SPA | React (~40KB+) es demasiado grande para SPIFFS. Preact (~3KB) es una alternativa compatible que genera builds de ~200KB con Vite |
-| **Sin servidor externo** | El gateway candidato ESP32-S3-WROOM-1-N16R8 debe servir la SPA y la API REST como requisito del kit. La viabilidad del dashboard autónomo y OTA requiere validación y una asignación de particiones en ODD-3. |
+| **Sin servidor externo** | El gateway candidato ESP32-S3-WROOM-1-N16R8 debe servir la SPA y la API REST como requisito del kit. ODD-3 configura la asignación de particiones; la viabilidad del dashboard autónomo y OTA aún requiere validación. |
 | **WebSocket sobre MQTT** para el dashboard | El dashboard embebido se conecta directamente por WebSocket al gateway. MQTT sigue disponible como integración opcional para sistemas cloud |
 | **C en vez de Rust** para firmware | ESP-IDF es C nativo. Con experiencia en C, se accede directamente a toda la documentación oficial sin capas de indirección |
 | **ESP-NOW punto a punto, no mesh** en v1.0 | Implementar mesh routing custom es complejo. Los nodos envían directo al gateway. Relay estático planificado como mejora futura |
