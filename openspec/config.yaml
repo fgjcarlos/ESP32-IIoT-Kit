@@ -1,0 +1,141 @@
+schema: spec-driven
+
+context: |
+  Project: ESP32-IIoT-Kit (generic IIoT platform tutorial)
+  Workspace root: /home/composedof2/Dev/Codex/ESP32-IIoT-Kit
+  Tech stack: ESP-IDF v5.x (C11, CMake, idf.py), Unity test framework (per-component), MkDocs Material (docs_site/), Obsidian vault (knowledge/)
+  Architecture: ESP32-S3-WROOM-1-N16R8 gateway (autonomous, embedded Preact SPA on SPIFFS) + ESP32-C3 sensor nodes (ESP-NOW backbone, deep sleep); optional MQTT bridge
+  Testing: per-component Unity tests via `idf.py test` from `firmware/gateway/test/`; no workspace-wide test command; docs site has no tests
+  Style: snake_case C, `esp_log` with module tags, `esp_err_t` returns, Given/When/Then specs (MkDocs narrative in European Spanish — docs only)
+  Educational project: Fase 0 (preparacion y aprendizaje) in progress
+
+projects:
+  - relative_path: firmware/gateway
+    stack: ESP-IDF v5.x (C11, CMake)
+    target: esp32s3 (N16R8, 16MB flash, 8MB Octal PSRAM)
+    test_command: "cd firmware/gateway/test && idf.py test"
+    test_framework: Unity (per-component)
+    test_layers:
+      unit: component (TEST_CASE blocks in components/*/test/test_*.c)
+      integration: host-side not configured; on-target smoke only
+      e2e: not configured
+    coverage_command: — (gcov not configured)
+    quality:
+      linter: clang-tidy (not configured at workspace level)
+      type_checker: gcc -Wall -Wextra (via ESP-IDF compiler)
+      formatter: clang-format (not configured at workspace level)
+    notes: |
+      Active components: board_profile, board_rgb. Top-level test/ project uses
+      EXTRA_COMPONENT_DIRS=../components so every component under firmware/gateway/components
+      contributes its own test_*.c plus a top-level test_main.c. There is no Makefile or
+      workspace orchestration script that runs the test project from the workspace root.
+  - relative_path: docs_site (MkDocs Material)
+    stack: MkDocs Material (Python 3.12, pip)
+    target: static site (GitHub Pages)
+    test_command: — (no test runner; docs build is the only gate, run by CI: `mkdocs build --strict`)
+    test_framework: —
+    test_layers:
+      unit: ❌
+      integration: ❌
+      e2e: ❌
+    coverage_command: —
+    quality:
+      linter: markdownlint (not configured)
+      type_checker: —
+      formatter: —
+    notes: |
+      CI workflow: .github/workflows/deploy-docs.yml runs `pip install mkdocs-material
+      mkdocs-roamlinks-plugin` then `mkdocs build` on push to main. No tests; build
+      success is the only verification.
+  - relative_path: firmware/node (planned, not yet scaffolded)
+    stack: ESP-IDF v5.x (C11, CMake) — planned per docs/replanificacion
+    target: esp32c3
+    status: missing on disk; do not treat as a runnable project until scaffolded
+    test_command: —
+    test_framework: Unity (planned)
+    notes: |
+      Referenced in CLAUDE.md and docs/replanificacion but no firmware/node/ directory
+      exists. Theoretical commands will be added when the project is scaffolded.
+  - relative_path: firmware/common (planned, not yet scaffolded)
+    stack: ESP-IDF component (C11)
+    status: missing on disk; planned shared protocol component
+    test_command: —
+    notes: |
+      Planned shared protocol component per docs/replanificacion/02-protocolo-unificado.md.
+      Not scaffolded yet.
+  - relative_path: firmware/gateway/web (planned, not yet scaffolded)
+    stack: Preact + Vite (TypeScript/JSX) — planned per Fase 4
+    target: bundled into SPIFFS image (~200KB gzipped budget)
+    status: missing on disk
+    test_command: —
+    notes: |
+      Planned embedded dashboard. Bundle size is the only verification gate
+      documented in CLAUDE.md.
+
+testing:
+  strict_tdd: false
+  reason: |
+    No explicit workspace-level test command covers every in-scope project. The single
+    on-disk project (firmware/gateway) requires `cd firmware/gateway/test && idf.py test`
+    — that command is project-local, not workspace-orchestrated, and three of the five
+    project entries are not yet scaffolded. Per the decision gate, strict_tdd falls
+    closed to false and downstream phases must rely on the documented project-local
+    commands preserved below.
+  fallback_policy: project-local commands only; each phase must declare which projects
+    it exercises and the exact command per project.
+
+rules:
+  proposal:
+    - Include rollback plan for any change that touches in-flight openspec/changes/ artifacts.
+    - State which discovered project(s) the change affects and the test command per project.
+    - Keep proposals compatible with the active educational phase ordering (Fases 0-6).
+  specs:
+    - Use Given/When/Then for every scenario.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Write spec narrative in English; cite Spanish-language tutorial files only when preserving wording.
+    - Preserve the protocol source of truth in docs/replanificacion/02-protocolo-unificado.md.
+  design:
+    - Document hardware-affecting decisions with rationale (especially GPIO assignments and PSRAM constraints on GPIO35-37).
+    - Include sequence diagrams for ESP-NOW, OTA, WebSocket, and SPIFFS-served Preact flows.
+    - State memory budget per component (RAM, PSRAM, SPIFFS).
+    - State power budget per node firmware path (deep sleep currents).
+  tasks:
+    - Group by phase (Fase 0-6), use hierarchical numbering T-XX.YY.
+    - Keep tasks completable in one session unless explicitly chained.
+    - Bind every implementation task to a project-local test command (or — if not applicable).
+  apply:
+    guidelines:
+      - Follow ESP-IDF coding conventions (snake_case, ESP_LOGx, esp_err_t).
+      - Reserve GPIO35/36/37 for Octal PSRAM; GPIO48 for onboard RGB LED; GPIO19/20 for native USB.
+      - Use esp_log with module-specific tags; never printf.
+      - Forbid the withdrawn 0.1155 mm pixel pitch and any geometry derived from it.
+    tdd: false
+    test_command: "cd firmware/gateway/test && idf.py test"
+  verify:
+    test_command: "cd firmware/gateway/test && idf.py test"
+    build_command: "cd firmware/gateway && idf.py build"
+    coverage_threshold: 0
+    additional_gates:
+      - "mkdocs build --strict" (docs_site/ integrity)
+  archive:
+    - Warn before merging any REMOVED delta that affects active runtime behavior.
+    - Preserve archived change folders verbatim (audit trail).
+
+conventions:
+  language: c11
+  framework: esp-idf v5.x
+  build: cmake + idf.py
+  naming: snake_case C; module-prefixed function names (e.g. wifi_manager_init)
+  logging: ESP_LOGx with module tag
+  errors: ESP_ERROR_CHECK for fatal, esp_err_t returns for recoverable
+  nvs: one namespace per module
+  components: ESP-IDF component structure for reusable modules
+  docs_narrative_language: European Spanish (docs_site/, Tutorial/, Fases/, knowledge/)
+  sd_artifact_language: English (openspec/, .atl/)
+
+open_constraints:
+  - The external 8-pin LCD module is not hardware-validated; do not commit GPIO assignments until the carrier board and module are verified.
+  - Display pixel pitch is unknown; the seller value 0.1155 mm is withdrawn and must not be reused.
+  - The 20 mA operating current is not scoped (whole-module vs backlight vs per-LED).
+  - Display backlight control, reset polarity, and logic input levels are unresolved.
+  - SPIFFS partition size for the Preact SPA is pending ODD-3.
