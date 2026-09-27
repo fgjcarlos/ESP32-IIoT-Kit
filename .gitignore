@@ -31,11 +31,15 @@ site/
 # ESP-IDF tools
 .ccache/
 
+# Local Wi-Fi credentials (issue #21, never committed)
+firmware/gateway/main/wifi_credentials.local.h
+
 # Secrets
 *.pem
 *.key
 .env
-.env.*
+.env.local
+.env.*.local
 
 # Binaries
 *.bin

@@ -1,0 +1,32 @@
+menu "Wi-Fi Manager"
+
+    config WIFI_MANAGER_AP_DEFAULT_SSID
+        string "Default soft-AP SSID"
+        default "IIoT-Gateway"
+        help
+            SSID advertised by the gateway when the caller leaves the field empty.
+            This is the documented Fase 0 T0.6.1 value; do NOT use this field for
+            any production secret.
+
+    config WIFI_MANAGER_AP_DEFAULT_PASSWORD
+        string "Default soft-AP password"
+        default ""
+        help
+            Optional fallback password. Empty means the soft-AP will start in
+            open mode. Real deployments must inject a password through the
+            gitignored `wifi_credentials.local.h` header, not through Kconfig.
+
+    config WIFI_MANAGER_AP_DEFAULT_CHANNEL
+        int "Default soft-AP channel"
+        range 1 13
+        default 1
+        help
+            Phase 0 default channel. ESP-NOW + AP coexistence will be addressed
+            later (T0.6.3) and may force a router-selected channel.
+
+    config WIFI_MANAGER_AP_DEFAULT_MAX_CONN
+        int "Default soft-AP maximum clients"
+        range 1 10
+        default 4
+
+endmenu
