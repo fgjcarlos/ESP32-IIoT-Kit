@@ -8,5 +8,10 @@ if(board_rgb_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "board_rgb")
 endif()
 
+list(FIND TEST_COMPONENTS "espnow_manager" espnow_manager_test_component_index)
+if(espnow_manager_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "espnow_manager")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
