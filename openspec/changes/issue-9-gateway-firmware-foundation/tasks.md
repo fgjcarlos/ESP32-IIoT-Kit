@@ -160,7 +160,7 @@ These constraints are normative. Any task that violates them is rejected at appl
 
 ### T-01.03 — `mqtt_bridge` component contract
 
-- [ ] T-01.03 — `mqtt_bridge` component contract.
+- [x] T-01.03 — `mqtt_bridge` component contract.
 
 **Spec requirements**: "`mqtt_bridge` Component Contract" — header conventions, public init entry point, skeleton compiles WITHOUT linking the ESP-IDF MQTT client, no Kconfig file, contract test proves symbol existence without runtime behavior.
 
