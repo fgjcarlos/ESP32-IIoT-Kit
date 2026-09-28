@@ -134,7 +134,7 @@ These constraints are normative. Any task that violates them is rejected at appl
 
 ### T-01.02 — `http_server` component contract
 
-- [ ] T-01.02 — `http_server` component contract.
+- [x] T-01.02 — `http_server` component contract.
 
 **Spec requirements**: "`http_server` Component Contract" — header conventions, public start/stop entry points, skeleton compiles and logs contract-only state, contract test proves symbol existence.
 

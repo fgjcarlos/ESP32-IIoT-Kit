@@ -62,3 +62,65 @@ Exit code: `127`. The test/build command could not run because `idf.py` is unava
 - [ ] T-01.06 — TEST_COMPONENTS registration (cumulative, must accompany component PRs).
 - [ ] T-01.07 — Build / test evidence (compile-only).
 - [ ] T-01.08 — Physical-board boot smoke after NVS bootstrap.
+
+## Slice 3 — T-01.02 `http_server` contract + incremental T-01.06 registration
+
+- **Status:** T-01.02 implementation completed; Unity test command unavailable because `idf.py` is not installed/on PATH.
+- **Native status consumed:** Parent-validated `gentle-ai.sdd-status` v2 for `issue-9-gateway-firmware-foundation`; `applyState: ready`; `dependencies.apply: ready`; `nextRecommended: apply`; no native blockers. Status was not re-fetched as instructed.
+- **actionContext consumed:** `mode: repo-local`; workspace root and allowed edit root are `/home/composedof2/Dev/Codex/ESP32-IIoT-Kit`. No action-context warnings. Work stayed within the slice-authorized component, test-runner, and change-artifact paths.
+- **Delivery/workload boundary:** Slice 3 of N, feature-branch-chain, assigned T-01.02 plus only the `http_server` incremental T-01.06 append. Implementation/task changes are 61 changed lines (54 new component lines, 5 test-runner lines, and the task checkbox replacement counted as 2); this progress section adds 62 lines, for 123 slice-changed lines total. This is below the 400-line budget. No commit, push, PR, or git/worktree operation was performed.
+
+### Completed task and persisted checkbox
+
+- Completed `T-01.02 — http_server component contract`; `tasks.md` visibly marks T-01.02 `[x]`. T-01.03 through T-01.08 remain unchecked; T-00.01 and T-01.01 historical checkboxes were preserved.
+- Added documented `http_server_start()` and `http_server_stop()` declarations returning `esp_err_t`; the Doxygen ownership note names Fase 4.
+- Added inert source-local logging placeholders returning `ESP_OK`. No `esp_http_server.h`, `httpd_*` call, URI handler, WebSocket, or SPIFFS mount was introduced.
+- Added one `[http_server]` Unity test that calls both entry points and asserts `ESP_OK`, plus component and test CMake registration.
+- Appended only `http_server` to `TEST_COMPONENTS` using the defensive `list(FIND ...)` pattern. The cached `board_profile;board_rgb` default and existing `board_rgb` and `espnow_manager` blocks are unchanged.
+
+### Files changed and line counts
+
+- Created `firmware/gateway/components/http_server/include/http_server.h` — 21 lines.
+- Created `firmware/gateway/components/http_server/http_server.c` — 17 lines.
+- Created `firmware/gateway/components/http_server/CMakeLists.txt` — 3 lines.
+- Created `firmware/gateway/components/http_server/test/CMakeLists.txt` — 4 lines.
+- Created `firmware/gateway/components/http_server/test/test_http_server.c` — 9 lines.
+- Updated `firmware/gateway/test/CMakeLists.txt` — 22 lines total; exactly five lines added.
+- Updated `openspec/changes/issue-9-gateway-firmware-foundation/tasks.md` — 335 lines total; only the T-01.02 checkbox changed.
+- Appended 62 lines to `openspec/changes/issue-9-gateway-firmware-foundation/apply-progress.md`; prior slice-2 history is preserved.
+
+### TEST_COMPONENTS append diff hunk
+
+```diff
++list(FIND TEST_COMPONENTS "http_server" http_server_test_component_index)
++if(http_server_test_component_index EQUAL -1)
++    list(APPEND TEST_COMPONENTS "http_server")
++endif()
++
+```
+
+### Test evidence
+
+Command executed exactly once: `cd firmware/gateway/test && idf.py test`
+
+Verbatim command output:
+
+```text
+/bin/bash: línea 1: idf.py: orden no encontrada
+```
+
+Exit code: `127`. The command could not run because `idf.py` is unavailable on PATH (toolchain unavailable in this environment). No source remediation was performed. This is not a passing test result.
+
+### Deviations
+
+- None from the T-01.02 design and acceptance criteria.
+- T-01.06 remains globally unchecked because its cumulative five-component registration is incomplete; this slice performed only the authorized incremental `http_server` append.
+
+### Remaining tasks — unchecked in persisted `tasks.md`
+
+- [ ] T-01.03 — `mqtt_bridge` component contract.
+- [ ] T-01.04 — `ota_manager` component contract.
+- [ ] T-01.05 — `display_manager` component contract (hardware hold).
+- [ ] T-01.06 — TEST_COMPONENTS registration (cumulative, must accompany component PRs).
+- [ ] T-01.07 — Build / test evidence (compile-only).
+- [ ] T-01.08 — Physical-board boot smoke after NVS bootstrap.
