@@ -124,3 +124,68 @@ Exit code: `127`. The command could not run because `idf.py` is unavailable on P
 - [ ] T-01.06 — TEST_COMPONENTS registration (cumulative, must accompany component PRs).
 - [ ] T-01.07 — Build / test evidence (compile-only).
 - [ ] T-01.08 — Physical-board boot smoke after NVS bootstrap.
+
+## Slice 4 — T-01.03 `mqtt_bridge` contract + incremental T-01.06 registration
+
+- **Status:** T-01.03 implementation completed; Unity test command unavailable because `idf.py` is not installed/on PATH.
+- **Native status consumed:** Parent-validated `gentle-ai.sdd-status` v2 for `issue-9-gateway-firmware-foundation`; `applyState: ready`; `dependencies.apply: ready`; `nextRecommended: apply`; no native blockers. Status was not re-fetched as instructed.
+- **actionContext consumed:** `mode: repo-local`; workspace root and allowed edit root are `/home/composedof2/Dev/Codex/ESP32-IIoT-Kit`. No action-context warnings. Work stayed within the assigned component, test-runner, and change-artifact paths.
+- **Delivery/workload boundary:** Slice 4 of N, feature-branch-chain, assigned T-01.03 plus only the `mqtt_bridge` incremental T-01.06 append. Five new component files add 54 lines, the test-runner append adds 5 lines, and the task checkbox replacement changes 2 lines. This progress section adds 65 lines; the slice total is 126 changed lines, below the 400-line budget. No commit, push, PR, or git/worktree operation was performed.
+
+### Completed task and persisted checkbox
+
+- Completed `T-01.03 — mqtt_bridge component contract`; `tasks.md` visibly marks T-01.03 `[x]`. T-01.04 through T-01.08 remain unchecked; historical completed task checkboxes were preserved.
+- Added documented `mqtt_bridge_start()` and `mqtt_bridge_stop()` declarations returning `esp_err_t`, with the requested Fase 4 ownership note.
+- Added inert source-local logging placeholders returning `ESP_OK`. No MQTT client header, client symbol, `mqtt` CMake dependency, or Kconfig file was introduced.
+- Added exactly one `[mqtt_bridge]` Unity test that calls both entry points and asserts `ESP_OK`, plus component and test CMake registration.
+- Appended only `mqtt_bridge` to `TEST_COMPONENTS` using the existing defensive `list(FIND ...)` pattern. Existing cached `board_profile;board_rgb`, `board_rgb`, `espnow_manager`, and `http_server` content is unchanged.
+
+### Files changed and line counts
+
+- Created `firmware/gateway/components/mqtt_bridge/include/mqtt_bridge.h` — 21 lines.
+- Created `firmware/gateway/components/mqtt_bridge/mqtt_bridge.c` — 17 lines.
+- Created `firmware/gateway/components/mqtt_bridge/CMakeLists.txt` — 3 lines.
+- Created `firmware/gateway/components/mqtt_bridge/test/CMakeLists.txt` — 4 lines.
+- Created `firmware/gateway/components/mqtt_bridge/test/test_mqtt_bridge.c` — 9 lines.
+- Updated `firmware/gateway/test/CMakeLists.txt` — 27 lines total; exactly five lines added.
+- Updated `openspec/changes/issue-9-gateway-firmware-foundation/tasks.md` — 335 lines total; only the T-01.03 checkbox changed.
+- Appended 65 lines to `openspec/changes/issue-9-gateway-firmware-foundation/apply-progress.md`; slice-1, slice-2, and slice-3 history is preserved.
+
+### TEST_COMPONENTS append diff hunk
+
+```diff
++list(FIND TEST_COMPONENTS "mqtt_bridge" mqtt_bridge_test_component_index)
++if(mqtt_bridge_test_component_index EQUAL -1)
++    list(APPEND TEST_COMPONENTS "mqtt_bridge")
++endif()
++
+```
+
+### Test evidence
+
+Command executed exactly once: `cd firmware/gateway/test && idf.py test`
+
+Verbatim command output:
+
+```text
+/bin/bash: línea 1: idf.py: orden no encontrada
+```
+
+Exit code: `127`. The command could not run because `idf.py` is unavailable on PATH (toolchain unavailable in this environment). No source remediation edits were made. This is not a passing test result.
+
+### No-link guard inspection
+
+A content search of the complete `mqtt_bridge` component found no `mqtt_client.h`, `esp_mqtt_client.h`, `esp_mqtt_client_*`, `mqtt_client_*`, MQTT event/QoS symbols, or Kconfig references. Component CMake declares only `esp_common log` as required dependencies.
+
+### Deviations
+
+- None from the slice-specific acceptance criteria. The requested `start`/`stop` contract and Fase 4 ownership note were implemented as specified for this slice.
+- T-01.06 remains globally unchecked because its cumulative five-component registration is incomplete; this slice performed only the authorized incremental `mqtt_bridge` append.
+
+### Remaining tasks — unchecked in persisted `tasks.md`
+
+- [ ] T-01.04 — `ota_manager` component contract.
+- [ ] T-01.05 — `display_manager` component contract (hardware hold).
+- [ ] T-01.06 — TEST_COMPONENTS registration (cumulative, must accompany component PRs).
+- [ ] T-01.07 — Build / test evidence (compile-only).
+- [ ] T-01.08 — Physical-board boot smoke after NVS bootstrap.
