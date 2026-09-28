@@ -47,3 +47,5 @@ site/
 
 # Teste (config de otra herramienta)
 teste.json
+# Local Pi runtime state
+.atl/
