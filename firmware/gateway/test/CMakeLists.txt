@@ -48,5 +48,10 @@ if(ui_screens_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "ui_screens")
 endif()
 
+list(FIND TEST_COMPONENTS "assets_brand" assets_brand_test_component_index)
+if(assets_brand_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "assets_brand")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
