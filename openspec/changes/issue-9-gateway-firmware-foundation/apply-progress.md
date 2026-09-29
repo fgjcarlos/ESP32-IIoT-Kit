@@ -189,3 +189,37 @@ A content search of the complete `mqtt_bridge` component found no `mqtt_client.h
 - [ ] T-01.06 — TEST_COMPONENTS registration (cumulative, must accompany component PRs).
 - [ ] T-01.07 — Build / test evidence (compile-only).
 - [ ] T-01.08 — Physical-board boot smoke after NVS bootstrap.
+
+## Slice 5 — T-01.04 `ota_manager` contract + incremental T-01.06 registration
+
+- **Status:** T-01.04 implementation completed; build green; Unity tags verified in ELF. Toolchain available via `source ~/esp/esp-idf/export.sh` (ESP-IDF v5.4).
+- **Branch:** `feature/issue-9-ota-manager` from `origin/main` (`9d736d6`). Worktree `/tmp/ESP32-IIoT-Kit-issue-9-ota`.
+- **Delivery/workload boundary:** Slice 5 of 9, feature-branch-chain, T-01.04 plus only the `ota_manager` incremental T-01.06 append. The implementation and task-artifact diff is ~50 changed lines (39 lines in five new component files, 5 added test-runner lines, plus this progress block). Well under the 400-line budget.
+- **Files created:**
+  - `firmware/gateway/components/ota_manager/include/ota_manager.h` (12 lines).
+  - `firmware/gateway/components/ota_manager/ota_manager.c` (10 lines).
+  - `firmware/gateway/components/ota_manager/CMakeLists.txt` (3 lines).
+  - `firmware/gateway/components/ota_manager/test/CMakeLists.txt` (4 lines).
+  - `firmware/gateway/components/ota_manager/test/test_ota_manager.c` (7 lines).
+- **File edited:** `firmware/gateway/test/CMakeLists.txt` — exactly 5 lines added following the existing defensive `list(FIND ...)` pattern; the `board_rgb` guard and prior four appends are unchanged.
+
+### TEST_COMPONENTS append diff hunk
+
+```diff
++list(FIND TEST_COMPONENTS "ota_manager" ota_manager_test_component_index)
++if(ota_manager_test_component_index EQUAL -1)
++    list(APPEND TEST_COMPONENTS "ota_manager")
++endif()
++
+```
+
+### Acceptance criteria verification
+
+- Header contains `esp_err_t ota_manager_init(void)` returning `esp_err_t`, with the Fase 5 T5.x ownership Doxygen block.
+- Component `REQUIRES` lists exactly `esp_common log`; no `Kconfig` file is introduced.
+- Test source contains `TEST_CASE("OTA manager contract initializes", "[ota_manager]")` asserting `ESP_OK`.
+- No `esp_ota_*` call is exercised; no OTA partition write, no bootable flag toggle, no reboot.
+- `idf.py -C firmware/gateway build` succeeded: `gateway.bin binary size 0x374d0 bytes. Smallest app partition is 0x300000 bytes. 0x2c8b30 bytes (93%) free.`
+- `idf.py -C firmware/gateway/test build` succeeded: `gateway_test.bin binary size 0x3bab0 bytes. Smallest app partition is 0x100000 bytes. 0xc4550 bytes (77%) free.`
+- ELF symbol verification (`xtensa-esp32s3-elf-nm`): `ota_manager_init` exported at `0x4200ad04 T`. Unity test tag `[ota_manager]` is present in the test ELF (`strings gateway_test.elf | grep "\[ota_manager\]"` returns the tag).
+- Note on `idf.py test` command: ESP-IDF v5.4 does not expose `idf.py test` natively; the project uses `CONFIG_UNITY_ENABLE_IDF_TEST_RUNNER=y` (on-target Unity runner). Compile success + Unity tag presence in the test ELF are the verifiable equivalent in this environment.

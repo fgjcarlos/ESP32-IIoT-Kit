@@ -187,7 +187,7 @@ These constraints are normative. Any task that violates them is rejected at appl
 
 ### T-01.04 — `ota_manager` component contract
 
-- [ ] T-01.04 — `ota_manager` component contract.
+- [x] T-01.04 — `ota_manager` component contract.
 
 **Spec requirements**: "`ota_manager` Component Contract" — header conventions, public init entry point, skeleton compiles and logs contract-only state, contract test proves symbol existence without runtime OTA behavior.
 

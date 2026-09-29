@@ -23,5 +23,10 @@ if(mqtt_bridge_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "mqtt_bridge")
 endif()
 
+list(FIND TEST_COMPONENTS "ota_manager" ota_manager_test_component_index)
+if(ota_manager_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "ota_manager")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
