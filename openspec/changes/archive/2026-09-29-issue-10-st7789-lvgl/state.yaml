@@ -1,0 +1,111 @@
+change: issue-10-st7789-lvgl
+status: completed
+current_phase: archive
+completed_phases:
+  - explore
+  - proposal
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+next_phase: null
+artifact_store: openspec
+execution_mode: interactive
+workflow: odd
+delivery_strategy: ask-on-risk
+chain_strategy: feature-branch-chain
+created: 2026-09-28
+tasks_completed: 2026-09-29
+prs_merged:
+  - pr: 31
+    title: 'feat(gateway): add lcd_driver component contract (interface only)'
+    merge_commit: 'f4b25db'
+    tasks: [ODD-1]
+  - pr: 32
+    title: 'feat(gateway): add lvgl_port component contract (interface only)'
+    merge_commit: '0f9d21b'
+    tasks: [ODD-2]
+  - pr: 33
+    title: 'feat(gateway): add ui_screens component contract (interface only)'
+    merge_commit: 'fe1608e'
+    tasks: [ODD-3]
+  - pr: 34
+    title: 'feat(gateway): add assets_brand component contract (interface only)'
+    merge_commit: '7baab99'
+    tasks: [ODD-4]
+  - pr: 35
+    title: 'feat(gateway): wire display chain init chain into app_main (contracts only)'
+    merge_commit: '351962f'
+    tasks: [ODD-5]
+  - pr: 36
+    title: 'test(gateway): register assets_brand in TEST_COMPONENTS + cumulative evidence (ODD-6)'
+    merge_commit: '8c8c806'
+    tasks: [ODD-6]
+prs_closed_unmerged: []
+tasks_done: [ODD-1, ODD-2, ODD-3, ODD-4, ODD-5, ODD-6]
+tasks_remaining: []
+merged_at: '8c8c806' # Merge of PR #36
+verify_evidence:
+  ODD-6:
+    build:
+      gateway.bin: 227216 bytes (0x37970, 93% free in 0x300000)
+      gateway_test.bin: 249568 bytes (0x3cde0, 76% free in 0x100000)
+    unity_tags:
+      - assets_brand
+      - board_profile
+      - board_rgb
+      - display_manager
+      - espnow_manager
+      - http_server
+      - lcd_driver
+      - lvgl_port
+      - mqtt_bridge
+      - ota_manager
+      - ui_screens
+    exported_symbols:
+      - assets_brand_init
+      - board_profile_read
+      - display_manager_init
+      - espnow_manager_init
+      - lcd_driver_init
+      - lvgl_port_init
+      - lvgl_port_start
+      - lvgl_port_stop
+      - ota_manager_init
+      - ui_screens_init
+      - ui_boot_screen
+      - ui_status_screen
+      - ui_connectivity_screen
+      - ui_nodes_screen
+      - ui_alerts_screen
+      - ui_ota_screen
+    kconfig_per_component: 0
+  boot_smoke:
+    port: /dev/ttyACM0
+    firmware_version: '8c8c806'
+    nvs_log_first: 'I (1084) nvs_config: NVS initialized'
+    board_log_after: 'I (1084) gateway: ESP32-S3 profile: flash=16777216 bytes, PSRAM=8388608 bytes'
+    display_chain_in_order:
+      - 'I (1084) lcd_driver: lcd_driver contract placeholder (8-pin ST7789V2 contacts 1..8 in header; backlight GPIO22 candidate pending physical verification; no esp_lcd_* call in this contract)'
+      - 'I (1104) lvgl_port: lvgl_port contract placeholder (no lv_init, no display driver, no draw buffers, no tick timer in this contract)'
+      - 'I (1114) ui_screens: ui_screens contract placeholder (no lv_obj_create, no screen registration, no event binding in this contract; six screen stubs declared in header)'
+      - 'I (1124) assets_brand: assets_brand contract placeholder (label="IIoT-Kit"; no image decode, no SPIFFS/FATFS read, no draw buffer in this contract)'
+    app_main_returned: 'I (1144) main_task: Returned from app_main()'
+    boot_to_app_main_ok: true
+    no_panic: true
+resolved_decisions:
+  resolution: '170x320 (issue body typo 172x320 was wrong)'
+  backlight_gpio: 'GPIO22 candidate, pending physical verification, no binding'
+  spi_bus_constraint: 'Documented in lvgl_port.h and lcd_driver.h, no arbitration code'
+  contracts_only: 'No esp_lcd_*, no lv_init, no draw buffer, no tick timer, no lv_task_handler, no image decode, no SPI bus init, no GPIO assignment'
+issues:
+  - github: 10
+    closed: true
+    closure_reason: completed
+    comment_id: 5899398252
+    prs_referenced: [31, 32, 33, 34, 35, 36]
+notes:
+  - 'ODD-4 (PR #34, cb51bcc) omitted the defensive list(FIND ...) append for assets_brand in firmware/gateway/test/CMakeLists.txt; ODD-6 (PR #36, 1bcc1d9) restored it.'
+  - 'No WiFi manager was touched; de11er scope.'
+  - 'No partitions.csv / sdkconfig.defaults / firmware/gateway/CMakeLists.txt / firmware/gateway/main/CMakeLists.txt root change (only the four new REQUIRES).'
