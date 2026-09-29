@@ -1,0 +1,67 @@
+change: issue-9-gateway-firmware-foundation
+status: completed
+current_phase: archive
+completed_phases:
+  - explore
+  - proposal
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+next_phase: null
+artifact_store: openspec
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+chain_strategy: feature-branch-chain
+created: 2026-09-27
+tasks_completed: 2026-09-29
+prs_merged:
+  - pr: 23
+    title: 'feat(gateway): add NVS bootstrap composition'
+    merge_commit: '18fe7e1'
+    tasks: [T-00.01]
+  - pr: 24
+    title: 'feat(gateway): add espnow_manager component contract'
+    merge_commit: '0c7ba93'
+    tasks: [T-01.01]
+  - pr: 25
+    title: 'feat(gateway): add http_server component contract'
+    merge_commit: 'f9e2726'
+    tasks: [T-01.02]
+  - pr: 26
+    title: 'feat(gateway): add mqtt_bridge component contract'
+    merge_commit: '9c6ebdc'
+    tasks: [T-01.03]
+  - pr: 27
+    title: 'feat(gateway): add ota_manager component contract'
+    merge_commit: '98db781'
+    tasks: [T-01.04]
+  - pr: 29
+    title: 'feat(gateway): add display_manager component contract (hardware hold)'
+    merge_commit: 'a8c877d'
+    tasks: [T-01.05]
+prs_closed_unmerged:
+  - pr: 28
+    title: 'feat(gateway): add display_manager component contract (hardware hold)'
+    reason: 'Conflicts against post-#27 main; replaced by PR #29 (rebased)'
+tasks_done: [T-00.01, T-01.01, T-01.02, T-01.03, T-01.04, T-01.05, T-01.06, T-01.07, T-01.08]
+tasks_remaining: []
+merged_at: '41449df' # Merge of PR #29
+verify_evidence:
+  T-01.07:
+    build:
+      gateway.bin: 226512 bytes (0x374d0, 93% free in 0x300000)
+      gateway_test.bin: 245952 bytes (0x3bd10, 77% free in 0x100000)
+    unity_tags: [board_profile, board_rgb, espnow_manager, http_server, mqtt_bridge, ota_manager, display_manager]
+    exported_symbols: [espnow_manager_init, http_server_start, http_server_stop, mqtt_bridge_start, mqtt_bridge_stop, ota_manager_init, display_manager_init]
+    kconfig_per_component: 0
+  T-01.08:
+    port: /dev/ttyACM0
+    firmware_version: 41449df
+    nvs_log_first: 'I (1084) nvs_config: NVS initialized'
+    board_log_after: 'I (1084) gateway: ESP32-S3 profile: flash=16777216 bytes, PSRAM=8388608 bytes'
+    partition_table_matches_partitions_csv: true
+    psram_probe_ok: true
+    boot_to_app_main_ok: true
