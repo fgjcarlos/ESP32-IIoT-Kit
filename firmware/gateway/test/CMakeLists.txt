@@ -43,5 +43,10 @@ if(lvgl_port_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "lvgl_port")
 endif()
 
+list(FIND TEST_COMPONENTS "ui_screens" ui_screens_test_component_index)
+if(ui_screens_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "ui_screens")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
