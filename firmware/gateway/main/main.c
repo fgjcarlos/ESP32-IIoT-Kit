@@ -1,6 +1,10 @@
 #include "esp_log.h"
 #include "board_profile.h"
 #include "nvs_config.h"
+#include "lcd_driver.h"
+#include "lvgl_port.h"
+#include "ui_screens.h"
+#include "assets_brand.h"
 
 static const char *TAG = "gateway";
 
@@ -23,4 +27,52 @@ void app_main(void)
     ESP_LOGI(TAG, "ESP32-S3 profile: flash=%lu bytes, PSRAM=%u bytes",
              (unsigned long)profile.flash_size_bytes,
              (unsigned int)profile.psram_size_bytes);
+
+    /* Issue #10 init chain (contracts only — display chain stays on hold).
+     *
+     * The four calls below initialize the LVGL display chain components
+     * shipped in PRs #29 (display_manager, already invoked elsewhere on
+     * the carrier init path; not invoked here), #31 (lcd_driver), #32
+     * (lvgl_port), #33 (ui_screens), and #34 (assets_brand).
+     *
+     * The order mirrors the dependency chain documented in
+     * odd/tasks/issue-10-st7789-lvgl.md:
+     *
+     *     display_manager  (carrier init — not touched here)
+     *         |
+     *         +-- lcd_driver  (panel contact map + GPIO22 candidate)
+     *              |
+     *              +-- lvgl_port  (LVGL adapter, contract only)
+     *                   |
+     *                   +-- ui_screens  (six screen stubs)
+     *
+     * assets_brand is a standalone component (no display chain
+     * dependency), so its init is independent of the chain ordering.
+     *
+     * Every call is a contract-only stub in this slice: each function
+     * logs a single line via ESP_LOGI and returns ESP_OK. The display
+     * bring-up is gated on physical carrier verification. */
+    const esp_err_t lcd_err = lcd_driver_init();
+    if (lcd_err != ESP_OK) {
+        ESP_LOGE(TAG, "LCD driver init failed: %s", esp_err_to_name(lcd_err));
+        return;
+    }
+
+    const esp_err_t lvgl_err = lvgl_port_init();
+    if (lvgl_err != ESP_OK) {
+        ESP_LOGE(TAG, "LVGL port init failed: %s", esp_err_to_name(lvgl_err));
+        return;
+    }
+
+    const esp_err_t ui_err = ui_screens_init();
+    if (ui_err != ESP_OK) {
+        ESP_LOGE(TAG, "UI screens init failed: %s", esp_err_to_name(ui_err));
+        return;
+    }
+
+    const esp_err_t brand_err = assets_brand_init();
+    if (brand_err != ESP_OK) {
+        ESP_LOGE(TAG, "Assets brand init failed: %s", esp_err_to_name(brand_err));
+        return;
+    }
 }
