@@ -38,5 +38,10 @@ if(lcd_driver_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "lcd_driver")
 endif()
 
+list(FIND TEST_COMPONENTS "lvgl_port" lvgl_port_test_component_index)
+if(lvgl_port_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "lvgl_port")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
