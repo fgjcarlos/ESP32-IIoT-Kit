@@ -213,7 +213,7 @@ These constraints are normative. Any task that violates them is rejected at appl
 
 ### T-01.05 — `display_manager` component contract (hardware hold)
 
-- [ ] T-01.05 — `display_manager` component contract (hardware hold).
+- [x] T-01.05 — `display_manager` component contract (hardware hold).
 
 **Spec requirements**: "`display_manager` Component Contract (interface only)" — header exposes documented contract and hardware hold verbatim, framebuffer size constant `170 × 320 × 2 = 108,800` bytes, skeleton compiles and logs contract-only state, contract test proves constant and symbol without runtime display behavior.
 

@@ -28,5 +28,10 @@ if(ota_manager_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "ota_manager")
 endif()
 
+list(FIND TEST_COMPONENTS "display_manager" display_manager_test_component_index)
+if(display_manager_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "display_manager")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
