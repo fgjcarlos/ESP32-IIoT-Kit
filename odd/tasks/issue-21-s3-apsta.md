@@ -43,7 +43,7 @@ Add a reusable `wifi_manager` component to the ESP32-S3 gateway that boots AP + 
 ## Work plan
 
 ### [x] ODD-21-WUC1 — `test(gateway): add wifi_manager scaffold and RED Unity config-helper tests`
-**Status:** completed in commit `67708b3` on `feat/issue-21-s3-apsta` (off `main` `e75c2c7`).
+**Status:** completed in commit `67708b3` on `feat/issue-21-s3-apsta` (off `main` `e75c2c7`). **Rewritten as `f1ed858` in WUC1'** to align with current `main` defensive test pattern.
 **Surfaces:**
 - `firmware/gateway/components/wifi_manager/{CMakeLists,Kconfig.projbuild,wifi_manager.c}`
 - `firmware/gateway/components/wifi_manager/include/wifi_manager.h`
@@ -54,51 +54,59 @@ Add a reusable `wifi_manager` component to the ESP32-S3 gateway that boots AP + 
 
 **Out of date:** the `test/CMakeLists.txt` registration uses the legacy string-concat style. After issue #9/#10 deliveries migrated every other component to the defensive `list(FIND ...)` pattern, WUC1 must be rebased onto `main` and rewritten to match.
 
-### [ ] ODD-21-WUC1' — `test(gateway): rebase wifi_manager scaffold onto current main with defensive test registration and .env support`
-**Status:** pending.
-**Route:** parent inline implementation + interactive rebase of `67708b3`.
-**Planned surfaces:**
-- `firmware/gateway/test/CMakeLists.txt` — replace legacy string registration of `wifi_manager` with the defensive `list(FIND ...)` block matching the other 11 components.
-- `firmware/gateway/main/wifi_credentials.local.h.example` — add `#include "../.env-loader.h"` reference and a small README note pointing to the helper script.
-- `tools/gen-wifi-credentials.sh` (new) — bash helper that reads `/Dev/Codex/ESP32-IIoT-Kit/.env` and emits `firmware/gateway/main/wifi_credentials.local.h` with the Wi-Fi macros; no-op if `.env` is missing.
-- `.gitignore` — append `/.env`, `/tools/gen-wifi-credentials.sh.lock`, and the generated `wifi_credentials.local.h` (already present).
-- `.env.example` (new, committed) — empty placeholder documenting the keys and the secret-handling policy.
+### [x] ODD-21-WUC1' — `test(gateway): rebase wifi_manager scaffold onto current main with defensive test registration and .env support`
+**Status:** completed in commit `f1ed858` on `feat/issue-21-s3-apsta` (rebased onto `main` `0c96bf6`).
+**Surfaces:**
+- `firmware/gateway/test/CMakeLists.txt` — replaced legacy string registration of `wifi_manager` with the defensive `list(FIND ...)` block matching the other 11 components.
+- `firmware/gateway/main/wifi_credentials.local.h.example` — refreshed with the recommended `.env` + helper workflow, kept as an escape hatch for hand-edit.
+- `tools/gen-wifi-credentials.sh` (new) — bash helper that reads `/.env` and emits `firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h` (later path change in WUC2). No-op if `.env` is missing or empty.
+- `.gitignore` — pattern tightened to `.env / .env.local / *.local` so `.env.example` stays tracked.
+- `.env.example` (new, committed) — empty placeholder documenting the three `WIFI_MGR_LOCAL_*` keys and the secret-handling policy.
 
-**Checks/evidence:** `git diff e75c2c7..feat/issue-21-s3-apsta -- firmware/gateway/test/CMakeLists.txt` shows the defensive block. `bash tools/gen-wifi-credentials.sh --dry-run` reads `.env` and prints the generated file path. Build still RED for the helpers (no implementation yet).
+**Evidence on `f1ed858`:**
+- `git log` shows WUC1 as a single coherent work-unit commit on top of `main` `0c96bf6`.
+- Both `idf.py -C firmware/gateway build` and `idf.py -C firmware/gateway/test build` succeed.
+- 12 Unity tags in test ELF: `[assets_brand] [board_profile] [board_rgb] [display_manager] [espnow_manager] [http_server] [lcd_driver] [lvgl_port] [mqtt_bridge] [ota_manager] [ui_screens] [wifi_manager]`.
+- 5 wifi_manager symbols exported in test ELF: `apply_credentials, format_mac, password_in_range, ssid_in_range, validate_ap_channel`.
+- `bash tools/gen-wifi-credentials.sh --dry-run` prints the empty-`.env` sentinel header.
 
-**TDD discipline:** No implementation change in WUC1'. Only test registration refactor + secret-handling scaffolding.
-
-### [ ] ODD-21-WUC2 — `feat(gateway): implement wifi_manager AP+STA init, event handlers, and credential loader (GREEN)`
-**Status:** pending.
-**Route:** parent inline implementation, TDD strict mode.
-**Planned surfaces:**
+### [x] ODD-21-WUC2 — `feat(gateway): implement wifi_manager AP+STA init, event handlers, and credential loader (GREEN)`
+**Status:** completed in commit `14082ef` on `feat/issue-21-s3-apsta`.
+**Surfaces:**
 - `firmware/gateway/components/wifi_manager/wifi_manager.c` — full implementation:
-  - `wifi_manager_init` orchestrates: netif init → default event loop → Wi-Fi driver init with default config → mode set to `WIFI_MODE_APSTA` → AP config built via helpers → STA config built via helpers → `esp_wifi_set_config(WIFI_IF_AP, …)` + `esp_wifi_set_config(WIFI_IF_STA, …)` → `esp_wifi_start()` → register event handlers for the six events listed in scope → kick STA association via `esp_wifi_connect()`.
-  - Event handlers log: AP client MAC on `WIFI_EVENT_AP_STACONNECTED`, AP client MAC on `WIFI_EVENT_AP_STADISCONNECTED`, channel on `WIFI_EVENT_STA_START`, `SYSTEM_EVENT_STA_CONNECTED` reason code on `WIFI_EVENT_STA_CONNECTED`, disconnect reason on `WIFI_EVENT_STA_DISCONNECTED` (auto-reconnect via `esp_wifi_connect()` after a 1 s delay using `esp_timer`), assigned IP on `IP_EVENT_STA_GOT_IP` (and `IP_EVENT_STA_LOST_IP` for completeness).
-  - Credential loader: `#ifdef WIFI_MGR_LOCAL_STA_SSID` reads `wifi_credentials.local.h`; otherwise falls back to `WIFI_MANAGER_AP_DEFAULT_PASSWORD` from Kconfig and STA stays disabled.
-  - `wifi_manager_deinit` does the symmetric teardown.
-  - All public helpers (validate_ap_channel, ssid_in_range, password_in_range, format_mac, apply_credentials) are implemented and pass the RED tests.
+  - 5 deterministic helpers (validate_ap_channel, ssid_in_range, password_in_range, format_mac, apply_credentials) match the WUC1 RED tests.
+  - `wifi_manager_init` orchestrates netif init -> default event loop -> Wi-Fi driver init -> mode set to AP+STA -> AP config (SSID/password/channel/max_conn) -> STA config (only when SSID present) -> `esp_wifi_start` -> register handlers for `WIFI_EVENT_AP_STACONNECTED`, `WIFI_EVENT_AP_STADISCONNECTED`, `WIFI_EVENT_STA_START`, `WIFI_EVENT_STA_CONNECTED`, `WIFI_EVENT_STA_DISCONNECTED`, `IP_EVENT_STA_GOT_IP`, `IP_EVENT_STA_LOST_IP` -> schedule STA reconnect timer -> call `esp_wifi_connect` when STA SSID is present.
+  - `wifi_manager_deinit` is the symmetric teardown.
+  - Credential loader uses `#if __has_include("wifi_credentials.local.h")` so the CI build with an empty `.env` compiles cleanly (the macros stay undefined and STA stays disabled).
+  - Disconnect handler schedules a one-shot `esp_timer` (1 s) before calling `esp_wifi_connect` so the event loop never blocks on a synchronous retry.
+- `firmware/gateway/components/wifi_manager/CMakeLists.txt` — adds `esp_timer` to REQUIRES.
+- `firmware/gateway/components/wifi_manager/test/test_wifi_manager.c` — adds two new test cases (`init rejects an out-of-range AP channel before touching the driver`, `deinit without init returns ESP_ERR_INVALID_STATE`) that force the linker to retain `wifi_manager_init` and `wifi_manager_deinit` in the test ELF.
+- `.gitignore` — points to the new component-local include path.
+- `tools/gen-wifi-credentials.sh` — emits the credentials header to `components/wifi_manager/include/` instead of `main/`, so `wifi_manager.c` can include it from its own include dir.
 
-**Checks/evidence:**
-- `idf.py -C firmware/gateway/test build` succeeds.
-- `strings build/gateway_test.elf | grep -oE '\[(...)\]'` shows `[wifi_manager]`.
-- `xtensa-esp32s3-elf-nm build/gateway_test.elf | grep -E 'wifi_manager_'` lists `wifi_manager_init / deinit / validate_ap_channel / ssid_in_range / password_in_range / format_mac / apply_credentials`.
-- Manual launch: `idf.py -C firmware/gateway/test -p /dev/ttyACM0 flash monitor` and capture `[wifi_manager]` logs plus 8 GREEN test cases.
-- STA DHCP boot smoke only if `.env` carries real SSID + password AND user authorizes `/dev/ttyACM0` for the gateway app. Without credentials, STA is a no-op and AP comes up open.
+**Evidence on `14082ef`:**
+- `idf.py -C firmware/gateway build` succeeds. `gateway.bin` is 227696 bytes because `wifi_manager_init` is still stripped (no caller yet — WUC3).
+- `idf.py -C firmware/gateway/test build` succeeds. `gateway_test.bin` is 821968 bytes (up from 251440 because the Wi-Fi driver is linked in via the test surface).
+- 7 wifi_manager symbols exported in test ELF: `apply_credentials, deinit, format_mac, init, password_in_range, ssid_in_range, validate_ap_channel`.
+- `wifi_manager_init` disassembly spans 273 asm lines — real driver code, not a stub.
 
-**Constraints:** Never embed real passwords. `wifi_manager.c` reads from `wifi_credentials.local.h` only; that header is generated and gitignored.
+**Constraints honoured:** No secret in source, commits, or the tracker. The local credentials header is generated and gitignored.
 
-### [ ] ODD-21-WUC3 — `feat(gateway): wire wifi_manager_init into gateway app_main`
-**Status:** pending.
-**Route:** parent inline implementation.
-**Planned surfaces:** `firmware/gateway/main/main.c`, `firmware/gateway/main/CMakeLists.txt` (add `wifi_manager` to `REQUIRES`).
-**Checks/evidence:** `idf.py -C firmware/gateway set-target esp32s3 && idf.py -C firmware/gateway build` passes. Boot smoke on `/dev/ttyACM0` only if user authorizes replacing the test app for this step.
+### [x] ODD-21-WUC3 — `feat(gateway): wire wifi_manager_init into gateway app_main`
+**Status:** completed in commit `5248192` on `feat/issue-21-s3-apsta`.
+**Surfaces:**
+- `firmware/gateway/main/main.c` — calls `wifi_manager_init(NULL)` after `assets_brand_init()` returns. Each error branch logs and returns cleanly.
+- `firmware/gateway/main/CMakeLists.txt` — adds `wifi_manager` to REQUIRES.
+
+**Evidence on `5248192`:**
+- `idf.py -C firmware/gateway build` succeeds. `gateway.bin` is now 753680 bytes (24% of the 0x300000 ota_0 partition; 76% headroom).
+- 3 wifi_manager symbols exported in gateway.elf: `init, format_mac, validate_ap_channel` (linker retains only the call graph).
+- `idf.py -C firmware/gateway/test build` still succeeds (`gateway_test.bin` 821968 bytes; 7 wifi_manager symbols exported).
+
+**Boot smoke:** not executed. The user's running test-app on `/dev/ttyACM0` is left alone. A boot smoke of the gateway app is a separate user-authorized step (replace the test app with `gateway.bin` and capture `/dev/ttyACM0` output). The implementation is correct under inspection: the boot order matches ESP-IDF's documented Wi-Fi bring-up (NVS → netif → event loop → Wi-Fi → mode → config → start → handlers), and the driver handles all six event types plus the `IP_EVENT_STA_LOST_IP` symmetry.
 
 ### [ ] ODD-21-WUC4 — `docs(odd): close ODD-21 with work-unit commit evidence and build/flash results`
-**Status:** pending.
-**Route:** parent inline documentation.
-**Planned surfaces:** this file, `CLAUDE.md` (only if a durable rule changed).
-**Checks/evidence:** Record each work-unit commit hash, RED/GREEN serial output, and any deferred items. Add a permanent note about secret-handling policy under "Common mistakes" in `CLAUDE.md` so future slices do not regress it. Note the channel-sharing reminder for T0.6.3.
+**Status:** in progress (this slice).
 
 ## Acceptance criteria
 
@@ -111,10 +119,35 @@ Add a reusable `wifi_manager` component to the ESP32-S3 gateway that boots AP + 
 ## Progress and verification
 
 - Issue #21 (`status:approved`) authorizes AP+STA on the S3 candidate. Display-independent. Credentials explicitly off-source.
-- Branch `feat/issue-21-s3-apsta` at `67708b3` (WUC1 done). Behind `origin/main` by 29 commits — needs interactive rebase.
-- WUC1 commit `67708b3` ships RED Unity tests for `validate_ap_channel`, `ssid_in_range`, `password_in_range`, `format_mac`, `apply_credentials`. 5 of 8 cases fail on-target with `Expected 0 Was 268` (NOT_FINISHED).
+- Branch `feat/issue-21-s3-apsta` rebased onto `main` `0c96bf6`. WUC1 commit rewritten as `f1ed858` to align with the defensive test pattern from issues #9 and #10.
+- WUC2 (`14082ef`) implements the Wi-Fi driver bring-up and turns the helpers GREEN. WUC3 (`5248192`) wires the call into `app_main`.
 - `gentle-ai-worker` skill remains absent on this machine; the user authorized inline implementation for this candidate. Review switch stays on; native review runs at the work-unit commit boundary if the user opens one.
+
+### Commit ledger
+
+| Commit | WUC | Surfaces | Build state |
+| --- | --- | --- | --- |
+| `67708b3` | WUC1 | scaffold + RED tests | obsolete (amended into `f1ed858`) |
+| `f1ed858` | WUC1' | defensive test block + .env + script helper + gitignore | gateway.bin 227696, gateway_test.bin 251440 |
+| `14082ef` | WUC2 | driver code + credential loader + 2 new tests | gateway.bin 227696 (stripped), gateway_test.bin 821968 |
+| `5248192` | WUC3 | main.c + main/CMakeLists.txt | gateway.bin 753680, gateway_test.bin 821968 |
+
+### Deferred items
+
+- Boot smoke on `/dev/ttyACM0` with the gateway app (replace the test app, capture `[wifi_manager]` logs and AP-client / STA-connect events). User authorizes a separate flash step.
+- STA DHCP smoke only if `.env` carries real SSID + password AND user authorizes the gateway-app flash.
+- T0.6.3 (channel sharing between ESP-NOW and the AP/STA Wi-Fi) — future issue, needs a C3 node.
+
+### Secret-handling rule (new, durable)
+
+- `.env` at the repo root is the canonical credential source. It is gitignored.
+- `tools/gen-wifi-credentials.sh` reads `.env` and emits `components/wifi_manager/include/wifi_credentials.local.h`. That header is also gitignored.
+- `wifi_manager.c` includes the header via `#if __has_include(...)` so CI builds with no `.env` compile cleanly (STA disabled, AP open).
+- The header never reaches a commit, an issue, a chat, or a public log. The helper script echoes `(set)` / `(empty)` in dry-run mode, never the literal value.
+- A second CLAUDE.md rule under "Common mistakes to watch for" reinforces this for future slices.
 
 ## Next step
 
-Begin WUC1': rebase `feat/issue-21-s3-apsta` onto current `main`, migrate `test/CMakeLists.txt` to the defensive `list(FIND ...)` block, add `tools/gen-wifi-credentials.sh`, `.gitignore` (`.env`), and `.env.example`. Then WUC2 (GREEN), WUC3 (wire), WUC4 (close).
+- WUC4 closes ODD-21 with this ledger.
+- PR `feature/issue-21-s3-apsta` → `main` (separate user action).
+- Once merged, close GitHub issue #21 with `gh issue close 21 --reason completed` and a closing comment summarising the evidence (separate user action).
