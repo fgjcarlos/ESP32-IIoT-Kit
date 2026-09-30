@@ -53,5 +53,10 @@ if(assets_brand_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "assets_brand")
 endif()
 
+list(FIND TEST_COMPONENTS "wifi_manager" wifi_manager_test_component_index)
+if(wifi_manager_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "wifi_manager")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
