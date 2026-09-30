@@ -36,6 +36,11 @@ site/
 *.key
 .env
 .env.*
+.env.local
+.env.*.local
+
+# Local Wi-Fi credentials (issue #21, never committed)
+firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h
 
 # Binaries
 *.bin
