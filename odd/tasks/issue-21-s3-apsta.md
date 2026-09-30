@@ -152,6 +152,8 @@ The original branch `feat/issue-21-s3-apsta` (PR #37) shipped tracked credential
 
 ## Next step
 
-- PR `feature/issue-21-s3-apsta-clean` → `main` (separate user action).
-- Close the original PR #37 (it carries the example files; not mergeable as-is).
-- Once the clean PR merges, close GitHub issue #21 with `gh issue close 21 --reason completed` and a closing comment summarising the evidence (separate user action).
+- PR `feature/issue-21-s3-apsta-clean` → `main`: **DONE** as PR #38 (merge `152f40f` on 2026-09-30).
+- Original PR #37 closed by maintainer after GitGuardian flagged the tracked credential-style files; the clean branch fixed the report by removing the example files and moving the durable policy to the README and this odd doc.
+- GitHub issue #21: **CLOSED as completed** on 2026-09-30 with the evidence comment (id `5918205714`).
+- Local cleanup done: `feat/issue-21-s3-apsta-clean` checked out, the old `feat/issue-21-s3-apsta` worktree at `/tmp/ESP32-IIoT-Kit-issue-21-apsta` removed, the local + remote `feat/issue-21-s3-apsta` branches deleted.
+- Future slices (T0.6.3 channel sharing, Fase 1 network layer) start from the clean `main` `152f40f`.
