@@ -31,7 +31,7 @@ set -euo pipefail
 
 REPO_ROOT="${WIFI_MGR_REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 ENV_FILE="${REPO_ROOT}/.env"
-OUT_FILE="${REPO_ROOT}/firmware/gateway/main/wifi_credentials.local.h"
+OUT_FILE="${REPO_ROOT}/firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h"
 OUT_DIR="$(dirname "${OUT_FILE}")"
 
 DRY_RUN=0

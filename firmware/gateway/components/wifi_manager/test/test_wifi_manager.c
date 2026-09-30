@@ -108,3 +108,28 @@ TEST_CASE("apply_credentials rejects NULL pointers", "[wifi_manager]")
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, wifi_manager_apply_credentials(NULL, &out));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, wifi_manager_apply_credentials(&(wifi_manager_credentials_t){0}, NULL));
 }
+
+TEST_CASE("init rejects an out-of-range AP channel before touching the driver", "[wifi_manager]")
+{
+    /* Channel 14 is rejected before esp_netif_init / esp_wifi_init. The
+     * component must NOT have called any system API yet, so a second
+     * init must still be allowed afterward (proves we did not start Wi-Fi). */
+    const wifi_manager_credentials_t bad = {
+        .sta_ssid = NULL,
+        .sta_password = NULL,
+        .ap_ssid = NULL,
+        .ap_password = NULL,
+        .ap_channel = 14,        /* out of range on 2.4 GHz */
+        .ap_max_connection = 4,
+    };
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, wifi_manager_init(&bad));
+}
+
+TEST_CASE("deinit without init returns ESP_ERR_INVALID_STATE", "[wifi_manager]")
+{
+    /* Forces the linker to retain wifi_manager_deinit so the symbol
+     * shows up in the test ELF even when init never ran. */
+    TEST_ASSERT_NOT_NULL((void *)&wifi_manager_deinit);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_manager_deinit());
+}
