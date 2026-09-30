@@ -83,8 +83,8 @@ TEST_CASE("format_mac returns ESP_ERR_INVALID_ARG when output is too small", "[w
 TEST_CASE("apply_credentials substitutes defaults for NULL/zero fields", "[wifi_manager]")
 {
     const wifi_manager_credentials_t in = {
-        .sta_ssid = "lab-router",
-        .sta_password = "lab-secret",
+        .sta_ssid = "TEST-STA-SSID",
+        .sta_password = "TEST-STA-PWD",
         .ap_ssid = NULL,
         .ap_password = NULL,
         .ap_channel = 0,
@@ -93,8 +93,8 @@ TEST_CASE("apply_credentials substitutes defaults for NULL/zero fields", "[wifi_
     wifi_manager_credentials_t out;
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_manager_apply_credentials(&in, &out));
-    TEST_ASSERT_EQUAL_STRING("lab-router", out.sta_ssid);
-    TEST_ASSERT_EQUAL_STRING("lab-secret", out.sta_password);
+    TEST_ASSERT_EQUAL_STRING("TEST-STA-SSID", out.sta_ssid);
+    TEST_ASSERT_EQUAL_STRING("TEST-STA-PWD", out.sta_password);
     TEST_ASSERT_EQUAL_STRING(WIFI_MANAGER_AP_DEFAULT_SSID, out.ap_ssid);
     TEST_ASSERT_EQUAL_UINT8(WIFI_MANAGER_AP_DEFAULT_CHANNEL, out.ap_channel);
     TEST_ASSERT_EQUAL_UINT8(WIFI_MANAGER_AP_DEFAULT_MAX_CONN, out.ap_max_connection);
