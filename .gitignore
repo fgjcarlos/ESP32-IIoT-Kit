@@ -55,3 +55,6 @@ firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h
 teste.json
 # Local Pi runtime state
 .atl/
+
+# CodeGraph (pi coding agent)
+.codegraph/
