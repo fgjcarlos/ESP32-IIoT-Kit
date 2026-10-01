@@ -6,6 +6,7 @@
 #include "ui_screens.h"
 #include "assets_brand.h"
 #include "wifi_manager.h"
+#include "mqtt_bridge.h"
 
 static const char *TAG = "gateway";
 
@@ -90,6 +91,12 @@ void app_main(void)
     const esp_err_t wifi_err = wifi_manager_init(NULL);
     if (wifi_err != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi manager init failed: %s", esp_err_to_name(wifi_err));
+        return;
+    }
+
+    const esp_err_t mqtt_err = mqtt_bridge_start();
+    if (mqtt_err != ESP_OK) {
+        ESP_LOGE(TAG, "MQTT bridge start failed: %s", esp_err_to_name(mqtt_err));
         return;
     }
 }
