@@ -63,5 +63,10 @@ if(wifi_manager_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "wifi_manager")
 endif()
 
+list(FIND TEST_COMPONENTS "sparkplug_b" sparkplug_b_test_component_index)
+if(sparkplug_b_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "sparkplug_b")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)

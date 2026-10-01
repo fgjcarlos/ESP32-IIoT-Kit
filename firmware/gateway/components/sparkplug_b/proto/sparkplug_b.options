@@ -1,0 +1,38 @@
+# nanopb options for sparkplug_b.proto
+#
+# These options pin fixed sizes for repeated fields so we avoid heap allocations
+# at encode time. The IIoT gateway publishes a bounded, well-known set of metrics
+# per NBIRTH/DBIRTH/DDATA, so static sizing is appropriate.
+#
+# Field paths in this file must be the fully-qualified proto path
+# (org.eclipse.tahu.protobuf.Payload.metrics, NOT Payload.metrics). nanopb
+# compares against the parsed descriptor names.
+#
+# Aliases (per issue #11 design §3.5):
+#   0        reserved by spec
+#   1..9     sensor_type_t (TEMPERATURE..TURBIDITY) — single Double each
+#   10       CUSTOM  — up to 4 Doubles (one per slot in PROTOCOL_MAX_VALUES)
+#   11..13   diagnostics (UptimeMs, BatteryPercent, RssiLast)
+#   total: 4 + 4 = 8 fixed metrics per DBIRTH max
+#
+# We allocate 16 metrics headroom for future aliases without touching the wire.
+#
+# Syntax: <Message>.<field> <option>:<value>
+# See https://jpa.kapsi.fi/nanopb/docs/reference.html#proto-file-options
+
+# Default string size for every string field.
+*.* max_size:64
+
+# Specific bounds per repeated field.
+org.eclipse.tahu.protobuf.Payload.metrics                max_count:16 type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.Template.metrics       max_count:16 type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.Template.parameters    max_count:8  type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.DataSet.columns        max_count:8  type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.DataSet.types          max_count:8  type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.DataSet.rows           max_count:8  type:FT_STATIC
+org.eclipse.tahu.protobuf.Payload.DataSet.Row.elements   max_count:8  type:FT_STATIC
+# Note: Payload.PropertySet stays as pb_callback_t because of a circular
+# dependency between PropertyValue/PropertySet (nanopb emits a warning
+# otherwise). The IIoT gateway does not use PropertySet on the hot path;
+# only DBIRTH *may* include a small set, and a one-shot callback there is
+# acceptable (heap usage is bounded to one-shot BIRTH messages).
