@@ -4,7 +4,8 @@ idf_component_register(
          "src/sparkplug_b_state.c"
          "src/sparkplug_b_topics.c"
          "src/sparkplug_b_payload.c"
+         "src/sparkplug_b_espnow_bridge.c"
          "proto/sparkplug_b.pb.c"
     INCLUDE_DIRS "include" "proto"
-    REQUIRES esp_common log mqtt esp_event esp-tls mbedtls nvs_flash esp_timer
+    REQUIRES esp_common log mqtt esp_event esp-tls mbedtls nvs_flash esp_timer protocol
     PRIV_REQUIRES nanopb)
