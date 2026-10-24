@@ -16,6 +16,7 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 
 - `firmware/gateway/` — ESP-IDF project for the ESP32-S3 (target `esp32s3`, 16MB flash, 8MB Octal PSRAM)
 - `firmware/gateway/components/` — one directory per reusable component
+- `firmware/gateway/components/brand_profile/` — white-label layer: the brand profile is a build-time choice (Kconfig) plus versioned assets under `profiles/<id>/`; the public identity is versioned in Git, the manufacturing secrets are not
 - `firmware/gateway/main/` — `app_main`, `nvs_config`
 - `firmware/gateway/test/` — top-level Unity test project (`TEST_COMPONENTS` list drives what runs)
 - `firmware/common/protocol/` — shared wire protocol (source of truth: `docs/replanificacion/02-protocolo-unificado.md`)
@@ -68,6 +69,7 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 
 - Never commit secrets — `.env`, `*.pem`, `*.key` are gitignored
 - Local Wi-Fi credentials live in `firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h` and must never be committed
+- Local brand manufacturing secrets live in `firmware/gateway/components/brand_profile/include/brand_secrets.local.h` and must never be committed; regenerate them with `tools/brand/gen-brand-secrets.sh`, never by hand
 - Never use unverified vendor electrical specs as design authority; mark them as pending verification
 
 ## Working agreements
