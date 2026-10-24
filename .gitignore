@@ -42,6 +42,9 @@ site/
 # Local Wi-Fi credentials (issue #21, never committed)
 firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h
 
+# Local manufacturing secrets (issue #12, never committed)
+firmware/gateway/components/brand_profile/include/brand_secrets.local.h
+
 # Binaries
 *.bin
 *.elf
