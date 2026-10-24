@@ -1,0 +1,90 @@
+# Sparkplug B (gateway as EoN-Node)
+#
+# Issue #11: MQTT Sparkplug B as an optional MQTT mode.
+# Reference: docs/replanificacion/01-decisiones-corregidas.md (DC-13),
+#            docs/replanificacion/02-protocolo-unificado.md,
+#            odd/tasks/issue-11-sparkplug-b/design.md
+
+menu "Sparkplug B (MQTT v3, EoN-Node mode)"
+
+    config SPARKPLUG_B_ENABLED
+        bool "Enable Sparkplug B v3.0.0 publishing on the gateway"
+        default n
+        help
+            When enabled, the gateway connects to an MQTT broker as a Sparkplug B
+            v3.0.0 Edge of Network (EoN) Node, representing each ESP-NOW sensor
+            node as a Device. Birth / Data / Death certificates, LWT, and the
+            seq / bdSeq state machine are owned by the sparkplug_b component.
+
+            When disabled (default), mqtt_bridge_start() stays a no-op and the
+            gateway does not open any MQTT client. The Fase 4 placeholder
+            behaviour is preserved.
+
+    config SPARKPLUG_B_GROUP_ID_DEFAULT
+        string "Default Sparkplug group_id (used when NVS key mqtt_group_id is unset)"
+        default "iiot-kit"
+        depends on SPARKPLUG_B_ENABLED
+        help
+            Maps to {group_id} in the Sparkplug topic namespace
+            spBv1.0/{group_id}/{msg_type}/{edge_node_id}[/{device_id}].
+            Override per-installation via NVS without recompiling.
+
+    config SPARKPLUG_B_EDGE_NODE_ID_PREFIX
+        string "Default edge_node_id prefix (gateway MAC suffix is appended if NVS is unset)"
+        default "GW"
+        depends on SPARKPLUG_B_ENABLED
+        help
+            The full edge_node_id becomes <prefix>-<last 4 hex of MAC>, e.g.
+            GW-A1B2C3D4. Override via NVS key mqtt_edge_id.
+
+    config SPARKPLUG_B_DEVICE_ID_PREFIX
+        string "Default device_id prefix (sensor node MAC suffix is appended)"
+        default "N"
+        depends on SPARKPLUG_B_ENABLED
+        help
+            The full device_id becomes <prefix>-<last 4 hex of node MAC>, e.g.
+            N-7F8E9D10. The prefix follows the Sparkplug 3.0.0 recommendation
+            to keep device ids opaque identifiers.
+
+    config SPARKPLUG_B_DDEATH_TIMEOUT_SEC
+        int "DDEATH expiry timeout (seconds, per device)"
+        default 1800
+        range 60 86400
+        depends on SPARKPLUG_B_ENABLED
+        help
+            If no MSG_TYPE_DATA arrives from a sensor node for this many seconds,
+            the gateway publishes DDEATH for that device. Default 1800 s = 30 min,
+            aligned with the typical deep-sleep interval plus margin. Override
+            via NVS key mqtt_ddeath_sec.
+
+    config SPARKPLUG_B_KEEPALIVE_SEC
+        int "MQTT keepalive (seconds)"
+        default 60
+        range 15 600
+        depends on SPARKPLUG_B_ENABLED
+
+    config SPARKPLUG_B_TLS_ENABLED_DEFAULT
+        bool "Default to TLS on first boot when NVS key mqtt_tls is unset"
+        default n
+        depends on SPARKPLUG_B_ENABLED
+        help
+            Recommend OFF for local brokers (mosquitto on the LAN) and ON for
+            cloud / public brokers. Override per-installation via NVS
+            mqtt_tls without recompiling.
+
+    config SPARKPLUG_B_TLS_CA_PATH
+        string "SPIFFS path to the CA bundle (PEM, single or concatenated)"
+        default "/spiffs/mqtt/ca.pem"
+        depends on SPARKPLUG_B_ENABLED
+
+    config SPARKPLUG_B_TLS_CLIENT_CERT_PATH
+        string "SPIFFS path to the client certificate (PEM, mTLS only)"
+        default "/spiffs/mqtt/cert.pem"
+        depends on SPARKPLUG_B_ENABLED
+
+    config SPARKPLUG_B_TLS_CLIENT_KEY_PATH
+        string "SPIFFS path to the client private key (PEM, mTLS only)"
+        default "/spiffs/mqtt/key.pem"
+        depends on SPARKPLUG_B_ENABLED
+
+endmenu

@@ -6,8 +6,26 @@
 #include "ui_screens.h"
 #include "assets_brand.h"
 #include "wifi_manager.h"
+#include "mqtt_bridge.h"
+#include "sdkconfig.h"
+
+#if CONFIG_SPARKPLUG_B_ENABLED
+#include "espnow_manager.h"
+#include "sparkplug_b.h"
+#endif
 
 static const char *TAG = "gateway";
+
+#if CONFIG_SPARKPLUG_B_ENABLED
+/* The Sparkplug module never talks to the radio: it translates a command
+ * into an ESP-NOW frame and hands it to this sink, which forwards it to the
+ * ESP-NOW manager. */
+static esp_err_t espnow_sink(const uint8_t *frame, size_t len, void *ctx)
+{
+    (void)ctx;
+    return espnow_manager_send(frame, len);
+}
+#endif
 
 void app_main(void)
 {
@@ -92,4 +110,21 @@ void app_main(void)
         ESP_LOGE(TAG, "Wi-Fi manager init failed: %s", esp_err_to_name(wifi_err));
         return;
     }
+
+    const esp_err_t mqtt_err = mqtt_bridge_start();
+    if (mqtt_err != ESP_OK) {
+        ESP_LOGE(TAG, "MQTT bridge start failed: %s", esp_err_to_name(mqtt_err));
+        return;
+    }
+
+#if CONFIG_SPARKPLUG_B_ENABLED
+    /* Register the ESP-NOW sink before the first command can arrive, so a
+     * DCMD that asks a node to reboot or to change its sleep interval has
+     * somewhere to go. */
+    const esp_err_t sink_err = sparkplug_b_set_espnow_sink(espnow_sink, NULL);
+    if (sink_err != ESP_OK) {
+        ESP_LOGE(TAG, "ESP-NOW sink registration failed: %s", esp_err_to_name(sink_err));
+        return;
+    }
+#endif
 }

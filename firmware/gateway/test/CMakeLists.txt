@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(EXTRA_COMPONENT_DIRS "../components")
+set(EXTRA_COMPONENT_DIRS "../components" "../../common/protocol")
 set(TEST_COMPONENTS "board_profile;board_rgb" CACHE STRING "List of components to test")
+
+list(FIND TEST_COMPONENTS "protocol" protocol_test_component_index)
+if(protocol_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "protocol")
+endif()
 
 list(FIND TEST_COMPONENTS "board_rgb" board_rgb_test_component_index)
 if(board_rgb_test_component_index EQUAL -1)
@@ -56,6 +61,11 @@ endif()
 list(FIND TEST_COMPONENTS "wifi_manager" wifi_manager_test_component_index)
 if(wifi_manager_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "wifi_manager")
+endif()
+
+list(FIND TEST_COMPONENTS "sparkplug_b" sparkplug_b_test_component_index)
+if(sparkplug_b_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "sparkplug_b")
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
