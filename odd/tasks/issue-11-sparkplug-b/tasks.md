@@ -182,13 +182,36 @@ de test Unity contra los **mismos** fuentes del componente.
 ### Harness de conformidad `tools/sparkplug-conformance/`
 - Docker Compose con Mosquitto 2.0 y un cliente Python que compila el schema
   Tahu real en tiempo de build (`grpcio-tools`).
+- El cliente usa los dos roles MQTT de un despliegue Sparkplug: la **Host
+  Application** (suscribe y afirma) y un **Edge Node simulado** (publica y
+  registra el Will). El modo `simulate` termina tirando la conexión TCP sin
+  DISCONNECT, así que el broker publica el Will en nombre del nodo y se puede
+  afirmar el NDEATH de verdad.
 - Modos: `simulate` (publica una secuencia conforme y la verifica) y
-  `observe` (verifica lo que publica un gateway real).
+  `observe` (verifica lo que publica un gateway real; con `--expect-ndata`,
+  `--expect-ddeath` y `--expect-rebirth`).
 - Verificado en esta máquina: `SPARKPLUG_BROKER_HOST_PORT=18830 bash
-  tools/sparkplug-conformance/scripts/run-conformance.sh` → **43 checks, 43
+  tools/sparkplug-conformance/scripts/run-conformance.sh` → **82 checks, 82
   passed, exit 0**. `MODE=observe` sin publisher → exit 2 con mensaje claro.
 - El puerto 1883 del host está ocupado por un contenedor `mcm-mosquitto` ajeno;
   por eso el puerto de publicación es configurable.
+- Lo que afirma el harness, con los requirement ids de la spec:
+  - topics: prefijo `spBv1.0`, 4 niveles para mensajes de nodo y 5 para los de
+    Device, verbo conocido;
+  - `NBIRTH`: `seq` ∈ [0,255], métrica `bdSeq` (INT64, sin alias), métrica
+    `Node Control/Rebirth` (Boolean `false`, sin alias), el resto con nombre +
+    alias + datatype;
+  - `DBIRTH`: `seq` = anterior + 1, métricas con nombre + alias;
+  - `NDATA`/`DDATA`: `seq` = anterior + 1, métricas **solo con alias** y sin
+    nombre;
+  - `NDEATH`: Will, QoS 1, retain false, **solo** la métrica `bdSeq` y **sin**
+    `seq`; su `bdSeq` coincide con el del `NBIRTH`;
+  - `DDEATH`: `seq` presente y métrica `bdSeq`;
+  - QoS 0 y retain false en todos los mensajes de birth/data/death, y QoS 1 en
+    el Will y en la suscripción a NCMD/DCMD;
+  - **un único espacio de `seq` por EoN-Node**, compartido por el nodo y sus
+    Devices;
+  - unicidad de alias en el conjunto completo de métricas del EoN-Node.
 
 ### Medición (commit 11)
 Ver `docs/sparkplug_3.0.0-measurements.md`. Resumen:
