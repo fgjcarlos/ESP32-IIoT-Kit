@@ -77,17 +77,30 @@ static uint64_t now_ms(void)
     return (uint64_t)(esp_timer_get_time() / 1000);
 }
 
+// Read a string from NVS, falling back to a default when the key is absent.
+//
+// `found` reports whether the key existed. It cannot be derived from the
+// error code alone: nvs_get_str() rejects a NULL length with
+// ESP_ERR_NVS_INVALID_LENGTH, which is not the same as "key not found".
 static esp_err_t nvs_string(nvs_handle_t handle, const char *key, char *value, size_t size,
-                            const char *fallback)
+                            const char *fallback, bool *found)
 {
+    if (found != NULL) {
+        *found = false;
+    }
     size_t length = size;
     esp_err_t err = nvs_get_str(handle, key, value, &length);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         snprintf(value, size, "%s", fallback);
         return ESP_OK;
     }
-    if (err == ESP_OK && length > size) {
-        return ESP_ERR_INVALID_SIZE;
+    if (err == ESP_OK) {
+        if (length > size) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        if (found != NULL) {
+            *found = true;
+        }
     }
     return err;
 }
@@ -127,21 +140,22 @@ static void derive_edge_node_id(char *out, size_t out_size)
 static esp_err_t resolve_identities(nvs_handle_t handle)
 {
     bool dirty = false;
+    bool found = false;
     esp_err_t err;
 
-    err = nvs_string(handle, "mqtt_group_id", s_group_id, sizeof(s_group_id), "iiot-kit");
+    err = nvs_string(handle, "mqtt_group_id", s_group_id, sizeof(s_group_id), "iiot-kit", &found);
     if (err != ESP_OK) {
         return err;
     }
-    if (nvs_get_str(handle, "mqtt_group_id", NULL, NULL) != ESP_OK) {
+    if (!found) {
         dirty = true;
     }
 
-    err = nvs_string(handle, "mqtt_edge_node_id", s_edge_node_id, sizeof(s_edge_node_id), "");
+    err = nvs_string(handle, "mqtt_edge_node_id", s_edge_node_id, sizeof(s_edge_node_id), "", &found);
     if (err != ESP_OK) {
         return err;
     }
-    if (s_edge_node_id[0] == '\0') {
+    if (!found || s_edge_node_id[0] == '\0') {
         derive_edge_node_id(s_edge_node_id, sizeof(s_edge_node_id));
         dirty = true;
     }
@@ -195,10 +209,10 @@ static esp_err_t load_config_from_nvs(void)
     }
 
     memset(&s_config, 0, sizeof(s_config));
-    err = nvs_string(handle, "mqtt_uri", s_uri, sizeof(s_uri), "");
+    err = nvs_string(handle, "mqtt_uri", s_uri, sizeof(s_uri), "", NULL);
     if (err == ESP_OK) err = resolve_identities(handle);
-    if (err == ESP_OK) err = nvs_string(handle, "mqtt_user", s_username, sizeof(s_username), "");
-    if (err == ESP_OK) err = nvs_string(handle, "mqtt_password", s_password, sizeof(s_password), "");
+    if (err == ESP_OK) err = nvs_string(handle, "mqtt_user", s_username, sizeof(s_username), "", NULL);
+    if (err == ESP_OK) err = nvs_string(handle, "mqtt_password", s_password, sizeof(s_password), "", NULL);
     uint8_t tls = 0;
     uint16_t keepalive = 60;
     uint16_t ddeath_timeout = 1800;
