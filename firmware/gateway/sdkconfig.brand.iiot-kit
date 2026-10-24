@@ -1,0 +1,11 @@
+# Brand profile fragment — IIoT-Kit (reference profile).
+#
+# Selecting a profile is a Kconfig choice, so the fragment has to turn the
+# other options of the choice off. The values themselves (name, model,
+# colours, support URL, initial SSID, OTA channel) come from the brand
+# Kconfig, which keeps a single source of truth for the public identity.
+#
+# Used by tools/brand/build-profile.sh.
+
+# CONFIG_BRAND_PROFILE_IIOT_KIT is not set
+CONFIG_BRAND_PROFILE_IIOT_KIT=y

@@ -34,6 +34,13 @@ CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y
 CONFIG_BRAND_PROFILE_IIOT_KIT=y
 # CONFIG_BRAND_PROFILE_ACME_INDUSTRIAL is not set
 
+# Reproducible builds (issue #12) — the branded artifact must be a function
+# of the sources and of the profile, nothing else. Without this the image
+# carries the compile timestamp and the absolute build paths, so two builds
+# of the same commit differ.
+CONFIG_APP_COMPILE_TIME_DATE=n
+CONFIG_APP_REPRODUCIBLE_BUILD=y
+
 # Main task stack: app_main() calls nvs_config_init() (nvs_flash_init) and
 # the NVS driver needs more than the 3584-byte default. With the default the
 # gateway aborts with "A stack overflow in task main has been detected" right
