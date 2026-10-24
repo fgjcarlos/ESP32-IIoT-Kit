@@ -142,3 +142,91 @@ TEST_CASE("sparkplug_b rejects NULL buffers and oversize inputs", "[sparkplug_b]
 
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, sparkplug_b_decode_payload(NULL, 0));
 }
+
+// Regression: the datatype of every metric used to be taken from a single
+// shared slot, so each metric carried the datatype of the last metric that
+// was prepared.
+TEST_CASE("sparkplug_b encodes the datatype of each metric individually", "[sparkplug_b]")
+{
+    sparkplug_metric_t in_metrics[2] = {
+        { .alias = SPARKPLUG_ALIAS_NONE, .name = SPARKPLUG_METRIC_REBIRTH_NAME,
+          .data_type = SPARKPLUG_DATA_TYPE_BOOLEAN, .value.boolean_value = true },
+        { .alias = SPARKPLUG_ALIAS_TEMP, .name = "Inputs/Temperature",
+          .data_type = SPARKPLUG_DATA_TYPE_DOUBLE, .value.double_value = 1.5 },
+    };
+    sparkplug_payload_t in = {
+        .timestamp_ms = 1ULL,
+        .seq = 1ULL,
+        .metrics = in_metrics,
+        .metric_count = 2,
+    };
+
+    uint8_t buf[SPARKPLUG_B_PAYLOAD_MAX_BYTES] = {0};
+    size_t encoded_len = 0;
+    TEST_ASSERT_EQUAL(ESP_OK,
+                      sparkplug_b_encode_payload(&in, buf, sizeof(buf), &encoded_len));
+
+    sparkplug_b_decoded_metric_t decoded[SPARKPLUG_B_MAX_DECODED_METRICS];
+    size_t count = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_decode_metrics(buf, encoded_len, decoded,
+                                                          SPARKPLUG_B_MAX_DECODED_METRICS,
+                                                          &count));
+    TEST_ASSERT_EQUAL_size_t(2, count);
+    TEST_ASSERT_EQUAL_UINT32(SPARKPLUG_DATA_TYPE_BOOLEAN, decoded[0].datatype);
+    TEST_ASSERT_TRUE(decoded[0].value.boolean_value);
+    TEST_ASSERT_EQUAL_UINT32(SPARKPLUG_DATA_TYPE_DOUBLE, decoded[1].datatype);
+    TEST_ASSERT_DOUBLE_WITHIN(0.0001, 1.5, decoded[1].value.double_value);
+}
+
+// Regression: the value of Payload.Metric lives in a protobuf oneof whose
+// arms all share one C union, so only one callback can be registered. The
+// encoder has to dispatch on the arm, otherwise every value is written with
+// the wrong wire type.
+TEST_CASE("sparkplug_b encodes each value arm with its own wire type", "[sparkplug_b]")
+{
+    sparkplug_metric_t in_metrics[3] = {
+        { .alias = SPARKPLUG_ALIAS_NONE, .name = "A/Double",
+          .data_type = SPARKPLUG_DATA_TYPE_DOUBLE, .value.double_value = 2.5 },
+        { .alias = SPARKPLUG_ALIAS_NONE, .name = "A/Float",
+          .data_type = SPARKPLUG_DATA_TYPE_FLOAT, .value.float_value = 0.5f },
+        { .alias = SPARKPLUG_ALIAS_NONE, .name = "A/Boolean",
+          .data_type = SPARKPLUG_DATA_TYPE_BOOLEAN, .value.boolean_value = true },
+    };
+    sparkplug_payload_t in = {
+        .timestamp_ms = 1ULL,
+        .seq = 1ULL,
+        .metrics = in_metrics,
+        .metric_count = 3,
+    };
+
+    uint8_t buf[SPARKPLUG_B_PAYLOAD_MAX_BYTES] = {0};
+    size_t encoded_len = 0;
+    TEST_ASSERT_EQUAL(ESP_OK,
+                      sparkplug_b_encode_payload(&in, buf, sizeof(buf), &encoded_len));
+
+    // Wire tags of the value arms: field number with the protobuf wire type.
+    // double -> field 13 wire type 1 (64 bit) -> 0x69
+    // float  -> field 12 wire type 5 (32 bit) -> 0x65
+    // bool   -> field 14 wire type 0 (varint) -> 0x70
+    const uint8_t expected[] = {0x69, 0x65, 0x70};
+    for (size_t i = 0; i < sizeof(expected); ++i) {
+        bool found = false;
+        for (size_t j = 0; j < encoded_len; ++j) {
+            if (buf[j] == expected[i]) {
+                found = true;
+                break;
+            }
+        }
+        TEST_ASSERT_TRUE(found);
+    }
+
+    sparkplug_b_decoded_metric_t decoded[SPARKPLUG_B_MAX_DECODED_METRICS];
+    size_t count = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_decode_metrics(buf, encoded_len, decoded,
+                                                          SPARKPLUG_B_MAX_DECODED_METRICS,
+                                                          &count));
+    TEST_ASSERT_EQUAL_size_t(3, count);
+    TEST_ASSERT_DOUBLE_WITHIN(0.0001, 2.5, decoded[0].value.double_value);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001, 0.5f, decoded[1].value.float_value);
+    TEST_ASSERT_TRUE(decoded[2].value.boolean_value);
+}

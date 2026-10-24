@@ -65,7 +65,10 @@ TEST_CASE("on_data TEMPERATURE single value produces typed metric + diagnostics"
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_espnow_bridge_on_data(&in, &out));
 
     TEST_ASSERT_EQUAL_STRING("N-EE01", out.device_id);
-    TEST_ASSERT_EQUAL_UINT32(60000, (uint32_t)out.timestamp_ms);
+    // The Sparkplug timestamp is the gateway's monotonic clock, not the
+    // ESP-NOW uptime: design decision D-B2 keeps the monotonic clock until
+    // SNTP lands in Fase 5.
+    TEST_ASSERT_GREATER_THAN_UINT64(0, out.timestamp_ms);
     TEST_ASSERT_GREATER_THAN_UINT64(0, out.seq);
 
     /* Expected metrics (in bridge-defined order):
@@ -113,10 +116,10 @@ TEST_CASE("on_data multi-value typed sensor keeps values[0] typed and extras as 
     memset(&out, 0, sizeof(out));
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_espnow_bridge_on_data(&in, &out));
 
-    /* Expected: alias 1 (Temp), 7 (Custom 0), 8 (Custom 1), 13 (Rssi).
-     * Uptime included (0 is a legal value), battery omitted (0xFF).
+    /* Expected: alias 1 (Temp), 7 (Custom 0), 8 (Custom 1), 11 (Uptime),
+     * 13 (Rssi). Uptime included (0 is a legal value), battery omitted (0xFF).
      */
-    TEST_ASSERT_EQUAL_size_t(4, out.metric_count);
+    TEST_ASSERT_EQUAL_size_t(5, out.metric_count);
     TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_TEMP, out.metrics[0].alias);
     TEST_ASSERT_EQUAL_DOUBLE(22.0, out.metrics[0].value.double_value);
     TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_CUSTOM_0, out.metrics[1].alias);
@@ -125,7 +128,10 @@ TEST_CASE("on_data multi-value typed sensor keeps values[0] typed and extras as 
     TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_CUSTOM_1, out.metrics[2].alias);
     TEST_ASSERT_EQUAL_STRING("Inputs/Custom/1", out.metrics[2].name);
     TEST_ASSERT_EQUAL_DOUBLE(23.0, out.metrics[2].value.double_value);
-    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_RSSI, out.metrics[3].alias);
+    // The diagnostics block comes after the sensor metrics: uptime first,
+    // then the battery (omitted here) and the RSSI.
+    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_UPTIME_MS, out.metrics[3].alias);
+    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_RSSI, out.metrics[4].alias);
 }
 
 TEST_CASE("on_data CUSTOM sensor maps all slots to Custom/0..3", "[sparkplug_b_bridge]")

@@ -55,6 +55,30 @@ uint64_t sparkplug_b_seq_next(void)
     return next;
 }
 
+uint64_t sparkplug_b_seq_reset(void)
+{
+    SemaphoreHandle_t mutex = state_mutex();
+    if (mutex == NULL || xSemaphoreTake(mutex, portMAX_DELAY) != pdTRUE) {
+        return 0;
+    }
+    s_state.seq = 0;
+    xSemaphoreGive(mutex);
+    return 0;
+}
+
+uint64_t sparkplug_b_bd_seq_next(void)
+{
+    SemaphoreHandle_t mutex = state_mutex();
+    if (mutex == NULL || xSemaphoreTake(mutex, portMAX_DELAY) != pdTRUE) {
+        return 0;
+    }
+    // bdSeq is a single byte: wrap from 255 back to 0.
+    s_state.bd_seq = (s_state.bd_seq >= UINT8_MAX) ? 0 : s_state.bd_seq + 1;
+    uint64_t next = s_state.bd_seq;
+    xSemaphoreGive(mutex);
+    return next;
+}
+
 esp_err_t sparkplug_b_bd_seq_save(nvs_handle_t handle, uint64_t bd_seq)
 {
     esp_err_t err = nvs_set_u64(handle, "mqtt_bd_seq", bd_seq);

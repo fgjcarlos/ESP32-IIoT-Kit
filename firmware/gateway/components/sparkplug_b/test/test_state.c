@@ -46,6 +46,34 @@ TEST_CASE("topic dcmd", "[sparkplug_b]")
     TEST_ASSERT_EQUAL_STRING("spBv1.0/iiot-kit/DCMD/GW-AABB/N-CCDD", topic);
 }
 
+TEST_CASE("topic ndata", "[sparkplug_b]")
+{
+    char topic[96];
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_topic_ndata("iiot-kit", "GW-AABB", topic, sizeof(topic)));
+    TEST_ASSERT_EQUAL_STRING("spBv1.0/iiot-kit/NDATA/GW-AABB", topic);
+}
+
+TEST_CASE("topic dbirth", "[sparkplug_b]")
+{
+    char topic[128];
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_topic_dbirth("iiot-kit", "GW-AABB", "N-CCDD", topic, sizeof(topic)));
+    TEST_ASSERT_EQUAL_STRING("spBv1.0/iiot-kit/DBIRTH/GW-AABB/N-CCDD", topic);
+}
+
+TEST_CASE("topic ddata", "[sparkplug_b]")
+{
+    char topic[128];
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_topic_ddata("iiot-kit", "GW-AABB", "N-CCDD", topic, sizeof(topic)));
+    TEST_ASSERT_EQUAL_STRING("spBv1.0/iiot-kit/DDATA/GW-AABB/N-CCDD", topic);
+}
+
+TEST_CASE("topic ddeath", "[sparkplug_b]")
+{
+    char topic[128];
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_topic_ddeath("iiot-kit", "GW-AABB", "N-CCDD", topic, sizeof(topic)));
+    TEST_ASSERT_EQUAL_STRING("spBv1.0/iiot-kit/DDEATH/GW-AABB/N-CCDD", topic);
+}
+
 TEST_CASE("bd_seq round-trip", "[sparkplug_b]")
 {
     nvs_handle_t handle;
@@ -66,20 +94,57 @@ TEST_CASE("nbirth encode round-trip", "[sparkplug_b]")
     uint8_t buf[SPARKPLUG_B_PAYLOAD_MAX_BYTES] = {0};
     size_t encoded_len = 0;
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_encode_nbirth(buf, sizeof(buf), 7, 1234, &encoded_len));
-    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_decode_payload(buf, encoded_len));
-    TEST_ASSERT_EQUAL_size_t(2, sparkplug_b_payload_metric_count());
-    bool has_reserved_alias = false;
-    bool has_uptime_name = false;
-    const uint8_t alias_zero[] = {0x10, 0x00};
-    for (size_t i = 0; i + sizeof(alias_zero) <= encoded_len; ++i) {
-        if (memcmp(&buf[i], alias_zero, sizeof(alias_zero)) == 0) {
-            has_reserved_alias = true;
-        }
-        if (i + sizeof("Inputs/UptimeMs") - 1 <= encoded_len &&
-            memcmp(&buf[i], "Inputs/UptimeMs", sizeof("Inputs/UptimeMs") - 1) == 0) {
-            has_uptime_name = true;
-        }
-    }
-    TEST_ASSERT_TRUE(has_reserved_alias);
-    TEST_ASSERT_TRUE(has_uptime_name);
+
+    // Sparkplug B v3.0.0 requires the NBIRTH to carry the bdSeq metric and
+    // the Node Control/Rebirth metric, and forbids an alias on either of
+    // them so a Host Application can request a rebirth without knowing the
+    // alias map.
+    sparkplug_b_decoded_metric_t decoded[SPARKPLUG_B_MAX_DECODED_METRICS];
+    size_t count = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_decode_metrics(buf, encoded_len, decoded,
+                                                          SPARKPLUG_B_MAX_DECODED_METRICS,
+                                                          &count));
+    TEST_ASSERT_EQUAL_size_t(3, count);
+
+    TEST_ASSERT_EQUAL_STRING(SPARKPLUG_METRIC_BDSEQ_NAME, decoded[0].name);
+    TEST_ASSERT_EQUAL_UINT32(SPARKPLUG_DATA_TYPE_INT64, decoded[0].datatype);
+    TEST_ASSERT_EQUAL_INT64(7, decoded[0].value.long_value);
+    TEST_ASSERT_FALSE(decoded[0].has_alias);
+
+    TEST_ASSERT_EQUAL_STRING(SPARKPLUG_METRIC_REBIRTH_NAME, decoded[1].name);
+    TEST_ASSERT_EQUAL_UINT32(SPARKPLUG_DATA_TYPE_BOOLEAN, decoded[1].datatype);
+    TEST_ASSERT_TRUE(decoded[1].has_value);
+    TEST_ASSERT_FALSE(decoded[1].value.boolean_value);
+    TEST_ASSERT_FALSE(decoded[1].has_alias);
+
+    TEST_ASSERT_EQUAL_STRING("Inputs/UptimeMs", decoded[2].name);
+    TEST_ASSERT_TRUE(decoded[2].has_alias);
+    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_UPTIME_MS, decoded[2].alias);
+}
+
+TEST_CASE("nbirth opens the sequence with seq zero", "[sparkplug_b]")
+{
+    sparkplug_b_state_reset();
+    (void)sparkplug_b_seq_next();
+    (void)sparkplug_b_seq_next();
+
+    uint8_t buf[SPARKPLUG_B_PAYLOAD_MAX_BYTES] = {0};
+    size_t encoded_len = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_encode_nbirth(buf, sizeof(buf), 1, 1234, &encoded_len));
+
+    // The birth resets the sequence, so the next message carries seq 1.
+    TEST_ASSERT_EQUAL_UINT64(0, sparkplug_b_seq_reset());
+    TEST_ASSERT_EQUAL_UINT64(1, sparkplug_b_seq_next());
+}
+
+TEST_CASE("bd_seq increments and wraps at 255", "[sparkplug_b]")
+{
+    sparkplug_b_state_reset();
+    TEST_ASSERT_EQUAL_UINT64(1, sparkplug_b_bd_seq_next());
+    TEST_ASSERT_EQUAL_UINT64(2, sparkplug_b_bd_seq_next());
+
+    // bdSeq is a single byte: it wraps from 255 back to 0.
+    sparkplug_b_state_t *state = sparkplug_b_state_get();
+    state->bd_seq = 255;
+    TEST_ASSERT_EQUAL_UINT64(0, sparkplug_b_bd_seq_next());
 }

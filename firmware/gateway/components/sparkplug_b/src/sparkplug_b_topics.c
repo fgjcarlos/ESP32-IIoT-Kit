@@ -45,3 +45,34 @@ esp_err_t sparkplug_b_topic_dcmd(const char *group_id, const char *edge_node_id,
     return topic_format(out, out_size, "spBv1.0/%s/%s/%s/%s", group_id, "DCMD",
                         edge_node_id, device_id);
 }
+
+esp_err_t sparkplug_b_topic_ndata(const char *group_id, const char *edge_node_id,
+                                  char *out, size_t out_size)
+{
+    return topic_format(out, out_size, "spBv1.0/%s/%s/%s", group_id, "NDATA",
+                        edge_node_id, NULL);
+}
+
+esp_err_t sparkplug_b_topic_dbirth(const char *group_id, const char *edge_node_id,
+                                   const char *device_id, char *out, size_t out_size)
+{
+    if (device_id == NULL) return ESP_ERR_INVALID_ARG;
+    return topic_format(out, out_size, "spBv1.0/%s/%s/%s/%s", group_id, "DBIRTH",
+                        edge_node_id, device_id);
+}
+
+esp_err_t sparkplug_b_topic_ddata(const char *group_id, const char *edge_node_id,
+                                  const char *device_id, char *out, size_t out_size)
+{
+    if (device_id == NULL) return ESP_ERR_INVALID_ARG;
+    return topic_format(out, out_size, "spBv1.0/%s/%s/%s/%s", group_id, "DDATA",
+                        edge_node_id, device_id);
+}
+
+esp_err_t sparkplug_b_topic_ddeath(const char *group_id, const char *edge_node_id,
+                                   const char *device_id, char *out, size_t out_size)
+{
+    if (device_id == NULL) return ESP_ERR_INVALID_ARG;
+    return topic_format(out, out_size, "spBv1.0/%s/%s/%s/%s", group_id, "DDEATH",
+                        edge_node_id, device_id);
+}

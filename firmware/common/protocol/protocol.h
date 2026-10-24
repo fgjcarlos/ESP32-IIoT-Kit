@@ -78,6 +78,20 @@ typedef struct __attribute__((packed)) {
 
 _Static_assert(sizeof(msg_config_t) == 16, "Config must be 16 bytes");
 
+/**
+ * @brief Action flags carried by msg_config_t.flags.
+ *
+ * Defined here rather than in the gateway so the node firmware cannot drift
+ * from the interpretation the gateway sends. Unknown bits are ignored by the
+ * receiver, so new flags can be added without breaking older nodes.
+ */
+typedef enum {
+    /** New sleep interval applies to the node (value 0 keeps the current one). */
+    MSG_CONFIG_FLAG_SLEEP_INTERVAL = 1U << 0,
+    /** Node must reboot immediately after applying the configuration. */
+    MSG_CONFIG_FLAG_REBOOT = 1U << 1,
+} msg_config_flag_t;
+
 typedef struct __attribute__((packed)) {
     msg_header_t header;
     uint8_t ap_ssid[32];
