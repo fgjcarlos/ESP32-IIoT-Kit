@@ -86,7 +86,7 @@ spBv1.0/{group_id}/{msg_type}/{edge_node_id}[/{device_id}]
 ```
 
 - `group_id`: de NVS `mqtt_group_id`, default `iiot-kit`.
-- `edge_node_id`: de NVS `mqtt_edge_node_id`, default `GW-<mac4hex>`.
+- `edge_node_id`: de NVS `mqtt_edge_id`, default `GW-<mac4hex>`.
 - `device_id`: derivado del MAC del nodo, formato `N-<mac4hex>` (configurable vía template).
 
 `msg_type` ∈ {`NBIRTH`, `DBIRTH`, `NDATA`, `DDATA`, `NDEATH`, `DDEATH`, `NCMD`, `DCMD`}.
@@ -95,10 +95,18 @@ Topic NDEATH pre-configurado en connect (LWT) por esp-mqtt: `spBv1.0/{group_id}/
 
 ### 3.2 Identidades y defaults
 
+Las claves viven en el namespace NVS `mqtt` y están declaradas en
+`firmware/gateway/components/sparkplug_b/include/sparkplug_b_nvs.h`.
+**Ninguna puede pasar de 15 caracteres**: NVS responde `ESP_ERR_NVS_KEY_TOO_LONG`
+a una clave más larga y la carga de configuración falla entera (así se
+descubrió en la placa, con `mqtt_edge_node_id`, `mqtt_keepalive_sec` y
+`mqtt_ddeath_sec`). El test `test/test_nvs.c` recorre la lista
+completa y falla si alguna no cabe.
+
 | Clave NVS | Default | Notas |
 |-----------|---------|-------|
 | `mqtt_group_id` | `iiot-kit` | String, validación SPIFFS |
-| `mqtt_edge_node_id` | `GW-<mac4hex>` | Derivado en primer arranque si no está set |
+| `mqtt_edge_id` | `GW-<mac4hex>` | Derivado en primer arranque si no está set |
 | `mqtt_device_id_template` | `N-<mac4hex>` | `printf`-style con `%s` para MAC |
 | `mqtt_uri` | (vacío) | `mqtt://host:1883` o `mqtts://host:8883` |
 | `mqtt_user` | (vacío) | Username |
@@ -107,8 +115,9 @@ Topic NDEATH pre-configurado en connect (LWT) por esp-mqtt: `spBv1.0/{group_id}/
 | `mqtt_ca_path` | `/spiffs/mqtt/ca.pem` | Solo si TLS=1 |
 | `mqtt_client_cert_path` | `/spiffs/mqtt/cert.pem` | Solo si mTLS |
 | `mqtt_client_key_path` | `/spiffs/mqtt/key.pem` | Solo si mTLS |
-| `mqtt_ddeath_timeout_sec` | `1800` | Default 30 min |
-| `mqtt_keepalive_sec` | `60` | |
+| `mqtt_ddeath_sec` | `1800` | Default 30 min |
+| `mqtt_keepalive` | `60` | |
+| `mqtt_bd_seq` | `0` | Escrito por el propio componente |
 
 ### 3.3 Máquina de estados
 
@@ -120,7 +129,7 @@ Estados globales del EoN-Node:
 
 Estados por Device (uno por nodo ESP-NOW conocido):
 - `UNKNOWN`: nodo anunciado en DISCOVERY, no visto en DATA.
-- `ALIVE`: último DATA recibido dentro de `mqtt_ddeath_timeout_sec`.
+- `ALIVE`: último DATA recibido dentro de `mqtt_ddeath_sec`.
 - `STALE`: último DATA fuera de timeout → publicar DDEATH, esperar DISCOVERY para revivir.
 
 ### 3.4 Manejo de `seq` y `bdSeq`
@@ -170,7 +179,7 @@ después queda ligado a un nombre y un Host lo puede resolver.
 ### 3.6 Traducción NCMD/DCMD → ESP-NOW
 
 - `NCMD { "Reboot": true }` → MSG_TYPE_CONFIG con flags bit 1 (reboot) al gateway (no al nodo). El gateway reinicia.
-- `DCMD { "Inputs/Temperature": 25.0 }` (escritura) → actualmente no soportado por el protocolo ESP-NOW: el ESP-NOW v1.0 no tiene "escritura" de sensor data. **Acción**: aceptar DCMD como configuración remota del gateway (ej. `mqtt_ddeath_timeout_sec`) y propagar al nodo vía MSG_TYPE_CONFIG (`new_sleep_interval`).
+- `DCMD { "Inputs/Temperature": 25.0 }` (escritura) → actualmente no soportado por el protocolo ESP-NOW: el ESP-NOW v1.0 no tiene "escritura" de sensor data. **Acción**: aceptar DCMD como configuración remota del gateway (ej. `mqtt_ddeath_sec`) y propagar al nodo vía MSG_TYPE_CONFIG (`new_sleep_interval`).
 - `DCMD { "Reboot": true }` → MSG_TYPE_CONFIG con flags bit 1 (reboot) al nodo.
 - Cualquier otro DCMD → log warning, descartado. Mensaje `DDEATH` no usado para DCMD inválido (el nodo sigue vivo).
 

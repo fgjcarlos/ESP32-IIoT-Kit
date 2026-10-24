@@ -1,3 +1,4 @@
+#include "sparkplug_b_nvs.h"
 #include "sparkplug_b_state.h"
 
 #include "freertos/FreeRTOS.h"
@@ -81,7 +82,7 @@ uint64_t sparkplug_b_bd_seq_next(void)
 
 esp_err_t sparkplug_b_bd_seq_save(nvs_handle_t handle, uint64_t bd_seq)
 {
-    esp_err_t err = nvs_set_u64(handle, "mqtt_bd_seq", bd_seq);
+    esp_err_t err = nvs_set_u64(handle, SPARKPLUG_B_NVS_KEY_BD_SEQ, bd_seq);
     if (err == ESP_OK) {
         err = nvs_commit(handle);
     }
@@ -98,7 +99,7 @@ esp_err_t sparkplug_b_bd_seq_load(nvs_handle_t handle, uint64_t *bd_seq)
     if (bd_seq == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    esp_err_t err = nvs_get_u64(handle, "mqtt_bd_seq", bd_seq);
+    esp_err_t err = nvs_get_u64(handle, SPARKPLUG_B_NVS_KEY_BD_SEQ, bd_seq);
     if (err == ESP_OK) {
         sparkplug_b_state_t state = *sparkplug_b_state_get();
         state.bd_seq = *bd_seq;

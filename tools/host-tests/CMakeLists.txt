@@ -63,6 +63,7 @@ add_executable(iot_host_tests
     # The same test files the on-device test project runs.
     ${SPARKPLUG_DIR}/test/test_payload.c
     ${SPARKPLUG_DIR}/test/test_state.c
+    ${SPARKPLUG_DIR}/test/test_nvs.c
     ${SPARKPLUG_DIR}/test/test_espnow_bridge.c
     ${SPARKPLUG_DIR}/test/test_cmd.c
 )

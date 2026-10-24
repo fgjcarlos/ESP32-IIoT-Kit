@@ -18,6 +18,7 @@
 
 #include "protocol.h"
 #include "sparkplug_b_cmd.h"
+#include "sparkplug_b_nvs.h"
 #include "sparkplug_b_device.h"
 #include "sparkplug_b_espnow_bridge.h"
 #include "sparkplug_b_payload.h"
@@ -34,7 +35,6 @@
 // Node level data is republished every 60 s. Sparkplug B v3.0.0 prefers
 // Report by Exception, so this is deliberately slow.
 #define NDATA_PERIOD_TICKS 60
-#define NVS_NAMESPACE "mqtt"
 
 #define EVT_CONNECTED    BIT0
 #define EVT_DISCONNECTED BIT1
@@ -143,7 +143,7 @@ static esp_err_t resolve_identities(nvs_handle_t handle)
     bool found = false;
     esp_err_t err;
 
-    err = nvs_string(handle, "mqtt_group_id", s_group_id, sizeof(s_group_id), "iiot-kit", &found);
+    err = nvs_string(handle, SPARKPLUG_B_NVS_KEY_GROUP_ID, s_group_id, sizeof(s_group_id), "iiot-kit", &found);
     if (err != ESP_OK) {
         return err;
     }
@@ -151,7 +151,7 @@ static esp_err_t resolve_identities(nvs_handle_t handle)
         dirty = true;
     }
 
-    err = nvs_string(handle, "mqtt_edge_node_id", s_edge_node_id, sizeof(s_edge_node_id), "", &found);
+    err = nvs_string(handle, SPARKPLUG_B_NVS_KEY_EDGE_ID, s_edge_node_id, sizeof(s_edge_node_id), "", &found);
     if (err != ESP_OK) {
         return err;
     }
@@ -161,9 +161,9 @@ static esp_err_t resolve_identities(nvs_handle_t handle)
     }
 
     if (dirty) {
-        err = nvs_set_str(handle, "mqtt_group_id", s_group_id);
+        err = nvs_set_str(handle, SPARKPLUG_B_NVS_KEY_GROUP_ID, s_group_id);
         if (err == ESP_OK) {
-            err = nvs_set_str(handle, "mqtt_edge_node_id", s_edge_node_id);
+            err = nvs_set_str(handle, SPARKPLUG_B_NVS_KEY_EDGE_ID, s_edge_node_id);
         }
         if (err == ESP_OK) {
             err = nvs_commit(handle);
@@ -203,29 +203,29 @@ static void free_tls_buffers(void)
 static esp_err_t load_config_from_nvs(void)
 {
     nvs_handle_t handle;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
+    esp_err_t err = nvs_open(SPARKPLUG_B_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
         return err;
     }
 
     memset(&s_config, 0, sizeof(s_config));
-    err = nvs_string(handle, "mqtt_uri", s_uri, sizeof(s_uri), "", NULL);
+    err = nvs_string(handle, SPARKPLUG_B_NVS_KEY_URI, s_uri, sizeof(s_uri), "", NULL);
     if (err == ESP_OK) err = resolve_identities(handle);
-    if (err == ESP_OK) err = nvs_string(handle, "mqtt_user", s_username, sizeof(s_username), "", NULL);
-    if (err == ESP_OK) err = nvs_string(handle, "mqtt_password", s_password, sizeof(s_password), "", NULL);
+    if (err == ESP_OK) err = nvs_string(handle, SPARKPLUG_B_NVS_KEY_USER, s_username, sizeof(s_username), "", NULL);
+    if (err == ESP_OK) err = nvs_string(handle, SPARKPLUG_B_NVS_KEY_PASSWORD, s_password, sizeof(s_password), "", NULL);
     uint8_t tls = 0;
     uint16_t keepalive = 60;
     uint16_t ddeath_timeout = 1800;
     if (err == ESP_OK) {
-        esp_err_t key_err = nvs_get_u8(handle, "mqtt_tls", &tls);
+        esp_err_t key_err = nvs_get_u8(handle, SPARKPLUG_B_NVS_KEY_TLS, &tls);
         if (key_err != ESP_OK && key_err != ESP_ERR_NVS_NOT_FOUND) err = key_err;
     }
     if (err == ESP_OK) {
-        esp_err_t key_err = nvs_get_u16(handle, "mqtt_keepalive_sec", &keepalive);
+        esp_err_t key_err = nvs_get_u16(handle, SPARKPLUG_B_NVS_KEY_KEEPALIVE, &keepalive);
         if (key_err != ESP_OK && key_err != ESP_ERR_NVS_NOT_FOUND) err = key_err;
     }
     if (err == ESP_OK) {
-        esp_err_t key_err = nvs_get_u16(handle, "mqtt_ddeath_timeout_sec", &ddeath_timeout);
+        esp_err_t key_err = nvs_get_u16(handle, SPARKPLUG_B_NVS_KEY_DDEATH_SEC, &ddeath_timeout);
         if (key_err != ESP_OK && key_err != ESP_ERR_NVS_NOT_FOUND) err = key_err;
     }
     uint64_t bd_seq = 0;
@@ -669,7 +669,7 @@ static void handle_command(bool device_command, const char *device_id,
 static void persist_bd_seq(void)
 {
     nvs_handle_t handle;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+    if (nvs_open(SPARKPLUG_B_NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
         return;
     }
     esp_err_t err = sparkplug_b_bd_seq_save(handle, s_session_bd_seq);

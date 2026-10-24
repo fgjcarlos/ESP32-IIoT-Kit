@@ -35,7 +35,7 @@ menu "Sparkplug B (MQTT v3, EoN-Node mode)"
         depends on SPARKPLUG_B_ENABLED
         help
             The full edge_node_id becomes <prefix>-<last 4 hex of MAC>, e.g.
-            GW-A1B2C3D4. Override via NVS key mqtt_edge_node_id.
+            GW-A1B2C3D4. Override via NVS key mqtt_edge_id.
 
     config SPARKPLUG_B_DEVICE_ID_PREFIX
         string "Default device_id prefix (sensor node MAC suffix is appended)"
@@ -55,7 +55,7 @@ menu "Sparkplug B (MQTT v3, EoN-Node mode)"
             If no MSG_TYPE_DATA arrives from a sensor node for this many seconds,
             the gateway publishes DDEATH for that device. Default 1800 s = 30 min,
             aligned with the typical deep-sleep interval plus margin. Override
-            via NVS key mqtt_ddeath_timeout_sec.
+            via NVS key mqtt_ddeath_sec.
 
     config SPARKPLUG_B_KEEPALIVE_SEC
         int "MQTT keepalive (seconds)"
