@@ -1,56 +1,81 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "esp_err.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
- * @brief Initialize the brand asset placeholder contract.
+ * @brief The colours of the brand palette, ready for the display.
  *
- * Interface only — full implementation is owned by the future display wiring
- * change, gated on physical hardware verification.
+ * The palette is the brand profile's palette; this structure only carries it
+ * in the form the local UI needs.
+ */
+typedef struct {
+    uint16_t background; /**< Background colour as RGB565. */
+    uint16_t foreground; /**< Foreground (text) colour as RGB565. */
+    uint16_t accent;     /**< Accent colour as RGB565. */
+} assets_brand_palette_t;
+
+/**
+ * @brief Maximum length of the boot splash line, including the terminator.
+ */
+#define ASSETS_BRAND_SPLASH_MAX_LEN 96u
+
+/**
+ * @brief Initialize the brand assets.
  *
- * @return ESP_OK for the contract-only placeholder.
+ * Resolves the logo embedded by the build for the active brand profile and
+ * logs the asset report (logo size against the flash budget). The palette
+ * comes from the same profile, so the display and the firmware never
+ * disagree about the colours of the product.
  *
- * @note The contract in this slice ships a single ASCII label constant
- *       (see ASSETS_BRAND_PLACEHOLDER_LABEL below). It does NOT decode any
- *       image format (no `esp_jpeg_*`, no `esp_png_*`, no LVGL image
- *       decoder), does NOT read from SPIFFS or FATFS, and does NOT allocate
- *       any draw buffer. Real brand asset bring-up belongs in a later Fase
- *       and is gated on the asset format decision plus physical carrier
- *       verification.
+ * @return ESP_OK on success, or an ESP-IDF error when the brand profile is
+ *         invalid.
  */
 esp_err_t assets_brand_init(void);
 
 /**
- * @brief Brand placeholder label used by the boot splash and status screen.
+ * @brief Return the logo embedded for the active brand profile.
  *
- * Defined here (header) rather than in the .c so future asset code can
- * `#include` it and reference a single source of truth for the placeholder
- * text. The value is intentionally ASCII-only and short so it survives any
- * display charset constraint the future implementation may pick.
+ * @param width  Receives the logo width in pixels. May be NULL.
+ * @param height Receives the logo height in pixels. May be NULL.
+ * @param size   Receives the logo size in bytes. May be NULL.
+ * @return The logo pixels as RGB565, or NULL when the profile carries no
+ *         logo.
  */
-#define ASSETS_BRAND_PLACEHOLDER_LABEL "IIoT-Kit"
+const uint8_t *assets_brand_logo(uint16_t *width, uint16_t *height, size_t *size);
 
-/* -------------------------------------------------------------------------
- * Scope of this contract slice.
+/**
+ * @brief Return the brand palette converted to RGB565.
  *
- * The future `assets_brand` component will own brand-related assets such as
- *   - product logo (image, format TBD: JPEG / PNG / raw RGB565 / LVGL img)
- *   - boot splash text
- *   - color palette (background, foreground, accent)
- *   - typography hints (font selection)
+ * @param out Receives the palette. May not be NULL.
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG when @p out is NULL.
+ */
+esp_err_t assets_brand_get_palette(assets_brand_palette_t *out);
+
+/**
+ * @brief Build the boot splash line of the local display.
  *
- * None of those are introduced in this slice. This slice only carries:
- *   - one ASCII label constant (ASSETS_BRAND_PLACEHOLDER_LABEL), and
- *   - one init function that logs the label and returns ESP_OK.
+ * Format: "<brand> <model> v<version> <revision>".
  *
- * The future asset work is gated on:
- *   - the asset format decision (deferred; no format is committed yet),
- *   - storage backend decision (SPIFFS / FATFS on TF card / embedded in
- *     flash), and
- *   - physical carrier verification.
- *
- * The SPI bus shared constraint from `lvgl_port.h` and `lcd_driver.h` does
- * NOT apply here: this contract does not touch the bus, does not allocate
- * any buffer, and does not need any peripheral. The constraint is
- * acknowledged but unapplicable at the contract level.
- * ------------------------------------------------------------------------- */
+ * @param out     Destination buffer.
+ * @param out_len Size of @p out.
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG on a NULL pointer,
+ *         ESP_ERR_INVALID_SIZE when the buffer is too small.
+ */
+esp_err_t assets_brand_splash_text(char *out, size_t out_len);
+
+/**
+ * @brief Report whether a logo is embedded in this build.
+ */
+bool assets_brand_has_logo(void);
+
+#ifdef __cplusplus
+}
+#endif

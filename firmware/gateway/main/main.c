@@ -1,5 +1,6 @@
 #include "esp_log.h"
 #include "board_profile.h"
+#include "brand_profile.h"
 #include "nvs_config.h"
 #include "lcd_driver.h"
 #include "lvgl_port.h"
@@ -47,6 +48,19 @@ void app_main(void)
              (unsigned long)profile.flash_size_bytes,
              (unsigned int)profile.psram_size_bytes);
 
+    /* Issue #12: the brand identity of this build.
+     *
+     * The profile is selected at build time (Kconfig choice + versioned
+     * assets), so the name, the model, the version, the revision and the
+     * OTA channel reported here are the ones this image was built with.
+     * The same values reach the LCD through the boot splash and the API
+     * through the brand payload. */
+    const esp_err_t brand_err = brand_profile_log();
+    if (brand_err != ESP_OK) {
+        ESP_LOGE(TAG, "Brand profile is invalid: %s", esp_err_to_name(brand_err));
+        return;
+    }
+
     /* Issue #10 init chain (contracts only — display chain stays on hold).
      *
      * The four calls below initialize the LVGL display chain components
@@ -89,9 +103,15 @@ void app_main(void)
         return;
     }
 
-    const esp_err_t brand_err = assets_brand_init();
-    if (brand_err != ESP_OK) {
-        ESP_LOGE(TAG, "Assets brand init failed: %s", esp_err_to_name(brand_err));
+    /* Issue #12: the boot splash is the first thing the product shows, so it
+     * carries the identity of the brand profile. The LVGL rendering lands
+     * with the display bring-up; for now the screen publishes the line the
+     * local display will show, which is the same one the API serves. */
+    ui_boot_screen();
+
+    const esp_err_t assets_err = assets_brand_init();
+    if (assets_err != ESP_OK) {
+        ESP_LOGE(TAG, "Assets brand init failed: %s", esp_err_to_name(assets_err));
         return;
     }
 
@@ -104,8 +124,25 @@ void app_main(void)
      *
      * The init/deinit pair is not idempotent. The gateway stays
      * running after this point so the SPA/REST/WebSocket layer can
-     * attach on the same AP/STA network. */
-    const esp_err_t wifi_err = wifi_manager_init(NULL);
+     * attach on the same AP/STA network.
+     *
+     * Issue #12: the soft-AP advertises the SSID of the brand profile.
+     * Only the SSID is public configuration; the AP password stays a
+     * manufacturing secret injected through the gitignored local header,
+     * so the AP falls back to open mode when no secret was injected. */
+    wifi_manager_credentials_t brand_wifi = {0};
+    brand_wifi.ap_ssid = brand_profile_get()->ap_ssid;
+
+    wifi_manager_credentials_t wifi_credentials = {0};
+    const esp_err_t creds_err = wifi_manager_apply_credentials(&brand_wifi,
+                                                              &wifi_credentials);
+    if (creds_err != ESP_OK) {
+        ESP_LOGE(TAG, "Wi-Fi credentials failed to resolve: %s",
+                 esp_err_to_name(creds_err));
+        return;
+    }
+
+    const esp_err_t wifi_err = wifi_manager_init(&wifi_credentials);
     if (wifi_err != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi manager init failed: %s", esp_err_to_name(wifi_err));
         return;
