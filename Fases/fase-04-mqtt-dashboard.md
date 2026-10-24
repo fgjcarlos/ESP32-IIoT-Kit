@@ -90,6 +90,46 @@ Respuesta 200 OK:
 }
 ```
 
+#### GET /api/brand
+
+Identidad del producto compilada en el firmware (issue #12).
+
+El gateway es un producto comercializable y su identidad de marca cambia
+según el **perfil de compilación** elegido, no según la instalación. Este
+endpoint publica esa identidad para que el dashboard la muestre y para que un
+cliente pueda distinguir qué build tiene delante.
+
+```
+Petición: GET /api/brand
+Cabeceras: ninguna requerida
+
+Respuesta 200 OK:
+{
+  "profile": "iiot-kit",
+  "brand": "IIoT-Kit",
+  "model": "GW-S3-1",
+  "version": "1.0.0",
+  "revision": "d0dcb5bb",
+  "channel": "stable",
+  "support_url": "https://example.org/iiot-kit/support",
+  "ap_ssid": "IIoT-Kit-GW",
+  "colors": {
+    "background": "0B1020",
+    "foreground": "E8EEF7",
+    "accent": "2E8BFF"
+  },
+  "logo": { "width": 64, "height": 64, "bytes": 8192 }
+}
+```
+
+> **Nota de implementación**: el payload ya está implementado y es
+> **determinista** — la misma imagen produce siempre los mismos bytes, así que
+> un cliente puede cachearlo. `http_server_brand_payload()` lo construye a
+> partir de la estructura `brand_profile_t` del componente `brand_profile`; el
+> handler de este endpoint solo tiene que servir esos bytes. La misma
+> estructura alimenta el log de arranque y el splash de la pantalla local, de
+> modo que API, LCD y logs no pueden discrepar.
+
 #### GET /api/nodes
 
 Lista de nodos registrados con su último dato recibido.
@@ -200,6 +240,7 @@ Respuesta 400 Bad Request:
 
 **Criterio de aceptación**:
 - `curl http://192.168.4.1/api/status` devuelve JSON válido con los campos definidos
+- `curl http://192.168.4.1/api/brand` devuelve la identidad del perfil compilado (marca, modelo, versión, revisión, canal, colores y geometría del logo)
 - `curl http://192.168.4.1/api/nodes` devuelve el array de nodos registrados
 - `curl -X POST http://192.168.4.1/api/config -H "Content-Type: application/json" -d '{"alert_temp_max":30.0}'` devuelve 200 y el valor se persiste en NVS
 - Los campos fuera de rango devuelven HTTP 400 con mensaje de error descriptivo
@@ -403,6 +444,7 @@ function useWebSocket(url) {
 Antes de continuar con la Sub-tarea 4.2, verifica lo siguiente:
 
 - [ ] `curl http://192.168.4.1/api/status` devuelve JSON válido
+- [ ] `curl http://192.168.4.1/api/brand` devuelve la identidad del perfil de marca compilado
 - [ ] `curl http://192.168.4.1/api/nodes` devuelve el array de nodos (vacío `[]` si no hay nodos aún)
 - [ ] `curl -X POST http://192.168.4.1/api/config -H "Content-Type: application/json" -d '{}'` devuelve 200
 - [ ] El endpoint WebSocket acepta conexiones: `new WebSocket('ws://192.168.4.1/ws')` en la consola del navegador
@@ -939,6 +981,7 @@ wscat -c ws://192.168.4.1/ws
 # Terminal 3: Verificar la API REST
 curl http://192.168.4.1/api/nodes
 curl http://192.168.4.1/api/status
+curl http://192.168.4.1/api/brand
 
 # [Opcional] Terminal 4: Verificar MQTT si está configurado
 mosquitto_sub -h 192.168.1.100 -t "iiot-kit/#" -v

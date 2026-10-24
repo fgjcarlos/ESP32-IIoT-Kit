@@ -14,7 +14,7 @@ Issue #10's body lists a real implementation (`Driver ST7789`, `Integración de 
   - `lcd_driver` — header declares `esp_err_t lcd_driver_init(void)` plus documented SPI contact mapping (RES, DC, CS, SCL, SDA, BLK) and the GPIO22 backlight candidate. Skeleton source logs the contact map and returns `ESP_OK`. No `esp_lcd_*` calls.
   - `lvgl_port` — header declares `esp_err_t lvgl_port_init(void)`, `esp_err_t lvgl_port_start(void)`, `esp_err_t lvgl_port_stop(void)`. Skeleton source logs and returns `ESP_OK`. No LVGL API calls. Depends on `display_manager` and `lcd_driver` (declared in `REQUIRES`).
   - `ui_screens` — header enumerates the six screen entry points (`ui_boot_screen`, `ui_status_screen`, `ui_connectivity_screen`, `ui_nodes_screen`, `ui_alerts_screen`, `ui_ota_screen`) plus a `ui_screens_init(void)` orchestrator. Skeleton source logs each screen label and returns `ESP_OK`. No LVGL API calls. Depends on `lvgl_port`.
-  - `assets_brand` — header declares `esp_err_t assets_brand_init(void)` and a single constant `ASSETS_BRAND_PLACEHOLDER_LABEL "IIoT-Kit"`. Skeleton source logs the placeholder label and returns `ESP_OK`. No image decoding. Depends on no other new component.
+  - `assets_brand` — header declares `esp_err_t assets_brand_init(void)` and a single constant `ASSETS_BRAND_PLACEHOLDER_LABEL "IIoT-Kit"`. Skeleton source logs the placeholder label and returns `ESP_OK`. No image decoding. Depends on no other new component. **Actualizado después por la issue #12**: `assets_brand` dejó de ser un placeholder y ahora expone el logo, la paleta y la línea de splash del perfil de marca compilado; la constante `ASSETS_BRAND_PLACEHOLDER_LABEL` ya no existe (la sustituye `brand_profile_get()->brand_name`).
 - Document the SPI bus-shared constraint (LCD + future TF card) in each new component header's Doxygen. No driver arbitration code.
 - Document GPIO22 as the backlight candidate; flag as `pending physical verification` until carrier match.
 - Each new component has the standard structure: `include/<name>.h`, `<name>.c`, `CMakeLists.txt`, `test/CMakeLists.txt`, `test/test_<name>.c`.
@@ -273,9 +273,24 @@ The ODD doc said "12 Unity tags" but the real count is 11 (one per component). N
 
 The doc originally listed ODD-5 branch as `feature/issue-10-main-init` (typo). Actual branch used: `feature/issue-10-main-init-chain`. The status ledger above uses the correct branch name.
 
+## Actualización posterior: issue #12 (perfiles de marca)
+
+La issue #12 sustituyó el contrato de `assets_brand` por una implementación
+real: el componente expone ahora el logo embebido del perfil activo, la
+paleta en RGB565 y la línea de splash, y `ui_boot_screen()` publica esa línea
+en el arranque. La constante `ASSETS_BRAND_PLACEHOLDER_LABEL` desapareció; la
+identidad viene de `brand_profile_get()`.
+
+El resto de la cadena de display (`lcd_driver`, `lvgl_port`) sigue siendo
+*contract-only*, tal como se describe arriba: esta issue no cambió el render
+LVGL real.
+
+Detalle y evidencia: `odd/tasks/issue-12-brand-profiles.md` (PR #40).
+
 ## References
 
 - GitHub issue: https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/10
 - Issue #9 (`display_manager` contract + hardware hold): PR #29 merged at `a8c877d`, main at `5741ba7` post-#30.
 - Issue #8 (`board support` for ESP32-S3 N16R8 + 1.9-inch display): `odd/tasks/issue-8-gateway-board-support.md`.
+- Issue #12 (perfiles de marca, `assets_brand` real): PR #40, `odd/tasks/issue-12-brand-profiles.md`.
 - Engram memory: `sdd/issue-10-st7789-lvgl/progress`.
