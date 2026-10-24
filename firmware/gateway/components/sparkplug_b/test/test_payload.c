@@ -50,7 +50,7 @@ TEST_CASE("sparkplug_b encode mixed-type payload with 4 metrics", "[sparkplug_b]
           .data_type = SPARKPLUG_DATA_TYPE_DOUBLE, .value.double_value = 24.7 },
         { .alias = SPARKPLUG_ALIAS_PH, .name = "Inputs/Ph",
           .data_type = SPARKPLUG_DATA_TYPE_DOUBLE, .value.double_value = 7.4 },
-        { .alias = SPARKPLUG_ALIAS_UPTIME_MS, .name = "Diagnostics/UptimeMs",
+        { .alias = SPARKPLUG_ALIAS_UPTIME_MS, .name = "Inputs/UptimeMs",
           .data_type = SPARKPLUG_DATA_TYPE_INT64, .value.int64_value = 9876543210LL },
         { .alias = SPARKPLUG_ALIAS_RSSI, .name = "Diagnostics/RssiLast",
           .data_type = SPARKPLUG_DATA_TYPE_INT8, .value.int8_value = -65 },
