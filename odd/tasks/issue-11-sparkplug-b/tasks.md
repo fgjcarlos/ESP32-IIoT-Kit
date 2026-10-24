@@ -20,7 +20,7 @@
 - [x] NCMD/DCMD autorizados se traducen a comandos ESP-NOW verificables
 - [x] Pruebas automatizadas de `seq`, `bdSeq`, reconnect y rebirth
 - [x] Harness de conformidad con broker de referencia (Ignition/Cirrus compatible)
-- [~] Medición de flash y heap en ESP32-S3-WROOM-1-N16R8 — flash medido; **heap de runtime sin medir** (la unidad conectada no arranca desde flash; ver "Bloqueador de hardware")
+- [x] Medición de flash y heap en ESP32-S3-WROOM-1-N16R8 — flash medido (779.168 B con el flag off, 1.001.040 B con el on) y heap de runtime medido on-device (311.967 B internos, 8.386.148 B de PSRAM)
 
 ## Subconjunto Sparkplug B fijado (v3.0.0)
 

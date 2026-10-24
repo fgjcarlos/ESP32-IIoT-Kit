@@ -3,12 +3,10 @@
 Measurements for the Sparkplug B work of issue #11, taken with ESP-IDF v5.4
 on the `esp32s3` target (`firmware/gateway`).
 
-Everything here is a **build-time** measurement of the gateway image. The
-connected development unit could not execute the firmware — its GPIO46 strap
-is held low, so the ROM only reaches the downloader (see
-`docs/hardware/esp32-s3-wroom-1-n16r8.md`). The runtime heap figures that
-the issue asks for are therefore **not** measured, and this document says so
-explicitly instead of estimating them.
+Everything here is a **build-time** measurement of the gateway image, plus the
+runtime figures that the connected development unit reports now that it
+boots the firmware (see `docs/hardware/esp32-s3-wroom-1-n16r8.md` for the
+boot diagnosis and the on-device evidence).
 
 ## Build under test
 

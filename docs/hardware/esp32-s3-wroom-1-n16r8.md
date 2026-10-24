@@ -50,7 +50,7 @@ A separate Unity test project built and ran on the target. Before allocating and
 | 108,800-byte PSRAM allocation | Passed |
 | Main task stack headroom after the run | 656 bytes of 8192 |
 
-These heap values come from the minimal Unity test app, not the eventual full gateway firmware. The successful allocation validates PSRAM allocation only; it does not validate display DMA or throughput. ESP-IDF documents that ESP32-S3 DMA descriptors cannot reside in PSRAM and that PSRAM DMA bandwidth is limited.
+These heap values come from the Unity test app (81 tests), not the eventual full gateway firmware. The successful allocation validates PSRAM allocation only; it does not validate display DMA or throughput. ESP-IDF documents that ESP32-S3 DMA descriptors cannot reside in PSRAM and that PSRAM DMA bandwidth is limited.
 
 The full on-device run of 2026-10-24 reported `81 Tests 0 Failures 0 Ignored` and `OK` over the native USB console, with the stack headroom measured in the same run. The project needs `CONFIG_UNITY_ENABLE_64BIT=y`, because the Sparkplug tests assert on 64-bit values (`seq`, `bdSeq`, timestamps), and `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`, because `nvs_flash_init()` does not fit in the default 3584-byte stack (see the two defects above).
 

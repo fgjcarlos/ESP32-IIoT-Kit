@@ -7,10 +7,9 @@ and runs the same Unity test files the on-device test project runs.
 
 The gateway firmware targets the ESP32-S3, and the project's test project
 (`firmware/gateway/test/`) builds a Unity app that runs on the device. The
-connected development unit could not boot from flash — its GPIO46 strap is
-held low, so the ROM only reaches the downloader (see
-`docs/hardware/esp32-s3-wroom-1-n16r8.md`). The on-device runner was
-therefore not executable, and the test files had never been run.
+on-device runner was not executable when this folder was written, so the test
+files had never been run; they run on the board now, but a host run is still
+the fast pre-commit gate for the logic that does not need a radio.
 
 Compiling the same test files against the same component sources on the host
 executes them anyway, and it turns the suite into a fast pre-commit gate for
