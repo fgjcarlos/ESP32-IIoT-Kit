@@ -4,3 +4,18 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
+
+# Unity: the Sparkplug tests assert on 64-bit values (seq, bdSeq, timestamps).
+# Without this the 64-bit assertions fail with "Unity 64-bit Support Disabled".
+CONFIG_UNITY_ENABLE_64BIT=y
+
+# Main task stack: nvs_flash_init() is called from app_main (the main task)
+# and the NVS driver needs more than the 3584-byte default. With the default
+# the on-device run aborts with "A stack overflow in task main has been
+# detected" as soon as the Sparkplug NVS test executes.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Console: this carrier only wires the native USB port, so UART0 is not
+# reachable. The secondary USB-Serial/JTAG console is what makes the
+# on-device Unity output visible over /dev/ttyACM*.
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y

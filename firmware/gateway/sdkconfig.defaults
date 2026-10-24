@@ -26,3 +26,14 @@ CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y
 # Sparkplug B feature — provided by components/sparkplug_b/Kconfig
 # Default off: mqtt_bridge stays a no-op until commit 4 enables it
 # CONFIG_SPARKPLUG_B_ENABLED is not set
+
+# Main task stack: app_main() calls nvs_config_init() (nvs_flash_init) and
+# the NVS driver needs more than the 3584-byte default. With the default the
+# gateway aborts with "A stack overflow in task main has been detected" right
+# after boot.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Console: this carrier only wires the native USB port, so UART0 is not
+# reachable and the gateway log would be invisible. The secondary
+# USB-Serial/JTAG console publishes it on /dev/ttyACM*.
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
