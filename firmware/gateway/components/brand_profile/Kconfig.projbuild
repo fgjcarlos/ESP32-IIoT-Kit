@@ -1,0 +1,125 @@
+menu "Brand profile (white-label)"
+
+    choice BRAND_PROFILE
+        prompt "Brand profile"
+        default BRAND_PROFILE_IIOT_KIT
+        help
+            White-label profile compiled into the firmware.
+
+            Every profile owns a directory under
+            components/brand_profile/profiles/<id>/ with its versioned assets
+            (logo and manifest). Switching the profile never forks the source
+            tree: the same code produces a different visual identity and a
+            different product name.
+
+            Adding a profile means adding a choice entry, the matching
+            profiles/<id>/ directory and the Kconfig defaults below.
+
+        config BRAND_PROFILE_IIOT_KIT
+            bool "IIoT-Kit (reference)"
+
+        config BRAND_PROFILE_ACME_INDUSTRIAL
+            bool "Acme Industrial (example customer)"
+
+    endchoice
+
+    config BRAND_NAME
+        string "Brand name"
+        default "IIoT-Kit" if BRAND_PROFILE_IIOT_KIT
+        default "Acme Industrial" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Public identity shown on the LCD, in the REST API and in the logs.
+            Not a secret. Keep it short: the LCD line is limited to the
+            character budget of the boot splash.
+
+    config BRAND_MODEL
+        string "Product model"
+        default "GW-S3-1" if BRAND_PROFILE_IIOT_KIT
+        default "AX-200" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Commercial model of the product. Shown next to the brand name in
+            the API, the logs and the boot splash.
+
+    config BRAND_SUPPORT_URL
+        string "Support URL"
+        default "https://example.org/iiot-kit/support" if BRAND_PROFILE_IIOT_KIT
+        default "https://support.acme.example" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Public support address shown in the API and in the LCD status
+            screen. Must start with http:// or https://.
+
+    config BRAND_AP_SSID
+        string "Initial soft-AP SSID"
+        default "IIoT-Kit-GW" if BRAND_PROFILE_IIOT_KIT
+        default "Acme-AX200" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            SSID advertised by the gateway soft-AP when no manufacturing
+            override is injected. Maximum 32 octets (IEEE 802.11).
+
+            This is public configuration, not a secret. The AP password is a
+            manufacturing secret and never lives here.
+
+    config BRAND_OTA_CHANNEL
+        string "OTA channel"
+        default "stable" if BRAND_PROFILE_IIOT_KIT
+        default "beta" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            OTA release channel this build belongs to. Used to route updates
+            and to label the artifact name. Public.
+
+    config BRAND_COLOR_BACKGROUND
+        string "Background colour (RRGGBB hex)"
+        default "0B1020" if BRAND_PROFILE_IIOT_KIT
+        default "101820" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Background colour of the brand palette, as 6 hex digits without
+            the leading '#'. Public.
+
+    config BRAND_COLOR_FOREGROUND
+        string "Foreground colour (RRGGBB hex)"
+        default "E8EEF7" if BRAND_PROFILE_IIOT_KIT
+        default "FFFFFF" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Foreground (text) colour of the brand palette, as 6 hex digits
+            without the leading '#'. Public.
+
+    config BRAND_COLOR_ACCENT
+        string "Accent colour (RRGGBB hex)"
+        default "2E8BFF" if BRAND_PROFILE_IIOT_KIT
+        default "FF7A00" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Accent colour of the brand palette, as 6 hex digits without the
+            leading '#'. Public.
+
+    config BRAND_ASSET_BUDGET_BYTES
+        int "Flash budget for the brand assets (bytes)"
+        default 32768
+        range 4096 262144
+        help
+            Maximum number of bytes the brand assets (logo plus the font
+            allowance) may occupy in the application image.
+
+            The build fails when the assets of the selected profile exceed
+            this budget, so an oversized logo can never reach a device.
+
+    config BRAND_FONT_RESERVE_BYTES
+        int "Flash reserved for the brand font (bytes)"
+        default 16384
+        range 0 262144
+        help
+            Bytes reserved inside CONFIG_BRAND_ASSET_BUDGET_BYTES for the
+            brand font. The font itself is not embedded yet: LVGL is still
+            contract-only (issue #10). The reservation is counted against the
+            budget so a future font has a known allowance.
+
+    config BRAND_FIRMWARE_VERSION
+        string "Firmware version"
+        default "1.0.0"
+        help
+            Version of this firmware build. Single source of truth: the build
+            copies it into the ESP-IDF application descriptor, so the image
+            and the reported version cannot drift apart.
+
+            Public. Bump it on every release.
+
+endmenu

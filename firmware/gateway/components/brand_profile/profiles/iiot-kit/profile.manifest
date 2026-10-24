@@ -1,0 +1,20 @@
+# Brand profile manifest — IIoT-Kit (reference profile)
+#
+# The manifest is the versioned description of the assets of this profile.
+# The build reads it to locate the logo, to check that the declared
+# dimensions match the file and to embed the logo in the application image.
+#
+# The colours are NOT repeated here: they live in the brand Kconfig, and
+# tools/brand/gen_logo.py derives the logo from them, so a logo can never
+# drift away from the palette the firmware actually uses.
+
+id=iiot-kit
+asset_version=1
+
+logo=logo.rgb565
+logo_width=64
+logo_height=64
+
+# Geometry of the generated mark.
+logo_shape=circle
+logo_glyph=wave

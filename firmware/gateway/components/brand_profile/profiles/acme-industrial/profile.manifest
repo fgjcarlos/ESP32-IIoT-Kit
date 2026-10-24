@@ -1,0 +1,20 @@
+# Brand profile manifest — Acme Industrial (example customer profile)
+#
+# This profile exists to prove that two different products come out of the
+# same source tree. It is an example: the name, the model and the support
+# URL are fictional.
+#
+# The colours are NOT repeated here: they live in the brand Kconfig, and
+# tools/brand/gen_logo.py derives the logo from them, so a logo can never
+# drift away from the palette the firmware actually uses.
+
+id=acme-industrial
+asset_version=1
+
+logo=logo.rgb565
+logo_width=64
+logo_height=64
+
+# Geometry of the generated mark.
+logo_shape=square
+logo_glyph=chevron

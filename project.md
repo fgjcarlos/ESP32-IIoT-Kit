@@ -137,6 +137,23 @@ El gateway candidato ESP32-S3-WROOM-1-N16R8 es el corazón previsto del sistema.
 
 El tutorial enseña la plataforma genérica. Para aplicaciones específicas de dominio (sensores de pH, oxígeno disuelto, ORP, nivel de agua), consulta `examples/fish-farm/`. Esos ejemplos usan exactamente la misma plataforma con sensores y configuraciones específicas del dominio de aplicación.
 
+### 3.4 Capa White-Label (perfiles de marca)
+
+El gateway es un producto comercializable: cada cliente quiere "su" marca. En vez de mantener un fork del firmware por cliente, la identidad es una **selección de compilación**.
+
+| Elemento | Dónde vive | ¿Secreto? |
+|----------|------------|-----------|
+| Nombre, modelo, colores, URL de soporte, SSID inicial, canal OTA | `components/brand_profile/Kconfig.projbuild` | no — público, versionado |
+| Logo y su geometría | `components/brand_profile/profiles/<id>/` | no — versionado |
+| Versión de firmware y revisión | `CONFIG_BRAND_FIRMWARE_VERSION` y SHA del commit | no |
+| Clave de aprovisionamiento, token de soporte, contraseña de fábrica del AP | `brand_secrets.local.h` (gitignored, generado desde `/.env`) | **sí** |
+
+La *choice* de Kconfig `BRAND_PROFILE` selecciona el perfil; el build embebe su logo, comprueba que los assets de marca caben en el presupuesto de flash (`CONFIG_BRAND_ASSET_BUDGET_BYTES`) y produce una imagen con nombre reproducible `<brand>-<model>-v<version>-<channel>-<revision>.bin` junto a su manifiesto de metadatos.
+
+La identidad se publica por tres superficies —logs, LCD (splash de arranque) y API (`/api/brand`)— que leen la misma estructura, de modo que no pueden discrepar entre sí.
+
+Detalle: `firmware/gateway/components/brand_profile/README.md` y `tools/brand/README.md`.
+
 ---
 
 ## 4. Fases de Implementación
@@ -502,6 +519,7 @@ El enfoque del proyecto requiere validación en el gateway candidato ESP32-S3-WR
 | **DS18B20 como sensor de referencia** | Sensor de temperatura universal, fácil de obtener, driver 1-Wire bien documentado. Todos los estudiantes lo implementan como primer sensor |
 | **SENSOR_TYPE_CUSTOM = 0xFF** | Extensión del protocolo para cualquier sensor definido por el usuario, sin modificar el protocolo base |
 | **Baterías 3400mAh** | Para alcanzar 12+ meses de autonomía con wake cada 5 minutos |
+| **Perfiles de marca en vez de forks** | Personalizar por cliente con una *choice* de Kconfig y assets versionados: el mismo código fuente produce identidades distintas y las correcciones comunes se aplican una sola vez. La configuración pública se versiona; los secretos de fabricación se inyectan desde `/.env` a una cabecera gitignored |
 
 ### 9.3 Próximos Pasos
 

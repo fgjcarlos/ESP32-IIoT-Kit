@@ -1,9 +1,27 @@
 # ESP-IDF build artifacts
 build/
+build-*/
 sdkconfig
 sdkconfig.old
 managed_components/
 dependencies.lock
+
+# In-source CMake artifacts (an accidental `cmake .` in the project dir)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+kconfigs.in
+kconfigs_projbuild.in
+ldgen_libraries
+ldgen_libraries.in
+prefix_map_gdbinit
+flasher_args.json
+components_with_manifests_list.temp.overrides
+config.env
+esp-idf/
+project_description.json
+x509_crt_bundle.S
 
 # Python
 *.pyc
@@ -41,6 +59,9 @@ site/
 
 # Local Wi-Fi credentials (issue #21, never committed)
 firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h
+
+# Local manufacturing secrets (issue #12, never committed)
+firmware/gateway/components/brand_profile/include/brand_secrets.local.h
 
 # Binaries
 *.bin

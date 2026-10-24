@@ -24,6 +24,7 @@
 ### Sistema
 - [[OTA]] - Actualizaciones over-the-air
 - [[Watchdog]] - Temporizador de vigilancia
+- [[White-label]] - Perfiles de marca sin bifurcar el firmware
 
 ## Decisiones de arquitectura
 - [[001-c-vs-tinygo]] - Por que C + ESP-IDF en vez de TinyGo
