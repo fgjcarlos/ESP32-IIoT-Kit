@@ -245,27 +245,42 @@ TEST_CASE("device registry tracks devices and expires silent ones", "[sparkplug_
     TEST_ASSERT_EQUAL_UINT8(0x60, device.mac[5]);
 }
 
-TEST_CASE("device registry stores the payload used to replay a birth", "[sparkplug_b]")
+TEST_CASE("device registry stores the metric set used to replay a birth", "[sparkplug_b]")
 {
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_init());
     uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_touch("N-5566", mac, 1000));
 
-    uint8_t payload[16] = {1, 2, 3, 4, 5, 6, 7, 8};
-    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_store_payload("N-5566", payload,
-                                                                sizeof(payload)));
+    sparkplug_metric_t metrics[2] = {
+        {
+            .alias = SPARKPLUG_ALIAS_TEMP,
+            .name = "Inputs/Temperature",
+            .data_type = SPARKPLUG_DATA_TYPE_DOUBLE,
+            .value.double_value = 21.5,
+        },
+        {
+            .alias = SPARKPLUG_ALIAS_DEV_UPTIME_MS,
+            .name = SPARKPLUG_METRIC_DEV_UPTIME_NAME,
+            .data_type = SPARKPLUG_DATA_TYPE_INT64,
+            .value.int64_value = 1234,
+        },
+    };
+    TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_store_birth("N-5566", metrics,
+                                                               sizeof(metrics) / sizeof(metrics[0])));
     size_t index = 0;
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_find("N-5566", &index));
     sparkplug_b_device_t device;
     TEST_ASSERT_EQUAL(ESP_OK, sparkplug_b_devices_get(index, &device));
-    TEST_ASSERT_EQUAL_size_t(sizeof(payload), device.payload_len);
-    TEST_ASSERT_EQUAL_UINT8(1, device.payload[0]);
+    TEST_ASSERT_EQUAL_size_t(2, device.metric_count);
+    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_TEMP, device.metrics[0].alias);
+    TEST_ASSERT_EQUAL_STRING("Inputs/Temperature", device.metrics[0].name);
+    TEST_ASSERT_EQUAL_UINT64(SPARKPLUG_ALIAS_DEV_UPTIME_MS, device.metrics[1].alias);
 
-    // A payload that does not fit is rejected instead of being truncated.
-    uint8_t oversized[SPARKPLUG_B_DEVICE_PAYLOAD_MAX + 1] = {0};
+    // A metric set that does not fit is rejected instead of being truncated.
+    sparkplug_metric_t oversized[SPARKPLUG_B_DEVICE_METRICS_MAX + 1] = {0};
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE,
-                      sparkplug_b_devices_store_payload("N-5566", oversized,
-                                                       sizeof(oversized)));
+                      sparkplug_b_devices_store_birth("N-5566", oversized,
+                                                      sizeof(oversized) / sizeof(oversized[0])));
 }
 
 TEST_CASE("death certificate carries bdSeq and no sequence number", "[sparkplug_b]")

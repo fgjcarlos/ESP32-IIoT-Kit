@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "sparkplug_b_payload.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,14 +28,15 @@ extern "C" {
 #define SPARKPLUG_B_DEVICE_ID_MAX 32
 
 /**
- * Maximum number of bytes kept per device for the last published payload.
+ * Maximum number of metrics kept per device for the birth replay.
  *
- * The stored bytes are replayed as the DBIRTH when a rebirth is requested, so
- * the bound has to cover a full device metric set. 20 devices x 384 bytes is
- * about 8 KiB of static memory, which is accounted for in
+ * The DBIRTH of a Device declares its typed metric, the four Custom slots,
+ * the three diagnostics and the sleep-interval property, so nine metrics is
+ * the worst case. The registry keeps them by value: 20 devices x 10 metrics
+ * x 32 bytes is about 6 KiB of static memory, accounted for in
  * docs/sparkplug_3.0.0-measurements.md.
  */
-#define SPARKPLUG_B_DEVICE_PAYLOAD_MAX 384
+#define SPARKPLUG_B_DEVICE_METRICS_MAX 10
 
 /** Lifecycle state of a Sparkplug Device. */
 typedef enum {
@@ -46,14 +48,24 @@ typedef enum {
     SPARKPLUG_DEVICE_STALE,
 } sparkplug_b_device_state_t;
 
-/** Registry entry for one Sparkplug Device. */
+/**
+ * Registry entry for one Sparkplug Device.
+ *
+ * `metrics` holds the metric set published in the DBIRTH of the device. The
+ * registry keeps the descriptors instead of the encoded bytes because a
+ * rebirth has to publish a DBIRTH with a fresh sequence number: replaying
+ * frozen bytes would repeat the sequence number of the previous session.
+ *
+ * The metric names are borrowed pointers, so they must stay valid for the
+ * lifetime of the registry. The bridge only ever passes string literals.
+ */
 typedef struct {
     char device_id[SPARKPLUG_B_DEVICE_ID_MAX];
     uint8_t mac[6];
     sparkplug_b_device_state_t state;
     uint64_t last_seen_ms;
-    size_t payload_len;
-    uint8_t payload[SPARKPLUG_B_DEVICE_PAYLOAD_MAX];
+    size_t metric_count;
+    sparkplug_metric_t metrics[SPARKPLUG_B_DEVICE_METRICS_MAX];
 } sparkplug_b_device_t;
 
 /** @brief Reset the registry. Clears every tracked device. */
@@ -73,14 +85,16 @@ esp_err_t sparkplug_b_devices_touch(const char *device_id, const uint8_t mac[6],
                                     uint64_t now_ms);
 
 /**
- * @brief Store the payload last published for a device.
+ * @brief Store the metric set published in the DBIRTH of a device.
  *
- * The bytes are replayed as the DBIRTH when a rebirth is requested. A payload
- * longer than SPARKPLUG_B_DEVICE_PAYLOAD_MAX is rejected so the registry
- * never truncates a payload into something a Host would misread.
+ * The metrics are kept by value so a rebirth can publish them again with a
+ * fresh sequence number. A metric set larger than
+ * SPARKPLUG_B_DEVICE_METRICS_MAX is rejected instead of being truncated into
+ * something a Host would misread.
  */
-esp_err_t sparkplug_b_devices_store_payload(const char *device_id,
-                                             const uint8_t *payload, size_t len);
+esp_err_t sparkplug_b_devices_store_birth(const char *device_id,
+                                          const sparkplug_metric_t *metrics,
+                                          size_t metric_count);
 
 /** @brief Copy the registry entry at `index` into `out`. */
 esp_err_t sparkplug_b_devices_get(size_t index, sparkplug_b_device_t *out);

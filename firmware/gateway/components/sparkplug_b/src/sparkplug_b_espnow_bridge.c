@@ -147,31 +147,53 @@ static size_t append_custom(sparkplug_b_ddata_t *out, size_t idx, size_t slot_id
     return idx + 1;
 }
 
-// Append the standard diagnostics (Uptime/Battery/Rssi). Battery is
-// suppressed when the wire format says "unknown" (0xFF); uptime is always
-// present (0 is a legal value); rssi is always present.
+// Strip the friendly names of every metric.
+//
+// Sparkplug B v3.0.0 (tck-id-payloads-alias-data-cmd-requirement): NDATA and
+// DDATA messages MUST only include an alias, the metric name MUST be excluded.
+// The name was already established by the BIRTH message, and repeating it on
+// every data message only makes the payload bigger.
+static void strip_metric_names(sparkplug_b_ddata_t *out)
+{
+    for (size_t i = 0; i < out->metric_count; ++i) {
+        out->metrics[i].name = NULL;
+    }
+}
+
+// Append the standard diagnostics (Uptime/Battery/Rssi).
+//
+// `declare_battery` forces the battery metric to be declared even when its
+// value is unknown: a DBIRTH has to declare every alias the DDATA may
+// publish later, and the battery level of a device that has not reported it
+// yet is still a metric of that device. The DDATA, on the contrary, only
+// publishes the battery when the value is known (Report by Exception).
+//
+// The Device uptime uses its own alias (not the EoN-Node one) because
+// Sparkplug B v3.0.0 requires every alias to be unique across the whole set
+// of metrics of an Edge Node.
 static size_t append_diagnostics(sparkplug_b_ddata_t *out, size_t idx,
-                                 uint32_t uptime_ms, uint8_t battery_pct, int8_t rssi)
+                                 uint32_t uptime_ms, uint8_t battery_pct, int8_t rssi,
+                                 bool declare_battery)
 {
     if (idx < sizeof(out->metrics) / sizeof(out->metrics[0])) {
         sparkplug_metric_t *m = &out->metrics[idx++];
-        m->alias = SPARKPLUG_ALIAS_UPTIME_MS;
-        m->name = "Diagnostics/UptimeMs";
+        m->alias = SPARKPLUG_ALIAS_DEV_UPTIME_MS;
+        m->name = SPARKPLUG_METRIC_DEV_UPTIME_NAME;
         m->data_type = SPARKPLUG_DATA_TYPE_INT64;
         m->value.int64_value = (int64_t)uptime_ms;
     }
-    if (battery_pct != 0xFF &&
+    if ((battery_pct != 0xFF || declare_battery) &&
         idx < sizeof(out->metrics) / sizeof(out->metrics[0])) {
         sparkplug_metric_t *m = &out->metrics[idx++];
         m->alias = SPARKPLUG_ALIAS_BATTERY;
-        m->name = "Diagnostics/BatteryPercent";
+        m->name = SPARKPLUG_METRIC_BATTERY_NAME;
         m->data_type = SPARKPLUG_DATA_TYPE_FLOAT;
-        m->value.float_value = (float)battery_pct;
+        m->value.float_value = (battery_pct == 0xFF) ? 0.0f : (float)battery_pct;
     }
     if (idx < sizeof(out->metrics) / sizeof(out->metrics[0])) {
         sparkplug_metric_t *m = &out->metrics[idx++];
         m->alias = SPARKPLUG_ALIAS_RSSI;
-        m->name = "Diagnostics/RssiLast";
+        m->name = SPARKPLUG_METRIC_RSSI_NAME;
         m->data_type = SPARKPLUG_DATA_TYPE_INT8;
         m->value.int8_value = rssi;
     }
@@ -231,8 +253,14 @@ esp_err_t sparkplug_b_espnow_bridge_on_data(const msg_sensor_data_t *data,
         }
     }
 
-    n = append_diagnostics(out, n, data->uptime_ms, data->battery_pct, data->rssi_last);
+    n = append_diagnostics(out, n, data->uptime_ms, data->battery_pct, data->rssi_last,
+                            false);
     out->metric_count = n;
+
+    // Sparkplug B v3.0.0 (tck-id-payloads-alias-data-cmd-requirement): a DATA
+    // message MUST only carry the alias of each metric; the friendly name was
+    // already established by the BIRTH message and MUST be excluded.
+    strip_metric_names(out);
     return ESP_OK;
 }
 
@@ -258,38 +286,44 @@ esp_err_t sparkplug_b_espnow_bridge_on_discovery(const msg_discovery_t *disc,
 
     size_t n = 0;
 
-    // DBIRTH primary metric mirrors the sensor's typed value. For unknown
-    // sensor types (CUSTOM, unrecognised), we still emit Custom/0 so the
-    // Host has at least one stable alias to bind to.
+    // The DBIRTH declares the complete metric set of the Device. Every alias
+    // the DDATA may publish later has to be bound to a name here, otherwise a
+    // Host Application cannot resolve the alias
+    // (tck-id-payloads-alias-birth-requirement and the alias uniqueness
+    // rule tck-id-payloads-alias-uniqueness).
+    //
+    // The primary metric mirrors the sensor's typed value. For unknown sensor
+    // types (CUSTOM, unrecognised) the Custom/0 slot takes its place.
     if (disc->sensor_type == SENSOR_TYPE_CUSTOM) {
         n = append_custom(out, n, 0, 0.0);
+    } else if (emit_typed_metric(&out->metrics[n], disc->sensor_type, 0.0f) != 0) {
+        n++;
+        // A typed sensor may carry extra values, and those land in the Custom
+        // slots, so Custom/0 has to be declared as well.
+        n = append_custom(out, n, 0, 0.0);
     } else {
-        if (emit_typed_metric(&out->metrics[n], disc->sensor_type, 0.0f) != 0) {
-            n++;
-        } else {
-            n = append_custom(out, n, 0, 0.0);
-        }
+        n = append_custom(out, n, 0, 0.0);
     }
 
-    // Diagnostics: battery (if known), uptime=0 placeholder is implicit.
-    if (disc->battery_pct != 0xFF) {
-        if (n < sizeof(out->metrics) / sizeof(out->metrics[0])) {
-            sparkplug_metric_t *m = &out->metrics[n++];
-            m->alias = SPARKPLUG_ALIAS_BATTERY;
-            m->name = "Diagnostics/BatteryPercent";
-            m->data_type = SPARKPLUG_DATA_TYPE_FLOAT;
-            m->value.float_value = (float)disc->battery_pct;
-        }
+    // The remaining Custom slots are declared with placeholder values: a
+    // Device can report up to PROTOCOL_MAX_VALUES values and the discovery
+    // frame does not carry the value count, so the whole range is reserved.
+    for (size_t slot = 1; slot < PROTOCOL_MAX_VALUES; ++slot) {
+        n = append_custom(out, n, slot, 0.0);
     }
-    // Sleep interval — keep it as a Custom/1 placeholder until commit 9
-    // adds a dedicated Properties/SleepIntervalSec alias. Out of commit 6
-    // scope but documented in design.md §3.5.
+
+    // Diagnostics: uptime, battery and RSSI. The values are placeholders here;
+    // the DDATA carries the real ones.
+    n = append_diagnostics(out, n, 0, disc->battery_pct, 0, true);
+
+    // The sleep interval is a Device property, so it is published in the
+    // DBIRTH only and never repeated in the DDATA.
     if (n < sizeof(out->metrics) / sizeof(out->metrics[0])) {
         sparkplug_metric_t *m = &out->metrics[n++];
-        m->alias = SPARKPLUG_ALIAS_CUSTOM_0 + 1;
-        m->name = "Inputs/Custom/1";
-        m->data_type = SPARKPLUG_DATA_TYPE_DOUBLE;
-        m->value.double_value = (double)disc->sleep_interval_sec;
+        m->alias = SPARKPLUG_ALIAS_SLEEP_INTERVAL_SEC;
+        m->name = SPARKPLUG_METRIC_SLEEP_INTERVAL_NAME;
+        m->data_type = SPARKPLUG_DATA_TYPE_INT64;
+        m->value.int64_value = (int64_t)disc->sleep_interval_sec;
     }
 
     out->metric_count = n;

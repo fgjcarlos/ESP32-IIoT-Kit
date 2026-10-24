@@ -58,17 +58,18 @@ esp_err_t sparkplug_b_devices_touch(const char *device_id, const uint8_t mac[6],
     return ESP_OK;
 }
 
-esp_err_t sparkplug_b_devices_store_payload(const char *device_id,
-                                             const uint8_t *payload, size_t len)
+esp_err_t sparkplug_b_devices_store_birth(const char *device_id,
+                                          const sparkplug_metric_t *metrics,
+                                          size_t metric_count)
 {
-    if (device_id == NULL || payload == NULL) {
+    if (device_id == NULL || metrics == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (len > SPARKPLUG_B_DEVICE_PAYLOAD_MAX) {
-        // Truncating would produce a payload a Host would misread, so the
-        // device is stored without a replayable payload instead.
-        ESP_LOGW(TAG, "Payload of %zu bytes for %s exceeds the %d byte bound",
-                 len, device_id, (int)SPARKPLUG_B_DEVICE_PAYLOAD_MAX);
+    if (metric_count > SPARKPLUG_B_DEVICE_METRICS_MAX) {
+        // Truncating would produce a DBIRTH a Host would misread, so the
+        // device is stored without a replayable metric set instead.
+        ESP_LOGW(TAG, "Metric set of %zu metrics for %s exceeds the %d metric bound",
+                 metric_count, device_id, (int)SPARKPLUG_B_DEVICE_METRICS_MAX);
         return ESP_ERR_INVALID_SIZE;
     }
 
@@ -76,8 +77,8 @@ esp_err_t sparkplug_b_devices_store_payload(const char *device_id,
     if (index == SPARKPLUG_B_MAX_DEVICES) {
         return ESP_ERR_NOT_FOUND;
     }
-    memcpy(s_devices[index].payload, payload, len);
-    s_devices[index].payload_len = len;
+    memcpy(s_devices[index].metrics, metrics, metric_count * sizeof(metrics[0]));
+    s_devices[index].metric_count = metric_count;
     return ESP_OK;
 }
 

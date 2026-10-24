@@ -310,6 +310,13 @@ static esp_err_t publish_raw(const char *topic, const uint8_t *payload, size_t l
     return ESP_OK;
 }
 
+// Publish the DBIRTH of a device from a metric set. Defined below, next to
+// the rest of the publishing helpers.
+static esp_err_t publish_device_birth(const char *device_id,
+                                      const sparkplug_metric_t *metrics,
+                                      size_t metric_count,
+                                      uint64_t timestamp_ms);
+
 // Publish the NBIRTH and the DBIRTH of every known device.
 //
 // Sparkplug B v3.0.0 §5.5: on a rebirth request the Edge Node MUST send a
@@ -342,14 +349,13 @@ static esp_err_t publish_birth_sequence(void)
         if (sparkplug_b_devices_get(i, &device) != ESP_OK) {
             continue;
         }
-        if (device.payload_len == 0) {
+        if (device.metric_count == 0) {
             continue;
         }
-        if (sparkplug_b_topic_dbirth(s_config.group_id, s_config.edge_node_id,
-                                     device.device_id, topic, sizeof(topic)) != ESP_OK) {
-            continue;
-        }
-        err = publish_raw(topic, device.payload, device.payload_len, 0, 0);
+        // The DBIRTH is rebuilt from the stored metric set so it carries a
+        // fresh sequence number.
+        err = publish_device_birth(device.device_id, device.metrics,
+                                   device.metric_count, now_ms());
         if (err == ESP_OK) {
             ESP_LOGI(TAG, "Published DBIRTH for %s (rebirth)", device.device_id);
         }
@@ -373,7 +379,10 @@ esp_err_t sparkplug_b_publish_ndata(void)
     uint64_t uptime_ms = now_ms();
     sparkplug_metric_t metric = {
         .alias = SPARKPLUG_ALIAS_UPTIME_MS,
-        .name = "Inputs/UptimeMs",
+        // Sparkplug B v3.0.0 (tck-id-payloads-alias-data-cmd-requirement): a
+        // DATA message carries only the alias. The name of alias 11 was
+        // established in the NBIRTH, so the Host can resolve it.
+        .name = NULL,
         .data_type = SPARKPLUG_DATA_TYPE_INT64,
         .value.int64_value = (int64_t)uptime_ms,
     };
@@ -416,14 +425,45 @@ esp_err_t sparkplug_b_publish_ddata(const char *device_id,
         return ESP_FAIL;
     }
 
-    // Keep the bytes so a rebirth can replay them as a DBIRTH.
-    sparkplug_b_devices_store_payload(device_id, encoded, encoded_len);
-
+    // A DDATA is never stored: only the metric set of the DBIRTH is kept for
+    // the rebirth replay, and a data message must not be republished as a
+    // birth.
     esp_err_t err = publish_raw(topic, encoded, encoded_len, 0, 0);
     if (err == ESP_OK) {
         ESP_LOGD(TAG, "Published DDATA for %s (%zu metrics)", device_id, data->metric_count);
     }
     return err;
+}
+
+// Publish the DBIRTH of a device from a metric set.
+//
+// The sequence number always comes from the session counter: Sparkplug
+// B v3.0.0 requires every message published after an NBIRTH to carry the
+// previous sequence number plus one (tck-id-payloads-dbirth-seq-inc), so a
+// rebirth cannot replay the frozen bytes of the previous DBIRTH.
+static esp_err_t publish_device_birth(const char *device_id,
+                                      const sparkplug_metric_t *metrics,
+                                      size_t metric_count,
+                                      uint64_t timestamp_ms)
+{
+    char topic[MQTT_TEXT_MAX * 3];
+    if (sparkplug_b_topic_dbirth(s_config.group_id, s_config.edge_node_id,
+                                 device_id, topic, sizeof(topic)) != ESP_OK) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    sparkplug_payload_t payload = {
+        .timestamp_ms = timestamp_ms,
+        .seq = sparkplug_b_seq_next(),
+        .metrics = metrics,
+        .metric_count = metric_count,
+    };
+    uint8_t encoded[SPARKPLUG_B_PAYLOAD_MAX_BYTES];
+    size_t encoded_len = 0;
+    if (sparkplug_b_encode_payload(&payload, encoded, sizeof(encoded), &encoded_len) != ESP_OK) {
+        return ESP_FAIL;
+    }
+    return publish_raw(topic, encoded, encoded_len, 0, 0);
 }
 
 esp_err_t sparkplug_b_publish_dbirth(const char *device_id,
@@ -432,30 +472,24 @@ esp_err_t sparkplug_b_publish_dbirth(const char *device_id,
     if (device_id == NULL || birth == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    char topic[MQTT_TEXT_MAX * 3];
-    if (sparkplug_b_topic_dbirth(s_config.group_id, s_config.edge_node_id,
-                                 device_id, topic, sizeof(topic)) != ESP_OK) {
-        return ESP_ERR_INVALID_SIZE;
+
+    esp_err_t err = publish_device_birth(device_id, birth->metrics,
+                                         birth->metric_count, birth->timestamp_ms);
+    if (err != ESP_OK) {
+        return err;
     }
 
-    sparkplug_payload_t payload = {
-        .timestamp_ms = birth->timestamp_ms,
-        .seq = sparkplug_b_seq_next(),
-        .metrics = birth->metrics,
-        .metric_count = birth->metric_count,
-    };
-    uint8_t encoded[SPARKPLUG_B_PAYLOAD_MAX_BYTES];
-    size_t encoded_len = 0;
-    if (sparkplug_b_encode_payload(&payload, encoded, sizeof(encoded), &encoded_len) != ESP_OK) {
-        return ESP_FAIL;
+    // Keep the metric set of the birth so a rebirth can publish the DBIRTH of
+    // this device again.
+    err = sparkplug_b_devices_store_birth(device_id, birth->metrics,
+                                           birth->metric_count);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Could not store the birth metrics of %s: %s", device_id,
+                 esp_err_to_name(err));
     }
-    sparkplug_b_devices_store_payload(device_id, encoded, encoded_len);
 
-    esp_err_t err = publish_raw(topic, encoded, encoded_len, 0, 0);
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Published DBIRTH for %s", device_id);
-    }
-    return err;
+    ESP_LOGI(TAG, "Published DBIRTH for %s", device_id);
+    return ESP_OK;
 }
 
 esp_err_t sparkplug_b_publish_ddeath(const char *device_id)
@@ -603,12 +637,9 @@ static void handle_command(bool device_command, const char *device_id,
             if (sparkplug_b_devices_find(device_id, &index) == ESP_OK) {
                 sparkplug_b_device_t device;
                 if (sparkplug_b_devices_get(index, &device) == ESP_OK &&
-                    device.payload_len > 0) {
-                    char topic[MQTT_TEXT_MAX * 3];
-                    if (sparkplug_b_topic_dbirth(s_config.group_id, s_config.edge_node_id,
-                                                 device_id, topic, sizeof(topic)) == ESP_OK) {
-                        publish_raw(topic, device.payload, device.payload_len, 0, 0);
-                    }
+                    device.metric_count > 0) {
+                    publish_device_birth(device_id, device.metrics,
+                                         device.metric_count, now_ms());
                 }
             }
         }

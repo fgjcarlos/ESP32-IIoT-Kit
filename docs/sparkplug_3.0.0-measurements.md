@@ -30,9 +30,9 @@ feature costs.
 
 | Configuration | `gateway.bin` | Total image | Free in the 3 MiB OTA slot |
 |---|---:|---:|---:|
-| Sparkplug B off (default) | 829,872 B | 829,875 B | 74 % |
-| Sparkplug B on | 1,049,552 B | 1,049,691 B | 67 % |
-| **Delta** | **+219,680 B** | **+219,816 B** | |
+| Sparkplug B off (default) | 830,000 B | 830,256 B | 74 % |
+| Sparkplug B on | 1,050,128 B | 1,050,384 B | 67 % |
+| **Delta** | **+220,128 B** | **+220,128 B** | |
 
 The delta is dominated by the TLS stack that the MQTT client needs
 (`libmbedtls.a` 101,938 B, `libmqtt.a` 15,038 B, `libesp-tls.a` 6,467 B), not
@@ -42,42 +42,44 @@ by the Sparkplug code itself.
 
 | Memory type | Used | Used % | Remain | Total |
 |---|---:|---:|---:|---:|
-| Flash Code | 686,625 | | | |
-| Flash Data | 233,868 | | | |
+| Flash Code | 686,933 | | | |
+| Flash Data | 233,884 | | | |
 | IRAM | 112,670 | 85.96 % | 18,402 | 131,072 |
-| DRAM | 47,636 | 26.36 % | 133,100 | 180,736 |
+| DRAM | 44,756 | 24.76 % | 135,980 | 180,736 |
 | RTC FAST | 28 | 0.34 % | 8,164 | 8,192 |
 | RTC SLOW | 24 | 0.29 % | 8,168 | 8,192 |
 
 With the feature off, DRAM drops to 33,604 B (18.59 %), so the Sparkplug
-integration costs **14,032 B of static DRAM**.
+integration costs **11,152 B of static DRAM**.
 
 ## The Sparkplug component itself
 
 ```
-libsparkplug_b.a   Total 21,533 B   DRAM 12,424 B (.bss)   Flash code 7,921 B   Flash data 1,188 B
+libsparkplug_b.a   Total 18,956 B   DRAM 9,544 B (.bss)   Flash code 8,224 B   Flash data 1,188 B
 ```
 
 | Archive | Total | DRAM | Flash code | Flash data |
 |---|---:|---:|---:|---:|
-| `libsparkplug_b.a` | 21,533 | 12,424 | 7,921 | 1,188 |
+| `libsparkplug_b.a` | 18,956 | 9,544 | 8,224 | 1,188 |
 | `libmqtt.a` | 15,038 | 0 | 14,704 | 334 |
 | `libesp-tls.a` | 6,467 | 4 | 6,371 | 92 |
 | `libmbedtls.a` | 101,938 | 270 | 29,466 | 72,202 |
 | `libprotocol.a` | 246 | 0 | 246 | 0 |
 
-### What the 12,424 B of DRAM is
+### What the 9,544 B of DRAM is
 
-| Item | Bytes | Note |
+| Symbol | Bytes | Note |
 |---|---:|---|
-| Device registry | 8,840 | 20 devices × (32 B id + 6 B MAC + state + 8 B timestamp + 384 B payload replay) |
-| Protobuf decode scratch | 1,920 | 16 decoded metrics × 120 B |
-| Protobuf encode scratch | ~1,400 | 16 metric slots with their callback slots |
-| Session state, config copies, event group | ~264 | |
+| `s_devices` | 6,080 | Device registry: 20 devices x 304 B (id, MAC, state, timestamp and the metric set kept for the birth replay) |
+| `s_decoded` | 1,920 | 16 decoded metrics x 120 B |
+| `s_group_id`, `s_edge_node_id`, `s_uri`, `s_username`, `s_password` | 1,280 | 5 NVS configuration copies of 256 B |
+| `s_ni` and the remaining session state | ~264 | |
 
-The registry is sized by the ESP-NOW peer limit (20 devices), and the per
-device payload buffer holds the last published bytes so a rebirth request can
-replay them as a DBIRTH.
+The registry is sized by the ESP-NOW peer limit (20 devices). It stores the
+*metric set* of each DBIRTH instead of the encoded bytes, because a rebirth
+has to publish a DBIRTH with a fresh sequence number: replaying frozen bytes
+would repeat the sequence number of the previous session. That change made
+the registry 1,760 B smaller than the byte-buffer version it replaced.
 
 ### A measurement that changed the design
 
@@ -92,15 +94,15 @@ actually uses TLS, and released on stop. The measured effect:
 
 | | Before | After | Saved |
 |---|---:|---:|---:|
-| `libsparkplug_b.a` DRAM | 36,988 B | 12,424 B | 24,564 B |
-| Total DRAM | 72,196 B (39.95 %) | 47,636 B (26.36 %) | 24,560 B |
-| Flash | 1,049,543 B | 1,049,691 B | +148 B |
+| `libsparkplug_b.a` DRAM | 36,988 B | 9,544 B | 27,444 B |
+| Total DRAM | 72,196 B (39.95 %) | 44,756 B (24.76 %) | 27,440 B |
+| Flash | 1,049,543 B | 1,050,384 B | +841 B |
 
 ## Test image
 
 | Configuration | `gateway_test.bin` | Free in the 1.5 MiB factory partition |
 |---|---:|---:|
-| Unity test project | 816,624 B | 48 % |
+| Unity test project | 817,536 B | 48 % |
 
 ## Runtime heap
 
@@ -134,6 +136,6 @@ For the feature-off baseline, set `CONFIG_SPARKPLUG_B_ENABLED` to `n` in
 ## Related
 
 - `tools/host-tests/` — runs the same Unity test files natively on the host.
-  Current result: **38 tests, 0 failures**.
+  Current result: **44 tests, 0 failures**.
 - `tools/sparkplug-conformance/` — Sparkplug B conformance harness against a
   real Mosquitto broker.

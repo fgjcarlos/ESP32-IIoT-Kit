@@ -23,7 +23,27 @@ extern "C" {
 /** Maximum encoded Sparkplug B Payload size — 237 B MTU with 1 KB safety margin. */
 #define SPARKPLUG_B_PAYLOAD_MAX_BYTES 1024
 
-/** Aliases reserved by the IIoT gateway (issue #11 design §3.5). */
+/**
+ * Aliases reserved by the IIoT gateway (issue #11 design §3.5).
+ *
+ * Sparkplug B v3.0.0 requires every alias to be unique across the whole set
+ * of metrics of an Edge Node (tck-id-payloads-alias-uniqueness). The node's
+ * own metrics and the metrics of its Devices therefore live in two disjoint
+ * alias ranges:
+ *
+ *   0        reserved by the Sparkplug B v3 spec
+ *   1..6     Inputs/{Temperature,Ph,Do,Orp,Level,Turbidity}   (Double)
+ *   7..10    Inputs/Custom/0..3                               (Double)
+ *   11       Inputs/UptimeMs              (EoN-Node uptime, NBIRTH)
+ *   12       Diagnostics/BatteryPercent   (Device battery)
+ *   13       Diagnostics/RssiLast         (Device RSSI)
+ *   14       Diagnostics/UptimeMs         (Device uptime)
+ *   15       Properties/SleepIntervalSec  (Device sleep interval)
+ *
+ * Alias 14 exists because the Device uptime must not reuse alias 11: the node
+ * uptime is published in the NBIRTH and the device uptime in the DBIRTH, and
+ * both belong to the same Edge Node metric set.
+ */
 typedef enum {
     SPARKPLUG_ALIAS_RESERVED   = 0,   // Reserved by Sparkplug B v3 spec
     SPARKPLUG_ALIAS_TEMP       = 1,
@@ -39,6 +59,8 @@ typedef enum {
     SPARKPLUG_ALIAS_UPTIME_MS  = 11,
     SPARKPLUG_ALIAS_BATTERY    = 12,
     SPARKPLUG_ALIAS_RSSI       = 13,
+    SPARKPLUG_ALIAS_DEV_UPTIME_MS = 14,
+    SPARKPLUG_ALIAS_SLEEP_INTERVAL_SEC = 15,
 } sparkplug_alias_t;
 
 /**
@@ -82,6 +104,21 @@ typedef enum {
 
 /** Metric name that requests a reboot of a single Device. */
 #define SPARKPLUG_METRIC_DEVICE_REBOOT_NAME "Device Control/Reboot"
+
+/** Metric name of the EoN-Node uptime, published in the NBIRTH. */
+#define SPARKPLUG_METRIC_UPTIME_NAME "Inputs/UptimeMs"
+
+/** Metric name of the Device uptime, published in the DBIRTH and the DDATA. */
+#define SPARKPLUG_METRIC_DEV_UPTIME_NAME "Diagnostics/UptimeMs"
+
+/** Metric name of the Device battery level. */
+#define SPARKPLUG_METRIC_BATTERY_NAME "Diagnostics/BatteryPercent"
+
+/** Metric name of the last RSSI heard from the Device. */
+#define SPARKPLUG_METRIC_RSSI_NAME "Diagnostics/RssiLast"
+
+/** Metric name of the Device sleep interval, published in the DBIRTH only. */
+#define SPARKPLUG_METRIC_SLEEP_INTERVAL_NAME "Properties/SleepIntervalSec"
 
 /** Maximum metric name length accepted by the decoder (bytes, excluding NUL). */
 #define SPARKPLUG_B_METRIC_NAME_MAX 48

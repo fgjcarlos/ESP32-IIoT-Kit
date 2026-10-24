@@ -19,13 +19,20 @@
 //   D-B3  Periodicidad: 1 DDATA por cada MSG_TYPE_DATA (1:1).
 //   D-B4  seq: global del EoN-Node vía sparkplug_b_seq_next().
 //
-// Alias map (firmado en commit 4 + bridge commit 6):
+// Alias map (firmado en commit 4 + bridge commit 6, revisado por el commit de
+// conformidad de la issue #11):
 //   0       reserved (Sparkplug B v3 spec)
 //   1..6    Inputs/{Temperature,Ph,Do,Orp,Level,Turbidity}      (Double)
 //   7..10   Inputs/Custom/0..3                                  (Double)
-//   11      Diagnostics/UptimeMs                                (Int64)
-//   12      Diagnostics/BatteryPercent                          (Float)
-//   13      Diagnostics/RssiLast                                (Int8)
+//   11      Inputs/UptimeMs              (EoN-Node uptime, NBIRTH)
+//   12      Diagnostics/BatteryPercent   (Device)
+//   13      Diagnostics/RssiLast         (Device)
+//   14      Diagnostics/UptimeMs         (Device uptime)
+//   15      Properties/SleepIntervalSec  (Device property, DBIRTH only)
+//
+// Sparkplug B v3.0.0 exige que cada alias sea único en el conjunto completo
+// de métricas de un EoN-Node, así que las métricas del nodo (11) y las de sus
+// Devices (1..10, 12..15) ocupan rangos disjuntos.
 //
 // device_id format (D2): "N-<mac4hex>" (default). Template configurable
 // vía mqtt_device_id_template en NVS, fuera del scope de este commit.
@@ -87,9 +94,13 @@ esp_err_t sparkplug_b_espnow_bridge_init(const char *group_id, const char *edge_
  *     alias CUSTOM_0..CUSTOM_3 (capped at 4).
  *   - sensor_type CUSTOM → all PROTOCOL_MAX_VALUES slots go to
  *     Inputs/Custom/0..3 (alias 7..10).
- *   - uptime_ms → Diagnostics/UptimeMs (Int64) at alias 11.
+ *   - uptime_ms → Diagnostics/UptimeMs (Int64) at alias 14.
  *   - battery_pct != 0xFF → Diagnostics/BatteryPercent (Float) at alias 12.
  *   - rssi_last → Diagnostics/RssiLast (Int8) at alias 13.
+ *
+ * The metric names are stripped: Sparkplug B v3.0.0 requires a DATA message
+ * to carry only the alias of each metric
+ * (tck-id-payloads-alias-data-cmd-requirement).
  *
  * @param data  Input ESP-NOW frame (already deserialized).
  * @param out   Output builder. Must be non-NULL. Cleared on entry.
@@ -101,9 +112,15 @@ esp_err_t sparkplug_b_espnow_bridge_on_data(const msg_sensor_data_t *data,
 /**
  * @brief Translate a MSG_TYPE_DISCOVERY frame into a Sparkplug DBIRTH builder.
  *
- * DBIRTH shape is identical to DDATA but uses the discovery payload
- * fields: firmware_version → Properties/HwVersion (UInt32-ish via Int64
- * widening; full Properties support is out of commit 6 scope).
+ * The DBIRTH declares the complete metric set of the Device: the typed metric
+ * (or Custom/0 for an unknown sensor type), the four Custom slots, the
+ * diagnostics and the sleep-interval property. Every alias the DDATA may
+ * publish later is therefore bound to a name, which is what a Host
+ * Application needs to resolve the alias of a data message.
+ *
+ * The values are placeholders; the DDATA carries the real ones. The
+ * discovery frame does not carry the value count of the sensor, so the whole
+ * Custom range is declared.
  *
  * @param disc   Input discovery frame (already deserialized).
  * @param out     Output builder. Must be non-NULL. Cleared on entry.
