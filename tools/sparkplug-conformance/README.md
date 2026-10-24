@@ -133,6 +133,25 @@ MODE=observe SPARKPLUG_TIMEOUT=60 \
 before or after the `DBIRTH` — but strict about the correctness of every
 individual message.
 
+#### A gateway without sensor nodes
+
+`DBIRTH` and `DDATA` describe a **Device**, and a Device only exists once a
+sensor node has been discovered through ESP-NOW. A gateway that has not
+discovered a node yet therefore cannot publish them, and the observe mode
+would fail on messages that are correct to be absent.
+
+For that case the Device messages are not required:
+
+```bash
+MODE=observe SPARKPLUG_EXPECT_DEVICE=0 SPARKPLUG_EXPECT_NDATA=1 \
+    SPARKPLUG_TIMEOUT=60 \
+    bash tools/sparkplug-conformance/scripts/run-conformance.sh
+```
+
+The client also accepts `--no-expect-device` when it runs outside Compose.
+Everything else stays asserted: the payload of every received message, the
+sequence space, the alias uniqueness and the QoS and retain flags.
+
 ### Running the client alone
 
 ```bash

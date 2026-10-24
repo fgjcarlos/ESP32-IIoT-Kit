@@ -499,6 +499,7 @@ class Config:
     edge_node_id: str
     device_id: str
     timeout: float
+    expect_device: bool
     expect_ddeath: bool
     expect_ndata: bool
     expect_rebirth: bool
@@ -1292,7 +1293,11 @@ def run_observe(host: SparkplugHost, report: Report) -> None:
     config = host.config
     group, edge = config.group_id, config.edge_node_id
 
-    required = ["NBIRTH", "DBIRTH", "DDATA"]
+    required = ["NBIRTH"]
+    if config.expect_device:
+        # A Device only exists once a sensor node has been discovered through
+        # ESP-NOW, so a gateway without nodes can never publish these.
+        required.extend(["DBIRTH", "DDATA"])
     if config.expect_ddeath:
         required.append("DDEATH")
     if config.expect_ndata:
@@ -1554,6 +1559,16 @@ def build_parser() -> ArgumentParser:
         help="device id used by the simulated flow (default: DEV-TEST01)",
     )
     parser.add_argument(
+        "--expect-device",
+        action=argparse.BooleanOptionalAction,
+        default=env_bool("SPARKPLUG_EXPECT_DEVICE", True),
+        help=(
+            "in observe mode, also require the Device messages DBIRTH and DDATA "
+            "(default: enabled; disable it for a gateway that has not discovered "
+            "any sensor node yet)"
+        ),
+    )
+    parser.add_argument(
         "--expect-ddeath",
         action="store_true",
         default=env_bool("SPARKPLUG_EXPECT_DDEATH"),
@@ -1597,6 +1612,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         edge_node_id=args.edge_node_id,
         device_id=args.device_id,
         timeout=args.timeout,
+        expect_device=args.expect_device,
         expect_ddeath=args.expect_ddeath,
         expect_ndata=args.expect_ndata,
         expect_rebirth=args.expect_rebirth,

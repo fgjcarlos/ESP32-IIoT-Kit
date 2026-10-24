@@ -19,6 +19,7 @@
 #   SPARKPLUG_EDGE_NODE_ID     GW-TEST01 (default)
 #   SPARKPLUG_DEVICE_ID        DEV-TEST01 (default)
 #   SPARKPLUG_TIMEOUT          seconds to wait for messages (default 30)
+#   SPARKPLUG_EXPECT_DEVICE    1 (default) | 0
 #
 set -euo pipefail
 
