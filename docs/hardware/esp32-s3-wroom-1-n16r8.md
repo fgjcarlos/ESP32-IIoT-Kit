@@ -44,12 +44,15 @@ A separate Unity test project built and ran on the target. Before allocating and
 
 | Measurement | Result |
 |---|---:|
-| Free internal heap | 386,295 bytes |
+| Free internal heap | 311,967 bytes |
 | Free PSRAM | 8,386,148 bytes |
 | Largest PSRAM block | 8,257,536 bytes |
 | 108,800-byte PSRAM allocation | Passed |
+| Main task stack headroom after the run | 656 bytes of 8192 |
 
-These heap values come from the minimal Unity test app, not the eventual full gateway firmware. The successful allocation validates PSRAM allocation only; it does not validate display DMA or throughput. ESP-IDF documents that ESP32-S3 DMA descriptors cannot reside in PSRAM and that PSRAM DMA bandwidth is limited. After the user released BOOT/GPIO0 and physically reset the board, monitor output from the already-flashed Unity app reported `2 Tests 0 Failures 0 Ignored` and `OK`. The 45-second monitor then ended with timeout exit 124 only after that successful test output.
+These heap values come from the minimal Unity test app, not the eventual full gateway firmware. The successful allocation validates PSRAM allocation only; it does not validate display DMA or throughput. ESP-IDF documents that ESP32-S3 DMA descriptors cannot reside in PSRAM and that PSRAM DMA bandwidth is limited.
+
+The full on-device run of 2026-10-24 reported `81 Tests 0 Failures 0 Ignored` and `OK` over the native USB console, with the stack headroom measured in the same run. The project needs `CONFIG_UNITY_ENABLE_64BIT=y`, because the Sparkplug tests assert on 64-bit values (`seq`, `bdSeq`, timestamps), and `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`, because `nvs_flash_init()` does not fit in the default 3584-byte stack (see the two defects above).
 
 ## Provisional carrier information
 
@@ -94,32 +97,67 @@ A user-authorized esptool 4.12 probe of the connected board observed:
 
 These observations confirm the connected SoC and memory capacities, but do not independently identify the carrier model/revision or verify the display wiring. The probes did not write, erase, or flash the device.
 
-### Boot blocker on the connected unit: GPIO46 held low
+### Boot mode of the connected unit: corrected diagnosis
 
-**Status: open hardware finding, confirmed by register reads on 2026-10-24. The connected unit does not boot the application from flash; it can only reach the ROM downloader.**
+**Status: resolved on 2026-10-24. The unit boots the application from the SPI flash. The earlier "GPIO46 held low" finding of this file was a misdiagnosis and has been withdrawn: there is no external pull-down on GPIO46, and GPIO46 does not select the boot mode on its own.**
 
-The ESP32-S3 samples three strapping pins at reset. GPIO0 selects the boot mode, and **GPIO46 enables SPI boot**: with GPIO46 low the ROM has no valid boot source and falls back to the download mode (`boot:0x0 (DOWNLOAD(USB/UART0))`).
+The ESP32-S3 samples its strapping pins at reset. The datasheet (section 2.6, table 2-11) defines the boot mode as:
 
-The connected unit was measured through the flasher stub, which can read the GPIO registers without disturbing the running firmware:
+| Boot mode | GPIO0 | GPIO46 |
+|---|---|---|
+| SPI Boot (default) | 1 | any value |
+| Joint Download Boot | 0 | 0 |
+| Invalid combination | 0 | 1 |
 
-| Register | Address | Value | Reading |
-|---|---|---|---|
-| `GPIO_IN` (GPIO0–31) | `0x6000403C` | `0x3C000001` | bit 0 set → **GPIO0 (BOOT) is high** |
-| `GPIO_IN1` (GPIO32–48) | `0x60004040` | `0x00001180` | bit 14 clear → **GPIO46 is low** |
-| `GPIO_OUT1` | `0x60004010` | `0x00000100` | GPIO46 not driven |
-| `GPIO_ENABLE1` | `0x6000402C` | `0x000001C0` | GPIO46 output not enabled |
+Two facts follow, and both contradict the previous reading of this file.
 
-The BOOT button was released and the board was physically reset during this investigation, and GPIO0 confirmed high afterwards, so the download-mode fallback is not caused by BOOT.
+**1. GPIO46 low does not block the SPI boot.** SPI Boot only requires GPIO0 = 1; the value of GPIO46 is irrelevant in that combination. The unit reads GPIO46 low because the chip itself pulls the pad down: table 2-9 of the datasheet gives GPIO0 a pull-up (bit 1) and GPIO45 and GPIO46 a pull-down (bit 0) at reset, so a floating GPIO46 reads 0 by design.
 
-Driving GPIO46 from software did not move the strap. With `GPIO_OUT1` bit 14 and `GPIO_ENABLE1` bit 14 both set (output enabled and driven high) and the internal pull-up enabled, `GPIO_IN1` bit 14 still read low, so the pad is held down by something outside the GPIO peripheral's influence. The registers also did not survive the reset that follows each flasher connection, so the strap cannot be forced high across a reset from the host either.
+| Measurement | Value | Reading |
+|---|---|---|
+| `IO_MUX_GPIO46_REG` (`0x600090BC`) after reset | `0x00000a80` | `FUN_PD` (bit 7) set: the pad is held low by the chip's own internal pull-down, not by the carrier |
+| `IO_MUX_GPIO46_REG` with `FUN_PD` cleared | `0x00000280` | `GPIO_IN1` bit 14 reads 1: the pad floats high, so **there is no external pull-down** on the carrier |
+| `GPIO_OUT1`/`GPIO_ENABLE1` bit 14 driven high | `GPIO_IN1` bit 14 = 1 | The pad follows the GPIO driver, so nothing outside the GPIO peripheral holds it down |
 
-Consequences:
+The earlier conclusion ("the pad is held down by something outside the GPIO peripheral's influence") came from reading `GPIO_IN1` while the internal pull-down was still enabled. That read says nothing about the carrier.
 
-- The gateway firmware and the on-device Unity app can be **flashed but not executed** on this unit. Every reset lands in the ROM downloader.
-- The ESP-NOW radio path, the MQTT session and the display chain therefore cannot be validated on this unit until the strap is released in hardware.
-- The gateway's portable logic is covered by the host test runner in `tools/host-tests/` in the meantime (see `docs/sparkplug_3.0.0-measurements.md`).
+**2. What really forced the ROM downloader was the reset, not the strap.** The USB-Serial/JTAG peripheral of the ESP32-S3 maps DTR to IO0 and RTS to EN:
 
-Next step: identify what pulls GPIO46 down on the carrier (a carrier-side pull-down, a jumper, or a module-level connection) and either remove it or pull GPIO46 high. Until then, do not treat this unit as a valid boot target and do not draw conclusions about the firmware from it.
+- The *connection* reset of esptool (`--before default_reset`, the `USBJTAGSerialReset` sequence) asserts DTR, so IO0 goes low and the chip is sampled in Joint Download Boot (GPIO0 = 0, GPIO46 = 0). Every diagnostic that opened a ROM session kept the unit in the downloader.
+- `idf.py flash` ends with `--after hard_reset`, which pulses RTS only and leaves DTR deasserted, so IO0 stays high and the chip boots the application (GPIO0 = 1).
+
+Consequence: **flashing the board is enough to run it.** Measured on the connected unit:
+
+| Step | Observed result |
+|---|---|
+| `idf.py -p /dev/ttyACM0 flash` | Ends with `Hard resetting via RTS pin`; the application then boots from flash on its own |
+| Boot reason | `rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)` |
+| ROM downloader | Only entered when a host tool connects with esptool's default reset |
+| `idf.py monitor` | Same RTS-only reset, so the monitor also reaches the application |
+
+`tools/board/boot_from_flash.py` reproduces the reset of the ESP-IDF monitor (an RTS pulse with DTR deasserted) and captures the console over the native USB port. It is the tool to use when the board has to be restarted without a host-side downloader session, for example after a power cut.
+
+**Do not drive GPIO46 high from the host.** The only invalid strapping combination is GPIO0 = 0 with GPIO46 = 1, and a host that forces GPIO46 high while it holds the chip in the downloader lands exactly in that combination.
+
+### Two defects the on-device run uncovered
+
+Running the firmware on the unit was possible only after the boot diagnosis above, and it immediately exposed two defects that the host test runner could not see.
+
+**The main task stack overflowed.** `app_main()` calls `nvs_config_init()`, which calls `nvs_flash_init()`. The NVS driver needs more stack than the 3584-byte default of `CONFIG_ESP_MAIN_TASK_STACK_SIZE`, and the run aborted with:
+
+```text
+***ERROR*** A stack overflow in task main has been detected.
+```
+
+The on-device Unity project now runs with `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192` and reports the measured headroom after the run: **656 B free of 8192 B**, so the peak consumption of the main task is 7536 B. The gateway carries the same setting, because it makes the same call from the same task.
+
+**Three NVS keys were longer than NVS allows.** NVS answers a key longer than 15 characters with `ESP_ERR_NVS_KEY_TOO_LONG`, and the gateway used `mqtt_edge_node_id` (18), `mqtt_keepalive_sec` (19) and `mqtt_ddeath_timeout_sec` (23). The configuration load therefore failed on the target with:
+
+```text
+E (1468) gateway: MQTT bridge start failed: ESP_ERR_NVS_KEY_TOO_LONG
+```
+
+and no MQTT session was ever established. The keys are now `mqtt_edge_id`, `mqtt_keepalive` and `mqtt_ddeath_sec`, they live in `components/sparkplug_b/include/sparkplug_b_nvs.h`, and `components/sparkplug_b/test/test_nvs.c` fails the build if any key of the namespace exceeds the limit.
 
 ### Candidate carrier mechanical drawing (provisional)
 

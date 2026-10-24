@@ -74,7 +74,7 @@ se declara el rango Custom entero por adelantado.
 
 ## Política de expiración (DDEATH)
 
-Un Device pasa a `STALE` cuando no reporta durante `mqtt_ddeath_timeout_sec`
+Un Device pasa a `STALE` cuando no reporta durante `mqtt_ddeath_sec`
 (NVS, por defecto 1800 s). El gateway publica entonces un DDEATH con el `seq`
 global y la métrica `bdSeq` de la sesión. La comprobación corre cada segundo
 en el task de sesión. Un comando inválido **no** genera DDEATH: el nodo sigue
@@ -157,25 +157,42 @@ desviaciones reales del gateway, corregidas en `33b1210`:
 El registro se quedó 1.760 B más pequeño de rebote: el componente pasó de
 12.424 B a 9.544 B de DRAM.
 
-### Bloqueador de hardware: GPIO46
-La unidad conectada **no arranca desde flash**. `GPIO_IN1` (bit 14) lee 0:
-GPIO46 está a masa, y en el ESP32-S3 eso deshabilita el arranque SPI, así que
-el ROM solo ofrece el downloader (`boot:0x0 (DOWNLOAD(USB/UART0))`). GPIO0 se
-midió alto, o sea que BOOT no es la causa. El detalle y la evidencia están en
+### Arranque en la placa: diagnóstico corregido
+El diagnóstico anterior ("GPIO46 a masa bloquea el arranque SPI") **era
+incorrecto y queda retirado**. El datasheet del ESP32-S3 (tabla 2-11) dice que
+el modo SPI Boot solo exige GPIO0 = 1 y que el valor de GPIO46 es irrelevante
+en esa combinación; el pull-down que se medía es el **interno del propio chip**
+(tabla 2-9), no uno del carrier. Lo que forzaba el downloader era el reset de
+*conexión* de esptool, que afirma DTR → IO0 a masa.
+
+Consecuencia: la unidad **sí arranca desde flash** (`rst:0x15
+(USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)`) y `idf.py flash` ya
+basta para ejecutarla. El detalle y la evidencia están en
 `docs/hardware/esp32-s3-wroom-1-n16r8.md`.
 
-Consecuencia: el runner on-device no se pudo ejecutar. La verificación se hizo
-con el **host runner** `tools/host-tests/`, que compila los **mismos** ficheros
-de test Unity contra los **mismos** fuentes del componente.
+### Dos defectos que solo aparecieron al ejecutar en la placa
+- **Desbordamiento de stack del task `main`**: `app_main()` llama a
+  `nvs_flash_init()`, que no cabe en los 3.584 B por defecto
+  (`CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`). Con el default, la ejecución
+  abortaba con `A stack overflow in task main has been detected`. El headroom
+  medido tras la ejecución es de 656 B sobre 8.192 B.
+- **Tres claves NVS de más de 15 caracteres**: `mqtt_edge_node_id` (18),
+  `mqtt_keepalive_sec` (19) y `mqtt_ddeath_timeout_sec` (23)hacían fallar
+  toda la carga de configuración con `ESP_ERR_NVS_KEY_TOO_LONG`, así que el
+  gateway no llegaba a abrir sesión MQTT. Ahora las claves viven en
+  `components/sparkplug_b/include/sparkplug_b_nvs.h` (`mqtt_edge_id`,
+  `mqtt_keepalive`, `mqtt_ddeath_sec`) y `test/test_nvs.c` falla si alguna no
+  cabe.
 
 ### Host runner `tools/host-tests/`
 - Compila `firmware/gateway/components/sparkplug_b/test/*.c` (los mismos
   ficheros que el proyecto de test on-device) contra los fuentes reales del
   componente, con shims mínimos de ESP-IDF en `tools/host-tests/shims/`.
-- Resultado actual: **44 tests, 0 failures**, exit 0.
+- Resultado actual: **46 tests, 0 failures**, exit 0.
 - Cubre: codec Protobuf (round-trip, datatype por métrica, tipo de cable por
   brazo), parseo NCMD/DCMD, traducción a ESP-NOW, registro y expiración de
-  Devices, replay de birth, `seq`/`bdSeq`, y el bridge ESP-NOW → Sparkplug.
+  Devices, replay de birth, `seq`/`bdSeq`, el bridge ESP-NOW → Sparkplug y la
+  longitud de las claves NVS.
 - No cubre: la sesión MQTT (depende del cliente ESP-IDF) y la radio. Eso lo
   cubre el harness de conformidad.
 
@@ -189,7 +206,9 @@ de test Unity contra los **mismos** fuentes del componente.
   afirmar el NDEATH de verdad.
 - Modos: `simulate` (publica una secuencia conforme y la verifica) y
   `observe` (verifica lo que publica un gateway real; con `--expect-ndata`,
-  `--expect-ddeath` y `--expect-rebirth`).
+  `--expect-ddeath`, `--expect-rebirth` y `--no-expect-device` para un
+  gateway que todavía no ha descubierto ningún nodo sensor y por tanto no
+  puede publicar DBIRTH/DDATA).
 - Verificado en esta máquina: `SPARKPLUG_BROKER_HOST_PORT=18830 bash
   tools/sparkplug-conformance/scripts/run-conformance.sh` → **82 checks, 82
   passed, exit 0**. `MODE=observe` sin publisher → exit 2 con mensaje claro.
@@ -214,17 +233,35 @@ de test Unity contra los **mismos** fuentes del componente.
   - unicidad de alias en el conjunto completo de métricas del EoN-Node.
 
 ### Medición (commit 11)
-Ver `docs/sparkplug_3.0.0-measurements.md`. Resumen:
+Ver `docs/sparkplug_3.0.0-measurements.md`. Resumen (ESP-IDF v5.4, target
+`esp32s3`, stack de `main` de 8.192 B y console secundario USB):
 
-| Configuración | `gateway.bin` | DRAM | Libre en slot OTA 3 MiB |
+| Configuración | `gateway.bin` | DIRAM | Libre en slot OTA 3 MiB |
 |---|---:|---:|---:|
-| Sparkplug OFF (default) | 830,000 B | 33,604 B (18.59 %) | 74 % |
-| Sparkplug ON | 1,050,128 B | 44,756 B (24.76 %) | 67 % |
+| Sparkplug OFF (default) | 779,168 B | 112,183 B (32.83 %) | 75 % |
+| Sparkplug ON | 1,001,040 B | 123,651 B (36.18 %) | 68 % |
 
-`libsparkplug_b.a`: 18,956 B totales, 9,544 B de DRAM, 8,224 B de código
+`libsparkplug_b.a`: 19,025 B totales, 9,544 B de DRAM, 8,293 B de código
 flash. La medición destapó 24,576 B de DRAM que se pagaban en **todas** las
 builds por tres buffers PEM de TLS estáticos, aunque la conexión fuese en
 claro; ahora se asignan solo cuando TLS está activo.
+
+La IRAM queda al 99.99 % en **ambas** configuraciones (el driver Wi-Fi y el
+console USB la llenan), así que no es el coste de Sparkplug B, pero deja un
+byte de margen: hay que tenerlo en cuenta antes de añadir más código al
+gateway.
+
+### Ejecución on-device (2026-10-24)
+- El proyecto de test on-device corre los **mismos** ficheros Unity que el host
+  runner: **81 tests, 0 failures, 0 ignored**, `OK`.
+- Con `CONFIG_UNITY_ENABLE_64BIT=y` (las aserciones de `seq`, `bdSeq` y
+  timestamps son de 64 bits) y `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192`.
+- Headroom del stack de `main` tras la ejecución: 656 B de 8.192 B.
+- El gateway con `CONFIG_SPARKPLUG_B_ENABLED=y` arranca, levanta su AP
+  (`IIoT-Gateway`, 192.168.4.1) y abre la tarea de sesión:
+  `Sparkplug B session task started (group=iiot-kit edge=GW-TEST01)`.
+- Pendiente: la sesión MQTT llega al broker cuando el host entra en la AP de
+  la placa; hasta entonces el gateway está en su backoff de reconexión.
 
 ## Baseline (ODD-Ta, 2026-10-05)
 

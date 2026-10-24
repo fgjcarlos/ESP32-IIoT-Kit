@@ -28,43 +28,57 @@ feature costs.
 
 ## Image size
 
-| Configuration | `gateway.bin` | Total image | Free in the 3 MiB OTA slot |
-|---|---:|---:|---:|
-| Sparkplug B off (default) | 830,000 B | 830,256 B | 74 % |
-| Sparkplug B on | 1,050,128 B | 1,050,384 B | 67 % |
-| **Delta** | **+220,128 B** | **+220,128 B** | |
+Measured with the build of 2026-10-24: ESP-IDF v5.4, target `esp32s3`,
+`CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192` and the secondary USB-Serial/JTAG
+console that ESP-IDF enables by default on this target.
+
+| Configuration | `gateway.bin` | Free in the 3 MiB OTA slot |
+|---|---:|---:|
+| Sparkplug B off (default) | 779,168 B | 75 % |
+| Sparkplug B on | 1,001,040 B | 68 % |
+| **Delta** | **+221,872 B** | |
+
+The delta comes mostly from the TLS stack that the MQTT transport pulls in
+(`libmbedtls.a` 101,259 B, `libmqtt.a` 16,030 B), not
+by the Sparkplug code itself.
 
 The delta is dominated by the TLS stack that the MQTT client needs
-(`libmbedtls.a` 101,938 B, `libmqtt.a` 15,038 B, `libesp-tls.a` 6,467 B), not
+(`libmbedtls.a` 101,259 B, `libmqtt.a` 16,030 B), not
 by the Sparkplug code itself.
 
 ## Memory summary, Sparkplug B on
 
+ESP-IDF v5.4 reports the internal RAM of this target as `DIRAM` (data, bss and
+the IRAM text) plus `IRAM` (the 16 KB instruction RAM) separately:
+
 | Memory type | Used | Used % | Remain | Total |
 |---|---:|---:|---:|---:|
-| Flash Code | 686,933 | | | |
-| Flash Data | 233,884 | | | |
-| IRAM | 112,670 | 85.96 % | 18,402 | 131,072 |
-| DRAM | 44,756 | 24.76 % | 135,980 | 180,736 |
-| RTC FAST | 28 | 0.34 % | 8,164 | 8,192 |
-| RTC SLOW | 24 | 0.29 % | 8,168 | 8,192 |
+| Flash Code | 665,462 | | | |
+| Flash Data | 222,024 | | | |
+| DIRAM | 123,651 | 36.18 % | 218,109 | 341,760 |
+| IRAM | 16,383 | 99.99 % | 1 | 16,384 |
+| RTC FAST | 52 | 0.63 % | 8,140 | 8,192 |
 
-With the feature off, DRAM drops to 33,604 B (18.59 %), so the Sparkplug
-integration costs **11,152 B of static DRAM**.
+With the feature off, DIRAM drops to 112,183 B (32.83 %), so the Sparkplug
+integration costs **11,468 B of static DIRAM**.
+
+The IRAM is at 99.99 % in **both** configurations, so it is not caused by the
+Sparkplug integration: the Wi-Fi driver and the secondary USB-Serial/JTAG
+console fill it. It leaves one byte of headroom, which is worth keeping in
+mind before adding more code to the gateway.
 
 ## The Sparkplug component itself
 
 ```
-libsparkplug_b.a   Total 18,956 B   DRAM 9,544 B (.bss)   Flash code 8,224 B   Flash data 1,188 B
+libsparkplug_b.a   Total 19,025 B   DRAM 9,544 B (.bss)   Flash code 8,293 B   Flash data 1,188 B
 ```
 
 | Archive | Total | DRAM | Flash code | Flash data |
 |---|---:|---:|---:|---:|
-| `libsparkplug_b.a` | 18,956 | 9,544 | 8,224 | 1,188 |
-| `libmqtt.a` | 15,038 | 0 | 14,704 | 334 |
-| `libesp-tls.a` | 6,467 | 4 | 6,371 | 92 |
-| `libmbedtls.a` | 101,938 | 270 | 29,466 | 72,202 |
-| `libprotocol.a` | 246 | 0 | 246 | 0 |
+| `libsparkplug_b.a` | 19,025 | 9,544 | 8,293 | 1,188 |
+| `libmqtt.a` | 16,030 | 0 | 15,696 | 334 |
+| `libmbedtls.a` | 101,259 | 270 | 28,787 | 72,202 |
+| `libprotocol.a` | 247 | 0 | 247 | 0 |
 
 ### What the 9,544 B of DRAM is
 
@@ -86,40 +100,62 @@ the registry 1,760 B smaller than the byte-buffer version it replaced.
 The first implementation kept the TLS material in three static buffers of
 8,192 B each. That alone cost **24,576 B of DRAM in every build**, including
 the plaintext deployments that never touch them, and it pushed the Sparkplug
-component to 36,988 B of DRAM and the image to 72,196 B of total DRAM
-(39.95 %).
+component to 36,988 B of DRAM.
 
 The buffers are now allocated on demand, only when the broker connection
-actually uses TLS, and released on stop. The measured effect:
+actually uses TLS, and released on stop. The measured effect on the component:
 
 | | Before | After | Saved |
 |---|---:|---:|---:|
 | `libsparkplug_b.a` DRAM | 36,988 B | 9,544 B | 27,444 B |
-| Total DRAM | 72,196 B (39.95 %) | 44,756 B (24.76 %) | 27,440 B |
-| Flash | 1,049,543 B | 1,050,384 B | +841 B |
+| Static TLS buffers in DRAM | 24,576 B | 0 B | 24,576 B |
+
+The rows of the table above that used to quote the total DRAM of the gateway
+were measured on an earlier baseline (a build without the secondary
+USB-Serial/JTAG console and with the 3584-byte main task), so they are not
+comparable with the current figures. The current baseline is the DIRAM row of
+the memory summary, and the current image size is the one of the image size
+table.
 
 ## Test image
 
 | Configuration | `gateway_test.bin` | Free in the 1.5 MiB factory partition |
 |---|---:|---:|
-| Unity test project | 817,536 B | 48 % |
+| Unity test project | 823,488 B | 48 % |
 
 ## Runtime heap
 
-**Not measured.** The issue asks for the heap consumption on device, and the
-connected unit cannot run the firmware, so there is no measurement to report.
-The numbers above are static allocation from the linker map; the runtime heap
-after the MQTT session, the TLS handshake and the display chain are still
-open.
+**Measured on the connected unit on 2026-10-24.** The on-device Unity project
+reports the free heap before it allocates the RGB565 framebuffer-sized block:
 
-What is needed to close it, once the GPIO46 strap is fixed:
+| Measurement | Result |
+|---|---:|
+| Free internal heap | 311,967 bytes |
+| Free PSRAM | 8,386,148 bytes |
+| Largest PSRAM block | 8,257,536 bytes |
+| Main task stack headroom after the run | 656 bytes of 8192 |
 
-```bash
-idf.py -p /dev/ttyACM0 flash monitor
-```
+These values come from the Unity test application, not from the full gateway
+firmware: the gateway adds the MQTT session, the TLS material and the display
+chain on top of them. The heap **after an established MQTT session** is still
+open, because the session needs a broker that the board can reach.
 
-and read the `heap_caps_get_free_size` / `esp_get_free_heap_size` values from
-the boot log, with and without an established MQTT session.
+## On-device evidence
+
+The connected ESP32-S3 now boots the firmware and runs the tests. What the
+board reported:
+
+| Observation | Result |
+|---|---|
+| Boot reason after `idf.py flash` | `rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)` |
+| Unity run on the board | `81 Tests 0 Failures 0 Ignored`, `OK` |
+| Sparkplug session task | `Sparkplug B session task started (group=iiot-kit edge=GW-TEST01)` |
+| Broker reachable from the board | Not yet: the board has no STA credentials, so it reaches the broker through its own AP |
+
+The last row is the open item: the gateway has no Wi-Fi credentials on this
+unit, so the MQTT session stays in its reconnect backoff until the host joins
+the access point of the board (`IIoT-Gateway`) and the broker is reachable at
+`192.168.4.2:18830`.
 
 ## Reproducing
 
@@ -136,6 +172,8 @@ For the feature-off baseline, set `CONFIG_SPARKPLUG_B_ENABLED` to `n` in
 ## Related
 
 - `tools/host-tests/` — runs the same Unity test files natively on the host.
-  Current result: **44 tests, 0 failures**.
+  Current result: **46 tests, 0 failures**.
 - `tools/sparkplug-conformance/` — Sparkplug B conformance harness against a
   real Mosquitto broker.
+- `tools/board/boot_from_flash.py` — restarts the board with the reset of the
+  ESP-IDF monitor and captures its console over the native USB port.
