@@ -1,0 +1,12 @@
+# Sparkplug B conformance harness — Host Application simulator.
+#
+# The pins below are chosen so the generated Protobuf bindings are reproducible:
+# grpcio-tools bundles the protoc compiler, and its protobuf runtime bound must
+# agree with the `protobuf` pin or the generated module refuses to import.
+#
+# All three packages are public PyPI releases; nothing here is private or
+# vendored, so the harness builds from a stock base image with no credentials.
+
+grpcio-tools==1.62.2
+protobuf==4.25.3
+paho-mqtt==2.1.0

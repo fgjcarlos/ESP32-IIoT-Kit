@@ -1,0 +1,71 @@
+# Sparkplug B conformance harness — throwaway broker + Host Application client.
+#
+# =============================================================================
+#  TEST / DEVELOPMENT ONLY.  The broker has no authentication and no TLS.
+#  Never expose this stack to an untrusted network.
+# =============================================================================
+#
+# Usage:
+#   bash scripts/run-conformance.sh              # simulate mode (default)
+#   MODE=observe bash scripts/run-conformance.sh # assert a real gateway
+#
+# Every setting below can be overridden from the environment, e.g.
+#   SPARKPLUG_GROUP_ID=my-group MODE=observe bash scripts/run-conformance.sh
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.0
+    container_name: sparkplug-conformance-broker
+    # Run as the image's own mosquitto user. The upstream entrypoint only
+    # chowns /mosquitto when it runs as root, and that chown cannot succeed on
+    # a read-only config mount; running unprivileged skips it and keeps the
+    # broker log clean.
+    user: "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      # Published on the host so a physical ESP32-S3 gateway can reach the
+      # same broker the container client uses. The host side is overridable
+      # because port 1883 is often already taken by another broker on a
+      # developer machine; the container-internal port never changes.
+      - "${SPARKPLUG_BROKER_HOST_PORT:-1883}:1883"
+    healthcheck:
+      # A QoS 1 publish waits for the PUBACK, so this proves the broker is
+      # not merely listening but actually accepting traffic.
+      test:
+        - "CMD-SHELL"
+        - "mosquitto_pub -h 127.0.0.1 -p 1883 -t 'sparkplug-conformance/healthcheck' -m 'ping' -q 1 >/dev/null 2>&1 || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 3s
+    restart: "no"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: sparkplug-conformance-client
+    depends_on:
+      broker:
+        # Waiting for a healthcheck is deterministic; a fixed sleep is not.
+        condition: service_healthy
+    environment:
+      SPARKPLUG_BROKER_URI: "${SPARKPLUG_BROKER_URI:-mqtt://broker:1883}"
+      SPARKPLUG_GROUP_ID: "${SPARKPLUG_GROUP_ID:-iiot-kit}"
+      SPARKPLUG_EDGE_NODE_ID: "${SPARKPLUG_EDGE_NODE_ID:-GW-TEST01}"
+      SPARKPLUG_DEVICE_ID: "${SPARKPLUG_DEVICE_ID:-DEV-TEST01}"
+      MODE: "${MODE:-simulate}"
+      SPARKPLUG_TIMEOUT: "${SPARKPLUG_TIMEOUT:-30}"
+      # Optional extra expectations of the observe mode. The CLI flags
+      # --expect-ndata, --expect-ddeath and --expect-rebirth are also
+      # available when the client is run outside Compose.
+      SPARKPLUG_EXPECT_NDATA: "${SPARKPLUG_EXPECT_NDATA:-0}"
+      SPARKPLUG_EXPECT_DDEATH: "${SPARKPLUG_EXPECT_DDEATH:-0}"
+      SPARKPLUG_EXPECT_REBIRTH: "${SPARKPLUG_EXPECT_REBIRTH:-0}"
+    extra_hosts:
+      # Lets the container reach a broker running on the host machine, which
+      # is what real-gateway mode needs when the gateway points at a broker
+      # published on the host (mqtt://host.docker.internal:1883).
+      - "host.docker.internal:host-gateway"
+    restart: "no"
