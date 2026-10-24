@@ -125,30 +125,47 @@ Estados por Device (uno por nodo ESP-NOW conocido):
 
 ### 3.4 Manejo de `seq` y `bdSeq`
 
-- `seq`: uint64 de Sparkplug payload. Incrementa por mensaje (NBIRTH, NDATA, DBIRTH, DDATA, NCMD-out, DCMD-out). Wrap a 0 en 2^32-1 (no, la spec dice 0..255 wrap en el transport layer; usamos uint64 para evitar truncar). Ver spec 6.4.3.
+- `seq`: uint64 de Sparkplug payload. Hay **un único espacio de secuencia por
+  EoN-Node**: el nodo y sus Devices lo comparten, y cada mensaje posterior a un
+  NBIRTH lleva el anterior + 1, envolviendo 255→0
+  (`tck-id-payloads-sequence-num-incrementing`). Un NBIRTH abre un espacio
+  nuevo con su propio `seq` ∈ [0,255]. La NDEATH es la única excepción: no
+  lleva `seq` (`tck-id-topics-ndeath-seq`).
 - `bdSeq`: uint64. Incrementa **solo** cuando el EoN-Node se reconecta tras una desconexión y republica NBIRTH. En reconnect normal sin pérdida de sesión, no incrementa.
 - Ambos persistidos en NVS para sobrevivir reset del gateway. `bdSeq` solo se persiste tras un NBIRTH exitoso.
 
 ### 3.5 Mapeo ESP-NOW → Sparkplug
 
-`MSG_TYPE_DATA` (ESP-NOW, 37 bytes) → `DDATA` (Sparkplug, Protobuf):
+`MSG_TYPE_DATA` (ESP-NOW, 37 bytes) → `DDATA` (Sparkplug, Protobuf). El DDATA
+lleva **solo el alias** de cada métrica: el nombre se liga en el DBIRTH
+(`tck-id-payloads-alias-data-cmd-requirement`).
 
 | Campo ESP-NOW | Métrica Sparkplug | Tipo Sparkplug | Alias |
 |---------------|-------------------|----------------|-------|
-| `sensor_type = TEMPERATURE` (0x01) | `Inputs/Temperature` | Double | 0 |
-| `sensor_type = PH` (0x02) | `Inputs/Ph` | Double | 1 |
-| `sensor_type = DO` (0x03) | `Inputs/DissolvedOxygen` | Double | 2 |
-| `sensor_type = ORP` (0x04) | `Inputs/Orp` | Double | 3 |
-| `sensor_type = LEVEL` (0x05) | `Inputs/Level` | Double | 4 |
-| `sensor_type = TURBIDITY` (0x06) | `Inputs/Turbidity` | Double | 5 |
-| `sensor_type = CUSTOM` (0xFF) | `Inputs/Custom/0..3` | Double × N | 6..9 |
-| `uptime_ms` | `Diagnostics/UptimeMs` | Int64 | 10 |
-| `battery_pct` (≠ 0xFF) | `Diagnostics/BatteryPercent` | Float | 11 |
-| `rssi_last` | `Diagnostics/RssiLast` | Int8 | 12 |
+| `sensor_type = TEMPERATURE` (0x01) | `Inputs/Temperature` | Double | 1 |
+| `sensor_type = PH` (0x02) | `Inputs/Ph` | Double | 2 |
+| `sensor_type = DO` (0x03) | `Inputs/DissolvedOxygen` | Double | 3 |
+| `sensor_type = ORP` (0x04) | `Inputs/Orp` | Double | 4 |
+| `sensor_type = LEVEL` (0x05) | `Inputs/Level` | Double | 5 |
+| `sensor_type = TURBIDITY` (0x06) | `Inputs/Turbidity` | Double | 6 |
+| `sensor_type = CUSTOM` (0xFF) | `Inputs/Custom/0..3` | Double × N | 7..10 |
+| `uptime_ms` | `Diagnostics/UptimeMs` | Int64 | 14 |
+| `battery_pct` (≠ 0xFF) | `Diagnostics/BatteryPercent` | Float | 12 |
+| `rssi_last` | `Diagnostics/RssiLast` | Int8 | 13 |
 
-Aliases asignados en orden creciente en NBIRTH (alias 0 reservado según spec v3.0.0).
+El alias 0 queda reservado según la spec v3.0.0. El alias 11
+(`Inputs/UptimeMs`) es **exclusivo del EoN-Node** y se publica en el NBIRTH:
+Sparkplug B v3.0.0 exige que cada alias sea único en el conjunto completo de
+métricas de un EoN-Node (`tck-id-payloads-alias-uniqueness`), así que las
+métricas de los Devices ocupan un rango disjunto (1..10 y 12..15).
 
-`MSG_TYPE_DISCOVERY` (ESP-NOW) → publica DBIRTH con métricas idénticas + `Properties/HwVersion` y `Properties/FwVersion`.
+`MSG_TYPE_DISCOVERY` (ESP-NOW) → publica el DBIRTH con el **juego completo**
+de métricas del Device: la métrica tipada (o `Inputs/Custom/0` si el tipo de
+sensor es desconocido), los cuatro slots `Inputs/Custom/0..3`, las tres
+diagnósticas y la propiedad `Properties/SleepIntervalSec` (alias 15). El frame
+de discovery no lleva el número de valores del sensor, así que se declara el
+rango Custom entero por adelantado: todo alias que el DDATA pueda publicar
+después queda ligado a un nombre y un Host lo puede resolver.
 
 ### 3.6 Traducción NCMD/DCMD → ESP-NOW
 

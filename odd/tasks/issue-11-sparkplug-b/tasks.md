@@ -30,12 +30,16 @@ Los requirement ids citados abajo son los de esa especificación.
 
 | Mensaje | Topic | Payload | QoS / retain |
 |---|---|---|---|
-| NBIRTH | `spBv1.0/{group}/NBIRTH/{edge}` | `timestamp`, `seq=0`, métrica `bdSeq` (INT64, sin alias), métrica `Node Control/Rebirth` (Boolean `false`, sin alias), `Inputs/UptimeMs` | 0 / false |
-| DBIRTH | `spBv1.0/{group}/DBIRTH/{edge}/{device}` | `timestamp`, `seq` = anterior + 1 (envuelve 255→0), métricas con nombre + alias | 0 / false |
-| DDATA | `spBv1.0/{group}/DDATA/{edge}/{device}` | `timestamp`, `seq` = anterior + 1, métricas de alias | 0 / false |
-| NDATA | `spBv1.0/{group}/NDATA/{edge}` | `timestamp`, `seq` = anterior + 1, `Inputs/UptimeMs` | 0 / false |
+| NBIRTH | `spBv1.0/{group}/NBIRTH/{edge}` | `timestamp`, `seq` ∈ [0,255], métrica `bdSeq` (INT64, sin alias), métrica `Node Control/Rebirth` (Boolean `false`, sin alias), `Inputs/UptimeMs` (alias 11) | 0 / false |
+| DBIRTH | `spBv1.0/{group}/DBIRTH/{edge}/{device}` | `timestamp`, `seq` = anterior + 1 (envuelve 255→0), métricas con nombre + alias (el juego completo de métricas del Device) | 0 / false |
+| DDATA | `spBv1.0/{group}/DDATA/{edge}/{device}` | `timestamp`, `seq` = anterior + 1, métricas **solo con alias** (el nombre va excluido) | 0 / false |
+| NDATA | `spBv1.0/{group}/NDATA/{edge}` | `timestamp`, `seq` = anterior + 1, `Inputs/UptimeMs` (alias 11, sin nombre) | 0 / false |
 | NDEATH | `spBv1.0/{group}/NDEATH/{edge}` | Will: **solo** la métrica `bdSeq` (INT64), **sin** `seq` | 1 / false |
 | DDEATH | `spBv1.0/{group}/DDEATH/{edge}/{device}` | `timestamp`, `seq` = anterior + 1, métrica `bdSeq` | 0 / false |
+
+El `seq` es un **único espacio por EoN-Node**: el nodo y sus Devices lo
+comparten, y cada mensaje posterior a un NBIRTH lleva el anterior + 1
+(`tck-id-payloads-sequence-num-incrementing`). Un NBIRTH abre un espacio nuevo.
 
 Comandos: NCMD y DCMD llevan un Payload Protobuf con `timestamp` y las
 métricas a escribir. La suscripción a NCMD se hace con **QoS 1**
@@ -45,6 +49,28 @@ Métricas de control implementadas: `Node Control/Rebirth` (Boolean),
 `Node Control/Reboot` (Boolean), `Device Control/Rebirth` (Boolean),
 `Device Control/Reboot` (Boolean), y una escritura numérica en DCMD que se
 traduce a `new_sleep_interval` del nodo.
+
+### Mapa de alias
+
+Sparkplug B v3.0.0 exige que cada alias sea único en el conjunto completo de
+métricas de un EoN-Node (`tck-id-payloads-alias-uniqueness`), así que las
+métricas del nodo y las de sus Devices ocupan rangos disjuntos:
+
+| Alias | Métrica | Tipo | Dónde |
+|---:|---|---|---|
+| 0 | reservado por la spec | | |
+| 1..6 | `Inputs/{Temperature,Ph,Do,Orp,Level,Turbidity}` | Double | DBIRTH/DDATA |
+| 7..10 | `Inputs/Custom/0..3` | Double | DBIRTH/DDATA |
+| 11 | `Inputs/UptimeMs` | Int64 | NBIRTH (uptime del nodo) |
+| 12 | `Diagnostics/BatteryPercent` | Float | DBIRTH/DDATA |
+| 13 | `Diagnostics/RssiLast` | Int8 | DBIRTH/DDATA |
+| 14 | `Diagnostics/UptimeMs` | Int64 | DBIRTH/DDATA (uptime del Device) |
+| 15 | `Properties/SleepIntervalSec` | Int64 | DBIRTH (propiedad del Device) |
+
+El DBIRTH declara el **juego completo** de métricas del Device, de modo que
+todo alias que el DDATA pueda publicar después quede ligado a un nombre. El
+frame de discovery ESP-NOW no lleva el número de valores del sensor, así que
+se declara el rango Custom entero por adelantado.
 
 ## Política de expiración (DDEATH)
 
@@ -107,6 +133,30 @@ detectaba porque solo comprobaban "payload no vacío":
 3. El `int_value` de Int8/UInt8 salía con el valor sin signo del tipo
    equivocado.
 
+### Commit 12 — desviaciones de conformidad detectadas por el harness
+Alinear el harness con las reglas normativas de la spec destapó tres
+desviaciones reales del gateway, corregidas en `33b1210`:
+
+1. **NDATA y DDATA llevaban el nombre de cada métrica.**
+   `tck-id-payloads-alias-data-cmd-requirement` dice que un mensaje de datos
+   MUST solo incluir el alias. Los nombres se quitan en el bridge y en el
+   publicador de NDATA.
+2. **El mapa de alias no era único en el EoN-Node.** El uptime del nodo usaba
+   el alias 11 con el nombre `Inputs/UptimeMs` y el uptime del Device usaba el
+   mismo alias con `Diagnostics/UptimeMs`, así que un Host no podía resolver
+   el alias 11. Ahora las métricas del Device van en su propio rango (14 para
+   el uptime, 15 para el intervalo de sleep) y el DBIRTH declara el juego
+   completo de métricas del Device, de modo que todo alias que un DDATA pueda
+   publicar queda ligado a un nombre.
+3. **Un rebirth republicaba el último DDATA como si fuera el DBIRTH**, con el
+   `seq` de la sesión anterior. El registro de Devices guarda ahora el juego
+   de métricas del birth en vez de los bytes codificados, y el DBIRTH se
+   reconstruye con un `seq` nuevo, como exige
+   `tck-id-payloads-dbirth-seq-inc`.
+
+El registro se quedó 1.760 B más pequeño de rebote: el componente pasó de
+12.424 B a 9.544 B de DRAM.
+
 ### Bloqueador de hardware: GPIO46
 La unidad conectada **no arranca desde flash**. `GPIO_IN1` (bit 14) lee 0:
 GPIO46 está a masa, y en el ESP32-S3 eso deshabilita el arranque SPI, así que
@@ -122,7 +172,7 @@ de test Unity contra los **mismos** fuentes del componente.
 - Compila `firmware/gateway/components/sparkplug_b/test/*.c` (los mismos
   ficheros que el proyecto de test on-device) contra los fuentes reales del
   componente, con shims mínimos de ESP-IDF en `tools/host-tests/shims/`.
-- Resultado actual: **38 tests, 0 failures**, exit 0.
+- Resultado actual: **44 tests, 0 failures**, exit 0.
 - Cubre: codec Protobuf (round-trip, datatype por métrica, tipo de cable por
   brazo), parseo NCMD/DCMD, traducción a ESP-NOW, registro y expiración de
   Devices, replay de birth, `seq`/`bdSeq`, y el bridge ESP-NOW → Sparkplug.
@@ -145,10 +195,10 @@ Ver `docs/sparkplug_3.0.0-measurements.md`. Resumen:
 
 | Configuración | `gateway.bin` | DRAM | Libre en slot OTA 3 MiB |
 |---|---:|---:|---:|
-| Sparkplug OFF (default) | 829,872 B | 33,604 B (18.59 %) | 74 % |
-| Sparkplug ON | 1,049,552 B | 47,636 B (26.36 %) | 67 % |
+| Sparkplug OFF (default) | 830,000 B | 33,604 B (18.59 %) | 74 % |
+| Sparkplug ON | 1,050,128 B | 44,756 B (24.76 %) | 67 % |
 
-`libsparkplug_b.a`: 21,533 B totales, 12,424 B de DRAM, 7,921 B de código
+`libsparkplug_b.a`: 18,956 B totales, 9,544 B de DRAM, 8,224 B de código
 flash. La medición destapó 24,576 B de DRAM que se pagaban en **todas** las
 builds por tres buffers PEM de TLS estáticos, aunque la conexión fuese en
 claro; ahora se asignan solo cuando TLS está activo.
