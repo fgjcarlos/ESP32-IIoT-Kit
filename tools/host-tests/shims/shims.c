@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "esp_system.h"
@@ -14,6 +15,16 @@ void esp_restart(void)
     fprintf(stderr, "esp_restart() called on the host: aborting\n");
     abort();
 }
+
+// --- embedded brand logo (issue #12) --------------------------------------
+//
+// On the device the build embeds the logo of the selected brand profile with
+// the symbol names below. The host build has no asset pipeline, so it
+// provides a 2x2 RGB565 placeholder with the very same symbols: the code
+// under test takes the same path in both places.
+const uint8_t _binary_brand_logo_start[] = {0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00};
+const uint32_t brand_logo_length = 8u;
 
 int64_t esp_timer_get_time(void)
 {

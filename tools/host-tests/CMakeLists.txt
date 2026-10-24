@@ -28,8 +28,9 @@ endif()
 set(UNITY_DIR ${IDF_ROOT}/components/unity)
 set(NANOPB_DIR ${REPO_ROOT}/firmware/gateway/managed_components/livekit__nanopb)
 set(SPARKPLUG_DIR ${REPO_ROOT}/firmware/gateway/components/sparkplug_b)
+set(BRAND_DIR ${REPO_ROOT}/firmware/gateway/components/brand_profile)
 
-foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR})
+foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR})
     if(NOT EXISTS ${required})
         message(FATAL_ERROR "Missing ${required}. Pass -DIDF_ROOT=<esp-idf checkout> if it is not in the default location.")
     endif()
@@ -60,12 +61,17 @@ add_executable(iot_host_tests
     ${SPARKPLUG_DIR}/src/sparkplug_b_espnow_bridge.c
     ${SPARKPLUG_DIR}/proto/sparkplug_b.pb.c
 
+    # The white-label layer: the portable rules and the ESP-IDF glue.
+    ${BRAND_DIR}/brand_profile.c
+    ${BRAND_DIR}/brand_profile_esp.c
+
     # The same test files the on-device test project runs.
     ${SPARKPLUG_DIR}/test/test_payload.c
     ${SPARKPLUG_DIR}/test/test_state.c
     ${SPARKPLUG_DIR}/test/test_nvs.c
     ${SPARKPLUG_DIR}/test/test_espnow_bridge.c
     ${SPARKPLUG_DIR}/test/test_cmd.c
+    ${BRAND_DIR}/test/test_brand_profile.c
 )
 
 target_include_directories(iot_host_tests PRIVATE
@@ -76,7 +82,12 @@ target_include_directories(iot_host_tests PRIVATE
     ${REPO_ROOT}/firmware/common/protocol
     ${SPARKPLUG_DIR}/include
     ${SPARKPLUG_DIR}/proto
+    ${BRAND_DIR}/include
 )
+
+# The device build embeds the logo of the selected profile; the host build
+# takes the same code path with the placeholder declared in shims/.
+target_compile_definitions(iot_host_tests PRIVATE BRAND_PROFILE_EMBEDDED_LOGO=1)
 
 target_compile_options(iot_host_tests PRIVATE -Wall -Wextra -Wno-unused-parameter)
 

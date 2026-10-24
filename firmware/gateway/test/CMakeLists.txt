@@ -68,5 +68,10 @@ if(sparkplug_b_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "sparkplug_b")
 endif()
 
+list(FIND TEST_COMPONENTS "brand_profile" brand_profile_test_component_index)
+if(brand_profile_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "brand_profile")
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(gateway_test)
