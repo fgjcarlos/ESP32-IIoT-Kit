@@ -94,6 +94,33 @@ A user-authorized esptool 4.12 probe of the connected board observed:
 
 These observations confirm the connected SoC and memory capacities, but do not independently identify the carrier model/revision or verify the display wiring. The probes did not write, erase, or flash the device.
 
+### Boot blocker on the connected unit: GPIO46 held low
+
+**Status: open hardware finding, confirmed by register reads on 2026-10-24. The connected unit does not boot the application from flash; it can only reach the ROM downloader.**
+
+The ESP32-S3 samples three strapping pins at reset. GPIO0 selects the boot mode, and **GPIO46 enables SPI boot**: with GPIO46 low the ROM has no valid boot source and falls back to the download mode (`boot:0x0 (DOWNLOAD(USB/UART0))`).
+
+The connected unit was measured through the flasher stub, which can read the GPIO registers without disturbing the running firmware:
+
+| Register | Address | Value | Reading |
+|---|---|---|---|
+| `GPIO_IN` (GPIO0–31) | `0x6000403C` | `0x3C000001` | bit 0 set → **GPIO0 (BOOT) is high** |
+| `GPIO_IN1` (GPIO32–48) | `0x60004040` | `0x00001180` | bit 14 clear → **GPIO46 is low** |
+| `GPIO_OUT1` | `0x60004010` | `0x00000100` | GPIO46 not driven |
+| `GPIO_ENABLE1` | `0x6000402C` | `0x000001C0` | GPIO46 output not enabled |
+
+The BOOT button was released and the board was physically reset during this investigation, and GPIO0 confirmed high afterwards, so the download-mode fallback is not caused by BOOT.
+
+Driving GPIO46 from software did not move the strap. With `GPIO_OUT1` bit 14 and `GPIO_ENABLE1` bit 14 both set (output enabled and driven high) and the internal pull-up enabled, `GPIO_IN1` bit 14 still read low, so the pad is held down by something outside the GPIO peripheral's influence. The registers also did not survive the reset that follows each flasher connection, so the strap cannot be forced high across a reset from the host either.
+
+Consequences:
+
+- The gateway firmware and the on-device Unity app can be **flashed but not executed** on this unit. Every reset lands in the ROM downloader.
+- The ESP-NOW radio path, the MQTT session and the display chain therefore cannot be validated on this unit until the strap is released in hardware.
+- The gateway's portable logic is covered by the host test runner in `tools/host-tests/` in the meantime (see `docs/sparkplug_3.0.0-measurements.md`).
+
+Next step: identify what pulls GPIO46 down on the carrier (a carrier-side pull-down, a jumper, or a module-level connection) and either remove it or pull GPIO46 high. Until then, do not treat this unit as a valid boot target and do not draw conclusions about the firmware from it.
+
 ### Candidate carrier mechanical drawing (provisional)
 
 A second user-supplied dimension drawing appears to report a **57.15 × 27.94 mm PCB outline**, **53.34 × 25.40 mm hole-center spacing**, and **2.54 mm (100 mil) header pitch**. These are drawing-reported values, not physical measurements, and the drawing has not yet been matched to the delivered carrier/revision. Do not release an enclosure or mounting design from these values alone.
