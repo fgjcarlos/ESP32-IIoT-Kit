@@ -8,8 +8,8 @@
 - **Duracion estimada**: 3 semanas
 - **Prerequisitos**: Ninguno (es la primera fase del proyecto)
 - **Hardware necesario**:
-  - 1x ESP32-S3-DevKitC (gateway)
-  - 1-3x ESP32-C3-DevKitM (nodos sensores)
+  - 1x carrier ESP32-S3-WROOM-1-N16R8 (gateway; 16 MB flash, 8 MB PSRAM Octal — ver `docs/hardware/esp32-s3-wroom-1-n16r8.md`)
+  - 1-3x ESP32-C3 (nodos sensores; el modelo exacto de la placa de nodo esta por confirmar)
   - 1x Sensor de temperatura (DS18B20 o BMP280)
   - 1x Potenciometro (10K recomendado)
   - Cables jumper macho-macho y macho-hembra
@@ -83,10 +83,10 @@
 
 ---
 
-### Tarea T0.1.3: Conectar ESP32-S3 por USB y verificar comunicacion
+### Tarea T0.1.3: Conectar el gateway ESP32-S3 por USB y verificar comunicacion
 - **Dificultad**: Basico
-- **Descripcion**: Conectar fisicamente la placa ESP32-S3-DevKitC al ordenador por USB y verificar que el sistema operativo la reconoce. Pasos:
-  1. Conectar la placa ESP32-S3-DevKitC al ordenador usando un cable USB-C (asegurarse de que es un cable de datos, no solo de carga).
+- **Descripcion**: Conectar fisicamente el carrier ESP32-S3-WROOM-1-N16R8 al ordenador por USB y verificar que el sistema operativo la reconoce. Pasos:
+  1. Conectar el carrier ESP32-S3 al ordenador usando un cable USB-C (asegurarse de que es un cable de datos, no solo de carga).
   2. En Linux, ejecutar `ls /dev/ttyUSB*` o `ls /dev/ttyACM*` para identificar el puerto. El ESP32-S3 normalmente aparece como `/dev/ttyACM0` (USB nativo) o `/dev/ttyUSB0` (si usa chip UART externo).
   3. Verificar con `dmesg | tail -20` que el kernel ha detectado el dispositivo.
   4. Si da error de permisos al acceder al puerto, añadir tu usuario al grupo `dialout`: `sudo usermod -aG dialout $USER` y cerrar/abrir sesion.
@@ -97,7 +97,7 @@
   - `dmesg | tail` muestra un mensaje de deteccion del dispositivo USB
   - El miniterm se conecta sin error de permisos
 - **Dependencias**: Ninguna (solo hardware)
-- **Pistas**: El ESP32-S3-DevKitC tiene USB nativo (USB-OTG) ademas del conector UART. El puerto USB nativo suele aparecer como `/dev/ttyACM0`. Usa `dmesg | grep tty` para filtrar solo los mensajes relevantes.
+- **Pistas**: El carrier usa USB nativo (USB-Serial/JTAG) ademas del conector UART USB-C. El puerto USB nativo suele aparecer como `/dev/ttyACM0`. Usa `dmesg | grep tty` para filtrar solo los mensajes relevantes.
 - **Errores comunes**:
   - Usar un cable USB de solo carga (sin lineas de datos). Solucion: probar con otro cable si no aparece nada en `dmesg`.
   - No tener permisos de acceso al puerto serie. Solucion: `sudo usermod -aG dialout $USER` y reiniciar sesion (cerrar y volver a abrir terminal no es suficiente, hay que cerrar sesion del sistema).
@@ -133,7 +133,7 @@
 
 ### Tarea T0.1.5: Compilar y flashear hello_world en ESP32-C3
 - **Dificultad**: Basico
-- **Descripcion**: Repetir el proceso de T0.1.4 pero para la placa ESP32-C3-DevKitM. La diferencia principal es que el C3 usa arquitectura RISC-V en lugar de Xtensa. Pasos:
+- **Descripcion**: Repetir el proceso de T0.1.4 pero para una placa ESP32-C3. La diferencia principal es que el C3 usa arquitectura RISC-V en lugar de Xtensa. Pasos:
   1. Copiar el ejemplo: `cp -r ~/esp/esp-idf/examples/get-started/hello_world ~/esp/hello_world_c3`
   2. Entrar en la carpeta: `cd ~/esp/hello_world_c3`
   3. Cargar variables: `source ~/esp/esp-idf/export.sh`
@@ -207,11 +207,11 @@
 
 ### Tarea T0.2.1: Crear proyecto blink para ESP32-S3 desde cero
 - **Dificultad**: Basico
-- **Descripcion**: Crear un proyecto nuevo (no copiar el ejemplo blink) que haga parpadear el LED integrado del ESP32-S3-DevKitC. Esto enseña como se estructura un proyecto ESP-IDF minimo. Pasos:
+- **Descripcion**: Crear un proyecto nuevo (no copiar el ejemplo blink) que haga parpadear el LED integrado del carrier ESP32-S3-WROOM-1-N16R8. Esto enseña como se estructura un proyecto ESP-IDF minimo. Pasos:
   1. Crear el archivo `main.c` dentro de `firmware/gateway/main/`.
   2. Incluir las cabeceras necesarias: `driver/gpio.h`, `freertos/FreeRTOS.h`, `freertos/task.h`.
   3. En `app_main()`:
-     - Resetear el pin GPIO: `gpio_reset_pin(GPIO_NUM_48)` (el LED del DevKitC-S3 tipicamente esta en GPIO48, verificar con el esquematico de tu placa).
+     - Resetear el pin GPIO: `gpio_reset_pin(GPIO_NUM_48)` (en el carrier del proyecto el WS2812 onboard esta en GPIO48; es un hecho confirmado por prueba en la unidad conectada).
      - Configurar como salida: `gpio_set_direction(GPIO_NUM_48, GPIO_MODE_OUTPUT)`.
      - En un bucle infinito, alternar el nivel del pin con `gpio_set_level()` y esperar con `vTaskDelay(pdMS_TO_TICKS(500))`.
   4. Crear `firmware/gateway/main/CMakeLists.txt` con `idf_component_register(SRCS "main.c" INCLUDE_DIRS ".")`.
@@ -234,7 +234,7 @@
   ```
 - **Errores comunes**:
   - Usar `delay()` en lugar de `vTaskDelay()`. ESP-IDF usa FreeRTOS, y `delay()` no existe. Siempre usar `vTaskDelay(pdMS_TO_TICKS(ms))`.
-  - Numero de GPIO incorrecto para el LED. El GPIO del LED varia segun la version de la placa. Consultar el esquematico o probar con GPIO48 (comun en ESP32-S3-DevKitC-1).
+  - Numero de GPIO incorrecto para el LED. El GPIO del LED varia segun la placa: en el carrier de este proyecto es GPIO48 (confirmado), pero en otro carrier hay que consultar el esquematico.
 - **Tiempo estimado**: 1-2 horas
 
 ---
@@ -277,10 +277,10 @@
 
 ### Tarea T0.2.3: Crear proyecto blink para ESP32-C3
 - **Dificultad**: Basico
-- **Descripcion**: Repetir el ejercicio de blink pero para el ESP32-C3-DevKitM, prestando atencion a las diferencias de hardware. Pasos:
+- **Descripcion**: Repetir el ejercicio de blink pero para la placa ESP32-C3 del nodo, prestando atencion a las diferencias de hardware. Pasos:
   1. Crear la misma estructura de proyecto en `firmware/node/`.
   2. Copiar el codigo de `firmware/gateway/main/main.c` como punto de partida.
-  3. Cambiar el numero de GPIO del LED. En ESP32-C3-DevKitM, el LED RGB addressable suele estar en GPIO8. Si tu placa no tiene LED integrado, conectar un LED externo con resistencia de 330 ohm a cualquier GPIO disponible.
+  3. Cambiar el numero de GPIO del LED. El LED de la placa de nodo esta en un GPIO que depende del modelo concreto, que todavia no esta confirmado: consultarlo en el esquematico de tu placa. Si tu placa no tiene LED integrado, conectar un LED externo con resistencia de 330 ohm a cualquier GPIO disponible.
   4. Configurar el target: `idf.py set-target esp32c3`.
   5. Compilar y flashear en el C3.
   6. Verificar que el LED parpadea.
@@ -293,7 +293,7 @@
   - El LED de la placa ESP32-C3 parpadea al intervalo configurado
   - El Kconfig del intervalo tambien funciona en este proyecto
 - **Dependencias**: Requiere T0.1.5, T0.2.1
-- **Pistas**: El ESP32-C3-DevKitM usa un LED RGB tipo WS2812 en GPIO8. Para controlarlo como GPIO simple (sin colores), `gpio_set_level(GPIO_NUM_8, 1)` enciende el LED en blanco. Si quieres control de colores, necesitaras el driver RMT (que se vera mas adelante). Algunos kits C3 tienen un LED simple en GPIO8 en lugar del WS2812.
+- **Pistas**: Algunas placas C3 traen un WS2812 (por ejemplo en GPIO8) y otras un LED simple: comprueba el esquematico de la tuya antes de fijar el GPIO. Un LED simple se controla con `gpio_set_level(GPIO_NUM_x, 1)`; para control de colores en un WS2812 necesitaras el driver RMT (que se vera mas adelante).
 - **Errores comunes**:
   - Intentar flashear firmware compilado para S3 en un C3 (o viceversa). Siempre verificar el target con `idf.py set-target`.
   - El LED RGB WS2812 no responde a `gpio_set_level` de la misma forma que un LED simple. Si no funciona, probar con un LED externo conectado a otro GPIO.

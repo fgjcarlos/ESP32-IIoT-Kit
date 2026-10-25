@@ -106,7 +106,7 @@ Un sistema que funciona bien con 5 nodos puede fallar con 50. Los problemas de e
 
 **Memoria**: El registro de 50 nodos con su historial reciente consume mas RAM. Si cada nodo almacena 10 lecturas recientes con metadatos, son 50 x 10 x ~64 bytes = 32KB solo para el registro.
 
-**Base de datos**: Con 50 nodos cada 5 minutos, son 600 lecturas por hora, 14.400 por dia, 5 millones al año. SQLite manejara esto, pero las consultas de historico se ralentizaran. Es el momento de considerar InfluxDB (base de datos diseñada para series temporales).
+**Historico persistente**: Con 50 nodos cada 5 minutos, son 600 lecturas por hora, 14.400 por dia, 5 millones al año. El gateway no guarda historico por si mismo (su memoria es la RAM y la particion SPIFFS): el historico vive en el consumidor de los datos — el dashboard embebido muestra el estado actual, y quien necesite historico lo obtiene del broker MQTT opcional o de una base de datos de series temporales en el servidor que ya consume ese MQTT. Ese es el momento de introducir InfluxDB (diseñada para series temporales) o cualquier otro almacen de series temporales en el lado servidor.
 
 **Dashboard**: Mostrar 50 nodos en una pantalla requiere diseño cuidadoso: agrupacion por zona, filtros, paginacion. No puedes tener 50 tarjetas en una sola pagina.
 
@@ -205,7 +205,7 @@ No necesitas implementar todo. Elige lo que resuelve tu problema mas urgente y a
 - ESP-IDF Modem (PPP/4G): https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/network/esp_netif.html
 - SD Card en ESP-IDF: https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/sdmmc.html
 - OpenAPI Specification: https://swagger.io/specification/
-- JWT Introduction: https://jwt.io/introduction
+- Firma de tokens (HMAC-SHA256): https://en.wikipedia.org/wiki/HMAC
 - SIMCom SIM7600 documentacion: https://www.simcom.com/product/SIM7600X.html
 
 ---
