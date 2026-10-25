@@ -1,0 +1,194 @@
+name: Firmware CI
+
+# The CI of the firmware: every change of the firmware is built, tested and
+# measured without a board, and the tests that do need the board are
+# separated and documented (docs/testing/hardware-tests.md).
+#
+# Jobs:
+#   host-tests      portable logic, on the host, no ESP-IDF runtime needed
+#   firmware        the gateway image for the ESP32-S3, with the size report
+#   reproducible    two clean builds must produce the same bytes
+#   device-tests    the on-target Unity suite, run under QEMU
+#   conformance     Sparkplug B against a real Mosquitto broker
+#
+# The ESP32-C6 named by issue #14 was superseded by issue #8: the gateway
+# candidate is the ESP32-S3-WROOM-1-N16R8. The build matrix follows the
+# hardware that actually exists (odd/tasks/issue-14-ci-and-conformance-tests.md).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firmware/**'
+      - 'tools/**'
+      - '.github/workflows/firmware-ci.yml'
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - 'tools/**'
+      - '.github/workflows/firmware-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IDF_VERSION: v5.4
+  IDF_TARGET: esp32s3
+
+jobs:
+  host-tests:
+    name: Host unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up ESP-IDF
+        uses: espressif/esp-idf-action@v2
+        with:
+          version: ${{ env.IDF_VERSION }}
+          idf: v5.4
+          target: ${{ env.IDF_TARGET }}
+
+      - name: Fetch the managed components
+        # The component manager downloads nanopb during the configure step,
+        # and the host runner compiles the same component sources. set-target
+        # configures the project without paying for a full build.
+        run: idf.py -C firmware/gateway set-target esp32s3
+
+      - name: Build the host test runner
+        run: |
+          cmake -S tools/host-tests -B build/host-tests
+          cmake --build build/host-tests -j
+
+      - name: Run the host test runner
+        run: ./build/host-tests/iot_host_tests
+
+      - name: Node load (10 nodes)
+        run: |
+          ./build/host-tests/iot_stress --nodes 10 --rounds 50 \
+            --json build/stress-10-nodes.json
+
+      - name: Publish the stress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-10-nodes
+          retention-days: 14
+          path: build/stress-10-nodes.json
+
+  firmware:
+    name: Firmware build (esp32s3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up ESP-IDF
+        uses: espressif/esp-idf-action@v2
+        with:
+          version: ${{ env.IDF_VERSION }}
+          idf: v5.4
+          target: ${{ env.IDF_TARGET }}
+
+      - name: Build the gateway
+        run: idf.py -C firmware/gateway build
+
+      - name: Report the sizes and the partition headroom
+        run: |
+          python3 tools/ci/report-size.py \
+            --project-dir firmware/gateway \
+            --markdown build/size-report.md \
+            --json build/size-report.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Component size breakdown
+        run: idf.py -C firmware/gateway size --format text --output-file build/size-components.txt
+
+      - name: Check that the artefact carries no secret
+        run: tools/ci/check-no-secrets.sh firmware/gateway/build/gateway.bin
+
+      - name: Publish the development artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-esp32s3-${{ github.sha }}
+          retention-days: 14
+          path: |
+            firmware/gateway/build/gateway.bin
+            firmware/gateway/build/gateway.elf
+            firmware/gateway/build/gateway.map
+            firmware/gateway/build/bootloader/bootloader.bin
+            firmware/gateway/build/partition_table/partition-table.bin
+            build/size-report.md
+            build/size-report.json
+            build/size-components.txt
+
+  reproducible:
+    name: Reproducible build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up ESP-IDF
+        uses: espressif/esp-idf-action@v2
+        with:
+          version: ${{ env.IDF_VERSION }}
+          idf: v5.4
+          target: ${{ env.IDF_TARGET }}
+
+      - name: Build twice and compare the artefacts
+        shell: bash
+        run: |
+          tools/ci/check-reproducible.sh firmware/gateway build/reproducible \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+  device-tests:
+    name: Device tests under QEMU
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up ESP-IDF
+        uses: espressif/esp-idf-action@v2
+        with:
+          version: ${{ env.IDF_VERSION }}
+          idf: v5.4
+          target: ${{ env.IDF_TARGET }}
+
+      - name: Install QEMU
+        run: python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+
+      - name: Run the on-target Unity suite
+        shell: bash
+        run: |
+          tools/ci/run-device-tests.sh firmware/gateway/test build/device-tests 300 \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-tests-log
+          retention-days: 14
+          path: build/device-tests.log*
+
+  conformance:
+    name: Sparkplug B conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the conformance harness
+        run: bash tools/sparkplug-conformance/scripts/run-conformance.sh
+
+      - name: Publish the conformance log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkplug-conformance-log
+          retention-days: 14
+          path: |
+            tools/sparkplug-conformance/**/*.log
