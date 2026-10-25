@@ -40,6 +40,33 @@ menu "Brand profile (white-label)"
             Commercial model of the product. Shown next to the brand name in
             the API, the logs and the boot splash.
 
+    config BRAND_PRODUCT_ID
+        string "Product identifier"
+        default "iiot-kit-gateway" if BRAND_PROFILE_IIOT_KIT
+        default "acme-ax200" if BRAND_PROFILE_ACME_INDUSTRIAL
+        help
+            Stable identifier of the product, independent of the brand name
+            and of the commercial model.
+
+            This is the value an OTA release manifest is matched against, so
+            it must not change between the revisions of the same product. A
+            new identifier means a new product and needs a new release
+            channel.
+
+    config BRAND_HW_REVISION
+        string "Hardware revision"
+        default "rev-a"
+        help
+            Revision of the carrier this firmware is built for.
+
+            An OTA release manifest declares the hardware revision it was
+            built for, and the unit refuses a manifest that names another
+            one: a firmware that expects a different pinout or a different
+            LCD must never be installed on this carrier.
+
+            Bump it when the hardware changes in a way the firmware has to
+            know about.
+
     config BRAND_SUPPORT_URL
         string "Support URL"
         default "https://example.org/iiot-kit/support" if BRAND_PROFILE_IIOT_KIT

@@ -8,6 +8,7 @@
 #include "assets_brand.h"
 #include "wifi_manager.h"
 #include "mqtt_bridge.h"
+#include "ota_manager.h"
 #include "sdkconfig.h"
 
 #if CONFIG_SPARKPLUG_B_ENABLED
@@ -152,6 +153,33 @@ void app_main(void)
     if (mqtt_err != ESP_OK) {
         ESP_LOGE(TAG, "MQTT bridge start failed: %s", esp_err_to_name(mqtt_err));
         return;
+    }
+
+    /* Issue #13: the OTA manager.
+     *
+     * The manager is initialised after NVS, because the URL of the release
+     * server is provisioned there, and before the subsystems are up, so a
+     * watchdog is already watching the confirmation window when the image
+     * happens to be on trial.
+     *
+     * When the running image was installed by an update and has not
+     * confirmed itself yet, it is on trial: the bootloader rolls it back if
+     * the unit reboots before the confirmation. The confirmation only
+     * happens once the subsystems above are alive, because an image that
+     * cannot reach the network is not a working image. */
+    const esp_err_t ota_err = ota_manager_init();
+    if (ota_err != ESP_OK) {
+        ESP_LOGE(TAG, "OTA manager init failed: %s", esp_err_to_name(ota_err));
+        return;
+    }
+
+    if (ota_manager_image_pending()) {
+        const esp_err_t confirm_err = ota_manager_confirm_pending_image();
+        if (confirm_err != ESP_OK) {
+            ESP_LOGE(TAG, "The new image could not be confirmed: %s",
+                     esp_err_to_name(confirm_err));
+            return;
+        }
     }
 
 #if CONFIG_SPARKPLUG_B_ENABLED

@@ -57,6 +57,12 @@ site/
 .env.local
 .env.*.local
 
+# The public half of the OTA release signing key is not a secret: the
+# firmware embeds it to verify the release manifests, and the device has
+# to know which releases it may install. Only the private half is
+# forbidden above.
+!firmware/gateway/components/ota_manager/certs/ota_signing_key.pem
+
 # Local Wi-Fi credentials (issue #21, never committed)
 firmware/gateway/components/wifi_manager/include/wifi_credentials.local.h
 

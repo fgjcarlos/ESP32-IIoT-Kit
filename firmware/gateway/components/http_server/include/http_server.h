@@ -15,7 +15,7 @@ extern "C" {
  * configuration. The value leaves room for a long support URL and a long
  * product name.
  */
-#define HTTP_SERVER_BRAND_PAYLOAD_MAX_LEN 512u
+#define HTTP_SERVER_BRAND_PAYLOAD_MAX_LEN 768u
 
 /**
  * @brief Start the HTTP server contract.

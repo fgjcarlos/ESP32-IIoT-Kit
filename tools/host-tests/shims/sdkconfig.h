@@ -14,6 +14,8 @@
 // below mirror the reference profile of the repository.
 #define CONFIG_BRAND_NAME "IIoT-Kit"
 #define CONFIG_BRAND_MODEL "GW-S3-1"
+#define CONFIG_BRAND_PRODUCT_ID "iiot-kit-gateway"
+#define CONFIG_BRAND_HW_REVISION "rev-a"
 #define CONFIG_BRAND_SUPPORT_URL "https://example.org/iiot-kit/support"
 #define CONFIG_BRAND_AP_SSID "IIoT-Kit-GW"
 #define CONFIG_BRAND_OTA_CHANNEL "stable"

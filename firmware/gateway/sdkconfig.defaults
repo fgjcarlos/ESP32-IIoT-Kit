@@ -51,3 +51,9 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # reachable and the gateway log would be invisible. The secondary
 # USB-Serial/JTAG console publishes it on /dev/ttyACM*.
 CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+
+# OTA rollback (issue #13) — the bootloader keeps the image that was just
+# installed in the PENDING_VERIFY state until the application confirms it.
+# Without this the bootloader would start the new image without any way to
+# go back to the previous one.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
