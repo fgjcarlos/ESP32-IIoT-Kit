@@ -42,9 +42,13 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 ## Testing instructions
 
 - Unit tests: `cd firmware/gateway/test && idf.py test` (Unity `TEST_CASE` blocks in `components/*/test/test_*.c`)
-- Host-side unit tests are not configured; on-target execution is the only layer
+- Host-side unit tests run the **same** test files as the device project: `cmake -S tools/host-tests -B build/host-tests && cmake --build build/host-tests && ./build/host-tests/iot_host_tests`
+- The device suite also runs under QEMU, without a board: `tools/ci/run-device-tests.sh firmware/gateway/test build/device-tests 300` (needs `python $IDF_PATH/tools/idf_tools.py install qemu-xtensa`)
+- Node load: `./build/host-tests/iot_stress --nodes 10 --rounds 50` — the executable half of `docs/testing/stress-plan.md`
+- A test that needs the physical gateway carries the `[hw]` tag; the CI profile leaves those out, so an untagged hardware test fails in the CI
 - New behavior needs a Unity test in the owning component's `test/` directory — compile success plus Unity tag presence is the verifiable equivalent when hardware is unavailable
 - Firmware must build clean before tests are claimed green
+- The CI (`firmware-ci.yml`) is the gate: host tests, node load, firmware build, reproducible build, device tests under QEMU and Sparkplug B conformance
 
 ## Hardware and protocol constraints
 

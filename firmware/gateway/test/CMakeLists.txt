@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(EXTRA_COMPONENT_DIRS "../components" "../../common/protocol")
+set(EXTRA_COMPONENT_DIRS "../components" "../../common/protocol" "components")
 set(TEST_COMPONENTS "board_profile;board_rgb" CACHE STRING "List of components to test")
 
 list(FIND TEST_COMPONENTS "protocol" protocol_test_component_index)

@@ -9,6 +9,7 @@
 //   - Once the module lands, the bridge functions must satisfy the contract
 //     documented in include/sparkplug_b_espnow_bridge.h.
 
+#include <stdio.h>
 #include <string.h>
 
 #include "esp_err.h"

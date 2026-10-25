@@ -5,6 +5,7 @@
 // runner). The broker-facing behaviour is covered by the conformance harness
 // in tools/sparkplug-conformance.
 
+#include <stdio.h>
 #include <string.h>
 
 #include "esp_err.h"

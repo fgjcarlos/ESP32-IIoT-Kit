@@ -4,9 +4,13 @@
 # grpcio-tools bundles the protoc compiler, and its protobuf runtime bound must
 # agree with the `protobuf` pin or the generated module refuses to import.
 #
+# grpcio-tools 1.71.0 is the first release whose runtime accepts protobuf
+# 5.x, so it is the pin that goes with protobuf 5.29.6. An older grpcio-tools
+# asks for protobuf<5 and pip cannot resolve the two together.
+#
 # All three packages are public PyPI releases; nothing here is private or
 # vendored, so the harness builds from a stock base image with no credentials.
 
-grpcio-tools==1.62.2
+grpcio-tools==1.71.0
 protobuf==5.29.6
 paho-mqtt==2.1.0

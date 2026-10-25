@@ -1,0 +1,24 @@
+menu "Gateway test application"
+
+choice GATEWAY_TEST_PROFILE
+    prompt "Test profile"
+    default GATEWAY_TEST_PROFILE_BOARD
+    help
+        Which set of tests the application runs.
+
+        The "board" profile runs every test, including the ones that need the
+        real hardware (the Octal PSRAM of the N16R8, the RMT of the RGB LED,
+        the radio). This is the profile that runs on the physical gateway.
+
+        The "logic" profile skips the tests tagged [hw]. It is the profile the
+        CI uses under QEMU, where the Octal PSRAM is not emulated and the
+        chip would abort before the first test.
+
+    config GATEWAY_TEST_PROFILE_BOARD
+        bool "Board: every test, needs the real hardware"
+
+    config GATEWAY_TEST_PROFILE_LOGIC
+        bool "Logic: every test except the ones tagged [hw]"
+endchoice
+
+endmenu
