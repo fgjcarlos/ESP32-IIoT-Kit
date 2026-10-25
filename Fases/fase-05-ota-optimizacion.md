@@ -5,16 +5,16 @@
 ## Resumen
 
 - **Objetivo**: Implementar actualizaciones OTA (Over-The-Air) para gateway y nodos, realizar pruebas de estres y fiabilidad, endurecer la seguridad del sistema, y preparar la documentacion para el release v1.0
-- **Duracion estimada**: 4 semanas
+- **Duracion estimada**: 5 semanas
 - **Prerequisitos**: Fases 0-4 completadas y funcionando end-to-end
-- **Hardware necesario**: Sistema completo (gateway ESP32-S3 + nodos ESP32-C3 con sensores + servidor con Mosquitto + dashboard), bateria 3400mAh para test de autonomia, certificados TLS
+- **Hardware necesario**: Sistema completo (gateway ESP32-S3 + nodos ESP32-C3 con sensores), bateria 3400mAh para test de autonomia, certificados TLS. El broker MQTT y el hosting HTTPS de las imagenes son **opcionales**: hacen falta solo si se habilita la integracion MQTT o el canal OTA por HTTPS
 
 ## Dependencias externas
 
 - ESP-IDF v5.x
 - OpenSSL (para generar certificados TLS)
-- Servidor HTTPS para alojar binarios de firmware OTA (puede ser el propio backend Bun/Node)
-- Mosquitto configurado con soporte TLS
+- Servidor HTTPS para alojar binarios de firmware OTA (cualquier hosting estatico; no hace falta ningun backend de aplicacion)
+- Broker MQTT con soporte TLS — **solo si se habilita la integracion MQTT opcional** (Mosquitto es la referencia para pruebas locales)
 - Herramientas de monitorizacion de red (opcional: Wireshark)
 
 ---
@@ -217,16 +217,17 @@ Un sistema IoT en produccion debe proteger los datos en transito y en reposo. Si
 - **Errores comunes**: Olvidar que el numero maximo de peers cifrados es 6 (no 20, ese es el total). Si necesitas mas de 6 peers cifrados, algunos deben ser no cifrados. No usar las mismas claves en gateway y nodos.
 - **Tiempo estimado**: 3-4 horas
 
-### Tarea T5.4.2: MQTT con TLS
+### Tarea T5.4.2: MQTT con TLS (integracion opcional)
 
 - **Dificultad**: [Avanzado]
-- **Descripcion**: Configurar la conexion MQTT entre gateway y broker con TLS (puerto 8883 en lugar de 1883). Generar certificados con OpenSSL: CA propio, certificado del servidor (Mosquitto), opcionalmente certificado cliente (gateway). Configurar Mosquitto para requerir TLS. Embeber el certificado CA en el firmware del gateway.
-- **Archivos a crear/modificar**: `firmware/gateway/main/mqtt_bridge.c`, configuracion de Mosquitto (`mosquitto.conf`), directorio de certificados
+- **Descripcion**: Configurar la conexion MQTT entre gateway y broker con TLS (puerto 8883 en lugar de 1883). Esta tarea solo aplica si se habilita la **integracion MQTT opcional**: el gateway es autonomo sin broker. Generar certificados con OpenSSL: CA propio, certificado del servidor (el broker), opcionalmente certificado cliente (gateway). Configurar el broker para exigir TLS. Embeber el certificado CA en el firmware del gateway. Para las pruebas locales se usa Mosquitto como broker de referencia.
+- **Archivos a crear/modificar**: `firmware/gateway/components/mqtt_bridge/`, configuracion del broker (`mosquitto.conf`), directorio de certificados
 - **Criterio de aceptacion**:
   - [ ] La conexion MQTT usa TLS (puerto 8883)
-  - [ ] Mosquitto rechaza conexiones sin TLS en puerto 8883
+  - [ ] El broker rechaza conexiones sin TLS en puerto 8883
   - [ ] El gateway verifica el certificado del broker
   - [ ] Los datos MQTT estan cifrados en transito (verificable con Wireshark: el payload no es legible)
+  - [ ] Con la integracion MQTT deshabilitada, el gateway sigue funcionando sin abrir ninguna conexion MQTT
 - **Dependencias**: T4.1.1 (MQTT basico funcionando)
 - **Pistas**: Generar CA: `openssl req -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -days 365`. Generar cert servidor: `openssl req -newkey rsa:2048 -keyout server.key -out server.csr`, firmar con CA. En `esp_mqtt_client_config_t`, campo `broker.verification.certificate`. Mosquitto: `listener 8883`, `cafile`, `certfile`, `keyfile`.
 - **Errores comunes**: Los certificados auto-firmados requieren que el CA este embebido en el firmware (no se pueden verificar con CAs publicas). Verificar que la fecha del ESP32 es correcta (SNTP) — los certificados tienen fecha de validez. mbedTLS consume ~40KB de RAM por conexion.
@@ -264,7 +265,7 @@ Un proyecto sin documentacion de despliegue es un proyecto que solo puede instal
 ### Tarea T5.5.1: Guia de despliegue
 
 - **Dificultad**: [Basico]
-- **Descripcion**: Crear una guia paso a paso para desplegar el sistema completo desde cero. Debe cubrir: 1) Hardware necesario y donde comprarlo, 2) Flashear gateway con firmware, 3) Flashear nodos, 4) Configurar WiFi del gateway via AP, 5) Instalar y configurar Mosquitto, 6) Desplegar backend y dashboard, 7) Calibrar sensores, 8) Verificar que todo funciona end-to-end.
+- **Descripcion**: Crear una guia paso a paso para desplegar el sistema completo desde cero. Debe cubrir: 1) Hardware necesario y donde comprarlo, 2) Flashear gateway con firmware, 3) Flashear nodos, 4) Configurar WiFi del gateway via AP, 5) Verificar el dashboard embebido y la API REST, 6) Calibrar sensores, 7) Verificar que todo funciona end-to-end. Si se quiere la integracion MQTT opcional, anadir un apartado aparte con la configuracion del broker.
 - **Archivos a crear/modificar**: `docs/deployment.md`
 - **Criterio de aceptacion**:
   - [ ] Una persona que no ha participado en el desarrollo puede seguir la guia y montar el sistema

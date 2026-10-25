@@ -289,10 +289,10 @@ Sin lógica de reconexión, el operador tiene que recargar la página manualment
 
 React es una excelente librería para construir interfaces de usuario. En la web tradicional, un paquete de build de React de 40KB gzipados es perfectamente aceptable: se descarga en décimas de segundo con una conexión de 10Mbps y el navegador lo cachea.
 
-En un sistema embebido con 1.9MB de SPIFFS y un WiFi AP que comparte ancho de banda con los clientes conectados, la ecuación cambia:
+En un sistema embebido con 4 MiB de SPIFFS y un WiFi AP que comparte ancho de banda con los clientes conectados, la ecuación cambia:
 
 ```
-Partición SPIFFS total:       1,900 KB
+Partición SPIFFS total:       4,096 KB
 React gzipado:                  ~40 KB
 React-DOM gzipado:              ~40 KB
 React Router gzipado:           ~15 KB
@@ -319,7 +319,7 @@ Paquete total con la app:
   ≈ 20-80 KB gzipado con Preact
 ```
 
-La diferencia es de 10-20x en el tamaño del paquete de build. En un dispositivo con 1.9MB de SPIFFS, eso pasa de "el dashboard ocupa el 20% de la partición" a "el dashboard ocupa el 1.5% de la partición".
+La diferencia es de 10-20x en el tamaño del paquete de build. En un dispositivo con 4 MiB de SPIFFS, eso pasa de "el dashboard ocupa el 20% de la partición" a "el dashboard ocupa el 1.5% de la partición".
 
 ### ¿Por qué no vanilla JavaScript?
 
@@ -404,33 +404,34 @@ El servidor HTTP lee estos archivos y los sirve al navegador cuando este accede 
 
 ### Distribución de particiones en el ESP32-S3
 
-El ESP32-S3 del gateway tiene 8MB de flash. La distribución en `partitions.csv`:
+El gateway usa el ESP32-S3-WROOM-1-N16R8: **16 MB de flash** Quad-SPI y **8 MB de PSRAM** Octal-SPI. La distribución real en `firmware/gateway/partitions.csv` es:
 
 ```
 # Name,   Type, SubType, Offset,   Size
-nvs,      data, nvs,     0x9000,   24 KB    ← configuración NVS
-otadata,  data, ota,     0xf000,    8 KB    ← metadatos OTA
-ota_0,    app,  ota_0,   0x10000, 3072 KB   ← firmware activo
-ota_1,    app,  ota_1,   0x310000, 3072 KB  ← firmware OTA
-spiffs,   data, spiffs,  0x610000, 1920 KB  ← assets del dashboard
+nvs,      data, nvs,     0x9000,   0x6000    (24 KB)   ← configuración NVS
+otadata,  data, ota,     0xf000,   0x2000    (8 KB)    ← metadatos OTA
+phy_init, data, phy,     0x11000,  0x1000    (4 KB)    ← datos de inicialización PHY
+ota_0,    app,  ota_0,   0x20000,  0x300000  (3 MiB)   ← firmware activo
+ota_1,    app,  ota_1,   0x320000, 0x300000  (3 MiB)   ← firmware OTA
+spiffs,   data, spiffs,  0x620000, 0x400000  (4 MiB)   ← assets del dashboard
 ```
 
 Visualizado:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Flash 8MB                                           │
-│                                                     │
-│ [NVS 24K][OTA meta 8K][Firmware A 3MB][Firmware B 3MB][SPIFFS 1.9MB] │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ Flash 16MB                                              │
+│                                                         │
+│ [NVS 24K][OTA meta 8K][PHY 4K] [Firmware A 3MB][Firmware B 3MB][SPIFFS 4MB] │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-El espacio de SPIFFS (1.9MB) es generoso para un dashboard embebido. Un paquete de build Preact bien optimizado ocupa 20-80KB gzipado, dejando más del 95% del espacio libre.
+El espacio de SPIFFS (4 MiB) es generoso para un dashboard embebido. Un paquete de build Preact bien optimizado ocupa 20-80KB gzipado, dejando más del 95% del espacio libre. La fuente de verdad de esta tabla es `docs/hardware/esp32-s3-wroom-1-n16r8.md`.
 
 ### Presupuesto de tamaño y por qué importa
 
-Aunque 1.9MB parece mucho para un dashboard sencillo, los presupuestos de tamaño son útiles porque:
+Aunque 4 MiB parece mucho para un dashboard sencillo, los presupuestos de tamaño son útiles porque:
 
 1. **Disciplina de diseño**: tener un presupuesto explícito evita que "solo esta librería de gráficos" acabe costando 200KB extra.
 2. **Tiempo de carga**: los navegadores que se conectan al WiFi AP del gateway pueden tener ancho de banda limitado (otros usuarios, distancia al AP). Un paquete de build más pequeño carga más rápido.
@@ -459,7 +460,7 @@ Desarrollo:
   firmware/gateway/web/dist/assets/main.js.gz (JS gzipado)
        ↓ spiffsgen.py
   spiffs.bin (imagen de la partición)
-       ↓ esptool.py write_flash 0x610000
+       ↓ esptool.py write_flash 0x620000
   ESP32-S3 (SPIFFS montada en /spiffs)
 
 En tiempo de ejecución:
@@ -555,9 +556,9 @@ Al terminar la Fase 4, habrás construido un sistema donde el ESP32-S3 gateway e
 ┌────────────────────────────────────────────────────┐
 │             Gateway ESP32-S3 autónomo              │
 │                                                    │
-│  Flash (8MB):                                      │
-│  ├── Firmware (6MB OTA): toda la lógica C          │
-│  └── SPIFFS (1.9MB): assets del dashboard Preact   │
+│  Flash (16MB):                                     │
+│  ├── Firmware (2x3MiB OTA): toda la lógica C      │
+│  └── SPIFFS (4MiB): assets del dashboard Preact    │
 │                                                    │
 │  RAM (320KB):                                      │
 │  ├── Tareas FreeRTOS: ESP-NOW, HTTP, MQTT          │

@@ -7,7 +7,7 @@
 - **Objetivo**: Funcionalidades avanzadas post-v1.0 que expanden las capacidades del sistema. Cada mejora es un mini-proyecto independiente.
 - **Duracion estimada**: Continuo, sin plazo fijo. Abordar segun prioridad y necesidad.
 - **Prerequisitos**: Fase 5 completada (sistema v1.0 estable y desplegado)
-- **Nota**: Estas mejoras son opcionales. El sistema v1.0 es completamente funcional sin ellas. Pueden abordarse en cualquier orden.
+- **Nota**: Estas mejoras son opcionales. El sistema v1.0 es completamente funcional sin ellas. Pueden abordarse en cualquier orden. En particular, **MQTT Sparkplug B es una integracion opcional, jamas un requisito**: el gateway es autonomo sin ella.
 
 ## Dependencias externas
 
@@ -16,6 +16,32 @@
 - Modulo tarjeta SD + tarjeta microSD (para backup)
 - TensorFlow Lite para entrenamiento de modelos (PC)
 - Conocimientos adicionales de ML, networking avanzado, autenticacion web
+- Broker MQTT accesible — **solo para la sub-tarea 6.0 (Sparkplug B opcional)**
+
+---
+
+## Sub-tarea 6.0: Integracion opcional MQTT Sparkplug B
+
+### Contexto
+
+El modo plano de MQTT de la Fase 4 es suficiente para un gateway autonomo. Sparkplug B es la variante **industrial** del mismo: payloads Protobuf tipados, mensajes de Birth/Death que gestionan el estado de los dispositivos automaticamente, y un modelo EoN-Node que ya esta resuelto en el gateway.
+
+> **Estado real**: el componente `firmware/gateway/components/sparkplug_b/` ya implementa el modo EoN-Node (Sparkplug B v3.0.0) y esta **desactivado por defecto** con `CONFIG_SPARKPLUG_B_ENABLED=n`. Mientras siga apagado, `mqtt_bridge_start()` es un no-op y el gateway se comporta exactamente igual que sin Sparkplug. La evidencia de conformidad esta en `docs/sparkplug_3.0.0-measurements.md` y en `tools/sparkplug-conformance/`.
+
+### Tarea T6.0.1: Habilitar Sparkplug B y publicarlo en el broker
+
+- **Dificultad**: [Avanzado]
+- **Descripcion**: Activar la opcion de compilacion `CONFIG_SPARKPLUG_B_ENABLED=y`, configurar el broker MQTT para aceptar el topic `spBv1.0/...` y comprobar que el gateway publica NBIRTH al arrancar y DDATA con cada lectura. Es una integracion **opcional**: si el broker no esta disponible, el gateway sigue sirviendo dashboard y API REST.
+- **Archivos a crear/modificar**: `firmware/gateway/sdkconfig.defaults` (o `sdkconfig` del perfil de marca), `firmware/gateway/components/sparkplug_b/`
+- **Criterio de aceptacion**:
+  - [ ] Con la opcion apagada, el firmware arranca igual y no abre ninguna conexion MQTT
+  - [ ] Con la opcion encendida, el gateway publica `spBv1.0/{group_id}/NBIRTH/{gateway_id}` al conectar
+  - [ ] Cada lectura de nodo se publica como `spBv1.0/{group_id}/DDATA/{gateway_id}/{nodo_id}`
+  - [ ] Al apagar el gateway se publica `NDEATH` con el estado de birth
+  - [ ] El payload es Protobuf valido y lo decodifica un cliente de referencia
+- **Dependencias**: Fase 4 completada (MQTT plano) y un broker MQTT accesible
+- **Pistas**: La conformacion ya esta medida en `docs/sparkplug_3.0.0-measurements.md`. El cliente de referencia y el broker de pruebas estan en `tools/sparkplug-conformance/`. Revisar `docs/sparkplug_3.0.0-measurements.md` antes de tocar el componente: el modo ya cumple el estandar.
+- **Errores comunes**: Dejar la opcion encendida por defecto y romper el arranque sin broker. Publicar DDATA sin haber publicado antes NBIRTH: el broker lo rechaza.
 
 ---
 
@@ -232,24 +258,25 @@ El dashboard v1.0 no tiene autenticacion (o tiene una basica compartida). Para u
 ### Tarea T6.6.1: Sistema de autenticacion con roles
 
 - **Dificultad**: [Avanzado]
-- **Descripcion**: Implementar autenticacion JWT en el backend. Crear tabla de usuarios en SQLite con roles: admin (crear usuarios, configurar todo), operador (ver datos, controlar actuadores), visor (solo lectura). Login endpoint que devuelve JWT. Middleware que verifica JWT en cada peticion y comprueba permisos. Frontend: pagina de login, mostrar/ocultar controles segun rol.
-- **Archivos a crear/modificar**: `server/src/auth.ts`, `server/src/middleware.ts`, `server/src/db.ts` (tabla usuarios), `dashboard/src/pages/Login.tsx`, `dashboard/src/context/AuthContext.tsx`
+- **Descripcion**: Implementar autenticacion por token **dentro del gateway**, sin servidor de aplicacion externo: la API REST y el dashboard ya viven en el ESP32-S3. Crear el almacen de usuarios en NVS (namespace propio) con roles: admin (crear usuarios, configurar todo), operador (ver datos, controlar actuadores), visor (solo lectura). Endpoint de login que devuelve un token firmado, verificacion del token en cada peticion y comprobacion de permisos. Frontend: pagina de login en la SPA embebida, mostrar/ocultar controles segun rol.
+- **Archivos a crear/modificar**: `firmware/gateway/components/http_server/` (handler de login y middleware de permisos), `firmware/gateway/components/nvs_auth/` (nuevo: usuarios y tokens en NVS), `firmware/gateway/web/src/pages/Login.jsx`, `firmware/gateway/web/src/context/AuthContext.jsx`
 - **Criterio de aceptacion**:
-  - [ ] Login funciona con usuario/password, devuelve JWT
-  - [ ] Las peticiones sin JWT valido reciben 401
+  - [ ] Login funciona con usuario/password y devuelve un token
+  - [ ] Las peticiones sin token valido reciben 401
   - [ ] Un visor no puede activar actuadores (403)
   - [ ] Un admin puede crear y gestionar usuarios
-  - [ ] El JWT expira tras 24 horas y se requiere re-login
+  - [ ] El token expira tras 24 horas y se requiere re-login
+  - [ ] Los hashes de contrasena se guardan hasheados (nunca en texto plano) y NVS no queda con credenciales en claro
 - **Dependencias**: Fase 4 completada
-- **Pistas**: JWT: `jsonwebtoken` package. Payload: `{ userId, role, exp }`. Middleware: decodificar header `Authorization: Bearer <token>`, verificar firma, extraer rol. Password hashing: `bcrypt`.
-- **Errores comunes**: Almacenar JWT en localStorage del browser (vulnerable a XSS). Mejor: HttpOnly cookie. No hashear passwords (NUNCA almacenar en texto plano).
+- **Pistas**: Token firmado con HMAC-SHA256 usando una clave guardada en NVS; payload `{ userId, role, exp }`; el header `Authorization: Bearer <token>` se verifica en el handler de `http_server`. Hash de contrasena: SHA-256 con sal por usuario (no hay argon2 ni bcrypt en el ESP32). Limitar los intentos de login por IP para frenar la fuerza bruta.
+- **Errores comunes**: Guardar el token en `localStorage` del navegador (vulnerable a XSS). Mejor: cookie HttpOnly. Guardar contrasenas hasheadas sin sal. Confiar en el rol que envia el navegador: el rol se lee siempre del token verificado en el servidor.
 - **Tiempo estimado**: 10-15 horas
 
 ### Tarea T6.6.2: API publica documentada
 
 - **Dificultad**: [Avanzado]
-- **Descripcion**: Diseñar API REST publica con documentacion OpenAPI (Swagger). Autenticacion por API key (diferente de JWT de usuarios). Rate limiting (max 100 peticiones/minuto por API key). Endpoints publicos: GET /api/v1/nodes, GET /api/v1/readings, GET /api/v1/alerts. La documentacion se genera automaticamente y se sirve en /docs (Swagger UI).
-- **Archivos a crear/modificar**: `server/src/api-v1.ts`, `server/src/rate-limiter.ts`, `server/openapi.yaml`, `server/src/swagger.ts`
+- **Descripcion**: Diseñar la version publica de la API REST del gateway con documentacion OpenAPI (Swagger). Autenticacion por API key (diferente del token de usuarios). Rate limiting (max 100 peticiones/minuto por API key). Endpoints publicos: GET /api/v1/nodes, GET /api/v1/readings, GET /api/v1/alerts. La documentacion se sirve desde el propio gateway en /docs (Swagger UI embebido en la SPA) o como fichero YAML descargable.
+- **Archivos a crear/modificar**: `firmware/gateway/components/http_server/` (rutas /api/v1 y limitador), `firmware/gateway/components/nvs_auth/` (API keys), `firmware/gateway/web/public/openapi.yaml`, `firmware/gateway/web/src/pages/Docs.jsx`
 - **Criterio de aceptacion**:
   - [ ] Documentacion Swagger accesible en /docs
   - [ ] Autenticacion por API key en header `X-API-Key`
@@ -257,8 +284,8 @@ El dashboard v1.0 no tiene autenticacion (o tiene una basica compartida). Para u
   - [ ] Los endpoints devuelven datos en formato consistente con paginacion
   - [ ] Un sistema externo puede consultar datos de sensores usando la API
 - **Dependencias**: T6.6.1
-- **Pistas**: OpenAPI/Swagger: usar `swagger-ui-express` o servir el YAML directamente. Rate limiting: `Map<apiKey, {count, resetTime}>` en memoria (o Redis si hay multiples instancias). Paginacion: `?page=1&limit=50`.
-- **Errores comunes**: No versionar la API (usar `/api/v1/` para poder cambiar sin romper clientes existentes). No documentar los codigos de error.
+- **Pistas**: Servir el YAML desde SPIFFS o generarlo en el handler. Rate limiting: contador en memoria por API key (`{count, resetTime}`) — suficiente para un gateway con un puñado de claves. Paginacion: `?page=1&limit=50`.
+- **Errores comunes**: No versionar la API (usar `/api/v1/` para poder cambiar sin romper clientes existentes). No documentar los codigos de error. Exponer las API keys en la SPA o en los logs.
 - **Tiempo estimado**: 8-12 horas
 
 > **Checkpoint T6.6**: Dashboard con multi-usuario y API publica documentada. El sistema esta listo para integraciones externas.
@@ -282,11 +309,11 @@ El dashboard v1.0 no tiene autenticacion (o tiene una basica compartida). Para u
 - SIM7600 AT Commands Manual (buscar en el sitio de SIMCom)
 - ESP-IDF SD Card: https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/sdmmc.html
 - OpenAPI Specification: https://swagger.io/specification/
-- JWT Introduction: https://jwt.io/introduction
+- Firma de tokens (HMAC-SHA256): https://en.wikipedia.org/wiki/HMAC
 
 ## Notas finales
 
-Si has llegado hasta aqui, ¡enhorabuena! Has construido un sistema IoT completo desde cero: firmware embebido en C, comunicaciones inalambricas, servidor backend, dashboard web, actualizaciones OTA, seguridad, y pruebas de fiabilidad.
+Si has llegado hasta aqui, ¡enhorabuena! Has construido un sistema IoT completo desde cero: firmware embebido en C, comunicaciones inalambricas, dashboard embebido, API REST y WebSocket, actualizaciones OTA, seguridad, y pruebas de fiabilidad. Todo sin depender de ningun servidor de aplicacion externo.
 
 Las mejoras de esta fase son opcionales pero representan la evolucion natural del sistema. Cada una resuelve una limitacion real que encontraras en despliegues de produccion. No intentes implementarlas todas a la vez — elige la que mas necesites segun tu instalacion y ve avanzando de forma incremental, igual que has hecho con las fases anteriores.
 

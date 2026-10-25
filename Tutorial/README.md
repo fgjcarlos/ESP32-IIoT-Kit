@@ -33,16 +33,17 @@ Antes de empezar necesitas:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              SERVIDOR (LAN / Cloud) — opcional   │
+│        INTEGRACION EXTERNA (LAN / Cloud)         │
+│                    — opcional —                 │
 │                                                  │
-│       Mosquitto ←→ API REST + SQLite             │
-│       (Broker MQTT)   (opcional, escalado)       │
-└────────┬─────────────────────────────────────────┘
+│   Broker MQTT (Mosquitto, HiveMQ, AWS IoT, ...)  │
+│   Broker MQTT <-> API REST + historico           │
+└────────┬────────────────────────────────────────┘
          │ MQTT por WiFi (opcional)
          │
 ┌────────▼────────┐
 │    GATEWAY       │ ←── WiFi AP + dashboard Preact embebido
-│    ESP32-S3      │
+│    ESP32-S3      │     (ESP32-S3-WROOM-1-N16R8)
 │                  │     Recibe datos de todos los nodos
 │  WiFi AP + STA   │     Sirve SPA Preact desde SPIFFS
 │  + ESP-NOW       │     API REST local + MQTT opcional
@@ -55,7 +56,9 @@ Antes de empezar necesitas:
  Temp    Nivel     Variables
 ```
 
-**Flujo de datos**: Un nodo sensor se despierta del deep sleep, lee su sensor, envia los datos por ESP-NOW al gateway, y vuelve a dormir. El gateway recibe los datos, los sirve a traves del dashboard Preact embebido, y opcionalmente los publica por MQTT a un servidor externo. Todo funciona sin infraestructura de servidor si se prefiere.
+**Flujo de datos**: Un nodo sensor se despierta del deep sleep, lee su sensor, envia los datos por ESP-NOW al gateway, y vuelve a dormir. El gateway recibe los datos, los sirve a traves del dashboard Preact embebido, y opcionalmente los publica por MQTT a un broker externo. **Todo funciona sin infraestructura de servidor**: el broker MQTT es una integracion opcional, no un componente obligatorio.
+
+**Hardware del gateway**: el modulo es el ESP32-S3-WROOM-1-N16R8 (16 MB de flash Quad-SPI, 8 MB de PSRAM Octal-SPI). El pinout del carrier y la pantalla externa ST7789V2 de 1,9" estan **pendientes de verificacion fisica**; la fuente de verdad es `docs/hardware/esp32-s3-wroom-1-n16r8.md`.
 
 ## Mapa de tutoriales
 
@@ -65,7 +68,7 @@ Antes de empezar necesitas:
 | 1 | [Construyendo el cerebro del sistema](tutorial-01-gateway-nucleo.md) | NVS, WiFi APSTA, event-driven, HTTP server embebido, REST API, SNTP, watchdog | 40 min |
 | 2 | [Nodos autonomos y comunicacion fiable](tutorial-02-nodos-espnow.md) | Deep sleep, RTC memory, protocolo binario, ACK/retry, auto-discovery, FreeRTOS basico | 40 min |
 | 3 | [Midiendo el mundo real](tutorial-03-sensores-actuadores.md) | Sensores analogicos vs digitales, 1-Wire, calibracion, filtrado, reles, histeresis | 35 min |
-| 4 | [Del microcontrolador a la pantalla](tutorial-04-mqtt-dashboard.md) | MQTT pub/sub, topics, QoS, Mosquitto, WebSocket, React, series temporales | 40 min |
+| 4 | [Del microcontrolador a la pantalla](tutorial-04-mqtt-dashboard.md) | MQTT pub/sub, topics, QoS, broker externo opcional, WebSocket, Preact, series temporales | 40 min |
 | 5 | [Actualizaciones seguras y sistema robusto](tutorial-05-ota-optimizacion.md) | OTA A/B particiones, rollback, TLS, seguridad IoT, stress testing | 35 min |
 | 6 | [Hacia donde seguir](tutorial-06-mejoras-futuras.md) | Mesh networking, Edge ML, IoT celular, escalabilidad | 20 min |
 

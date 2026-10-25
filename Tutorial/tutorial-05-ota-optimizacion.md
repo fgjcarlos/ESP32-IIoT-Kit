@@ -46,7 +46,7 @@ Flash del ESP32 (8MB en el gateway)
 │   ◄── ACTIVA           │                         │
 │                         │                         │
 ├─────────────────────────┴────────────────────────┤
-│  SPIFFS (1.9MB) - archivos web                   │
+│  SPIFFS (4MiB) - archivos web                    │
 └──────────────────────────────────────────────────┘
 ```
 
