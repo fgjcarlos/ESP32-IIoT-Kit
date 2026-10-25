@@ -16,6 +16,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_SIZE    0x104
 #define ESP_ERR_NOT_FOUND       0x105
 #define ESP_ERR_NOT_SUPPORTED   0x106
+#define ESP_ERR_INVALID_VERSION 0x10A
 #define ESP_ERR_NVS_NOT_FOUND   0x1102
 
 static inline const char *esp_err_to_name(esp_err_t err)

@@ -29,8 +29,9 @@ set(UNITY_DIR ${IDF_ROOT}/components/unity)
 set(NANOPB_DIR ${REPO_ROOT}/firmware/gateway/managed_components/livekit__nanopb)
 set(SPARKPLUG_DIR ${REPO_ROOT}/firmware/gateway/components/sparkplug_b)
 set(BRAND_DIR ${REPO_ROOT}/firmware/gateway/components/brand_profile)
+set(OTA_MANIFEST_DIR ${REPO_ROOT}/firmware/gateway/components/ota_manifest)
 
-foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR})
+foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR} ${OTA_MANIFEST_DIR})
     if(NOT EXISTS ${required})
         message(FATAL_ERROR "Missing ${required}. Pass -DIDF_ROOT=<esp-idf checkout> if it is not in the default location.")
     endif()
@@ -65,6 +66,10 @@ add_executable(iot_host_tests
     ${BRAND_DIR}/brand_profile.c
     ${BRAND_DIR}/brand_profile_esp.c
 
+    # The OTA release manifest: the portable rules that decide whether an
+    # image may be installed.
+    ${OTA_MANIFEST_DIR}/ota_manifest.c
+
     # The same test files the on-device test project runs.
     ${SPARKPLUG_DIR}/test/test_payload.c
     ${SPARKPLUG_DIR}/test/test_state.c
@@ -72,6 +77,7 @@ add_executable(iot_host_tests
     ${SPARKPLUG_DIR}/test/test_espnow_bridge.c
     ${SPARKPLUG_DIR}/test/test_cmd.c
     ${BRAND_DIR}/test/test_brand_profile.c
+    ${OTA_MANIFEST_DIR}/test/test_ota_manifest.c
 )
 
 target_include_directories(iot_host_tests PRIVATE
@@ -83,6 +89,7 @@ target_include_directories(iot_host_tests PRIVATE
     ${SPARKPLUG_DIR}/include
     ${SPARKPLUG_DIR}/proto
     ${BRAND_DIR}/include
+    ${OTA_MANIFEST_DIR}/include
 )
 
 # The device build embeds the logo of the selected profile; the host build

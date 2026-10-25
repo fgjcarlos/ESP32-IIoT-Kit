@@ -33,6 +33,11 @@ if(ota_manager_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "ota_manager")
 endif()
 
+list(FIND TEST_COMPONENTS "ota_manifest" ota_manifest_test_component_index)
+if(ota_manifest_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "ota_manifest")
+endif()
+
 list(FIND TEST_COMPONENTS "display_manager" display_manager_test_component_index)
 if(display_manager_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "display_manager")
