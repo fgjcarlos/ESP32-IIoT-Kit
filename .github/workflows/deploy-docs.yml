@@ -9,6 +9,7 @@ on:
       - 'Fases/**'
       - 'knowledge/**'
       - 'mkdocs.yml'
+      - 'tools/ci/check-roamlinks.py'
       - '.github/workflows/deploy-docs.yml'
 
   workflow_dispatch:
@@ -35,8 +36,12 @@ jobs:
       - name: Install MkDocs
         run: pip install mkdocs-material mkdocs-roamlinks-plugin
 
+      - name: Check that every roam link resolves
+        run: python3 tools/ci/check-roamlinks.py
+
+      # Strict mode: the published site must not carry a broken cross-reference.
       - name: Build site
-        run: mkdocs build
+        run: mkdocs build --strict
 
       - uses: actions/upload-pages-artifact@v3
         with:

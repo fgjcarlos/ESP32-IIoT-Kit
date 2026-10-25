@@ -26,6 +26,11 @@
 - [[Watchdog]] - Temporizador de vigilancia
 - [[White-label]] - Perfiles de marca sin bifurcar el firmware
 
+### Plataforma embebida del gateway
+- [[Preact]] - SPA ligera servida desde SPIFFS
+- [[REST-API]] - API de datos y configuracion
+- [[WebSocket]] - Push de datos en tiempo real
+
 ## Decisiones de arquitectura
 - [[001-c-vs-tinygo]] - Por que C + ESP-IDF en vez de TinyGo
 - [[002-esp-now-sin-cifrado]] - 20 peers sin cifrar vs 6 cifrados
@@ -34,16 +39,16 @@
 - [[005-ota-manifiesto-firmado]] - Manifiesto de publicacion firmado para el OTA
 
 ## Referencia rapida
-- [[ESP32-S3-Pinout]]
-- [[ESP32-C3-Pinout]]
-- [[APIs-ESP-IDF-Cheatsheet]]
 - [[Errores-Comunes]]
 - [[Protocolo-Mensajes]]
+- `ESP32-S3-Pinout` (pendiente de crear; el perfil vigente vive en `docs/hardware/esp32-s3-wroom-1-n16r8.md`)
+- `ESP32-C3-Pinout` (pendiente de crear)
+- `APIs-ESP-IDF-Cheatsheet` (pendiente de crear)
 
 ## Proyecto
 - [[Arquitectura]]
 - [[Progreso]]
-- [[Problemas-Resueltos]]
+- `Problemas-Resueltos` (pendiente de crear)
 
 ## Diario
 (las entradas se agregan automaticamente con el template)

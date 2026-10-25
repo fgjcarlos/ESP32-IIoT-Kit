@@ -137,7 +137,7 @@ ESP-IDF: `esp_ota_ops.h` (`esp_ota_begin`, `esp_ota_write`, `esp_ota_end`,
   el OTA corre en su propia tarea por eso.
 
 ## Enlaces
-- [[`_MOC`]]
+- [[_MOC]]
 - [[Watchdog]] - el vigilante que reinicia la unidad si la imagen no se confirma
 - [[NVS]] - donde se guarda la URL del servidor de releases
 - [[White-label]] - de dónde salen producto, marca, modelo y revisión
