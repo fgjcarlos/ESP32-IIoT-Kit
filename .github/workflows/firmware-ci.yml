@@ -123,6 +123,11 @@ jobs:
           ./esp-idf/install.sh esp32s3
           echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
+      - name: Set the target
+        run: |
+          . tools/ci/activate-idf.sh
+          idf.py -C firmware/gateway set-target esp32s3
+
       - name: Build the gateway
         run: |
           . tools/ci/activate-idf.sh
@@ -184,6 +189,11 @@ jobs:
         run: |
           ./esp-idf/install.sh esp32s3
           echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
+
+      - name: Set the target
+        run: |
+          . tools/ci/activate-idf.sh
+          idf.py -C firmware/gateway set-target esp32s3
 
       - name: Build twice and compare the artefacts
         shell: bash

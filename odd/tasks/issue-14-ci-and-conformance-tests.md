@@ -180,11 +180,11 @@ hardware.
 
 ### Build reproducible
 
-Dos builds desde cero, el mismo commit:
+Dos builds desde cero, el mismo commit, en la CI (`esp32s3`):
 
 ```
-38e74bd9f978c4ccf28ee591d54b654877b4da2e6d9c1f415e579d02a97a54ee  build-a/gateway.bin
-38e74bd9f978c4ccf28ee591d54b654877b4da2e6d9c1f415e579d02a97a54ee  build-b/gateway.bin
+0cdf390750f9fad34a484aed12cf1565d2e82c1632a26121115a739f8aa3c612  build-a/gateway.bin
+0cdf390750f9fad34a484aed12cf1565d2e82c1632a26121115a739f8aa3c612  build-b/gateway.bin
 4590caef80ca85c132c717a270c44ce392d72255d5d12b47c7eca2241d3cf01a  build-a/bootloader/bootloader.bin
 4590caef80ca85c132c717a270c44ce392d72255d5d12b47c7eca2241d3cf01a  build-b/bootloader/bootloader.bin
 e66046b86176d18f7d6617d8bb70d48801868a22ea2defea8a068d2c063dc0c3  build-a/partition_table/partition-table.bin
@@ -193,11 +193,14 @@ e66046b86176d18f7d6617d8bb70d48801868a22ea2defea8a068d2c063dc0c3  build-b/partit
 
 ### Tamaño y particiones
 
+La imagen por defecto de un checkout limpio (la que construye la CI):
+
 | Métrica | Valor |
 |---|---|
-| Imagen de aplicación | 1 021 120 B (997,19 KiB) |
-| Partición de aplicación más pequeña | 3 145 728 B (3 MiB) |
-| Libre | 2 124 608 B (67,54 %) |
+| Imagen de aplicación | 799.328 B (780,59 KiB) |
+| Partición de aplicación más pequeña | 3.145.728 B (3 MiB) |
+| Libre | 2.346.400 B (74,59 %) |
+| Usado | 25,41 % |
 | Puerta | al menos un 10 % libre |
 
 ### Pruebas
