@@ -30,6 +30,8 @@
 - [[001-c-vs-tinygo]] - Por que C + ESP-IDF en vez de TinyGo
 - [[002-esp-now-sin-cifrado]] - 20 peers sin cifrar vs 6 cifrados
 - [[003-protocolo-unificado]] - Un solo protocolo para todo el sistema
+- [[004-iiot-kit-transformation]] - Transformacion a plataforma IIoT generica
+- [[005-ota-manifiesto-firmado]] - Manifiesto de publicacion firmado para el OTA
 
 ## Referencia rapida
 - [[ESP32-S3-Pinout]]

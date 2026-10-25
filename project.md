@@ -144,6 +144,7 @@ El gateway es un producto comercializable: cada cliente quiere "su" marca. En ve
 | Elemento | Dónde vive | ¿Secreto? |
 |----------|------------|-----------|
 | Nombre, modelo, colores, URL de soporte, SSID inicial, canal OTA | `components/brand_profile/Kconfig.projbuild` | no — público, versionado |
+| Identificador de producto y revisión de hardware | `CONFIG_BRAND_PRODUCT_ID`, `CONFIG_BRAND_HW_REVISION` | no — público, versionado |
 | Logo y su geometría | `components/brand_profile/profiles/<id>/` | no — versionado |
 | Versión de firmware y revisión | `CONFIG_BRAND_FIRMWARE_VERSION` y SHA del commit | no |
 | Clave de aprovisionamiento, token de soporte, contraseña de fábrica del AP | `brand_secrets.local.h` (gitignored, generado desde `/.env`) | **sí** |
@@ -153,6 +154,39 @@ La *choice* de Kconfig `BRAND_PROFILE` selecciona el perfil; el build embebe su 
 La identidad se publica por tres superficies —logs, LCD (splash de arranque) y API (`/api/brand`)— que leen la misma estructura, de modo que no pueden discrepar entre sí.
 
 Detalle: `firmware/gateway/components/brand_profile/README.md` y `tools/brand/README.md`.
+
+### 3.5 Capa OTA segura (manifiesto firmado)
+
+Una actualización remota sólo puede instalar una imagen **firmada** que sea
+exactamente para esa marca, ese modelo y esa revisión de hardware. La capa
+se reparte en dos componentes:
+
+| Componente | Responsabilidad | Naturaleza |
+|---|---|---|
+| `ota_manifest` | Modelo del manifiesto, parser estricto, forma canónica, reglas de compatibilidad, canal y antirregresión | C puro, portable, se prueba en el host |
+| `ota_manager` | Verificación ECDSA P-256 (mbedTLS), descarga HTTPS, escritura en la ranura inactiva, digest leído de la flash, activación, confirmación del rollback | ESP-IDF |
+
+El manifiesto declara producto, marca, modelo, **revisión de hardware**,
+target, versión, canal, tamaño, SHA-256, URL y firma. La firma es un ECDSA
+P-256 sobre la forma canónica del manifiesto; la clave pública está embebida
+en el firmware (no es un secreto) y la privada vive en la canalización de
+publicación (nunca en Git).
+
+El orden de las comprobaciones es la propiedad de seguridad del conjunto:
+**compatibilidad, canal y antirregresión se comprueban antes de descargar un
+solo byte de la imagen**. Los canales se ordenan por estabilidad
+(`dev` < `beta` < `production`) y una unidad sólo acepta imágenes al menos
+tan estables como ella, de modo que una imagen de `dev` nunca alcanza a una
+unidad de producción.
+
+La imagen se escribe en la ranura inactiva, se relee de la flash y se
+compara su SHA-256 con el declarado antes de activarla. Una imagen nueva
+arranca en `PENDING_VERIFY` y sólo se confirma cuando los subsistemas
+críticos están vivos; si no se confirma en 120 s o si entra en pánico, el
+bootloader vuelve a la ranura anterior.
+
+Detalle: `docs/ota/ota-security.md`, `tools/ota/README.md` y
+`odd/tasks/issue-13-secure-ota.md`.
 
 ---
 
