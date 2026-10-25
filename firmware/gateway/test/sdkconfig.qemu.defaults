@@ -1,0 +1,22 @@
+# CI profile of the on-target test application (issue #14).
+#
+# The CI runs this test project under QEMU, and the QEMU build of ESP-IDF
+# v5.4 does not emulate the Octal PSRAM of the ESP32-S3-WROOM-1-N16R8: the
+# chip aborts at boot with "Failed to init external RAM!" before the first
+# test runs. The PSRAM is therefore disabled here and the tests that need
+# the real memory are tagged `[hw]`, so they run on the board instead.
+#
+# Everything else is identical to sdkconfig.defaults: the point of the CI run
+# is to exercise the same code, not a different configuration.
+# CONFIG_SPIRAM is not set
+# CONFIG_SPIRAM_MODE_OCT is not set
+
+# The CI profile of the test application: the tests tagged [hw] are skipped.
+CONFIG_GATEWAY_TEST_PROFILE_LOGIC=y
+# CONFIG_GATEWAY_TEST_PROFILE_BOARD is not set
+
+# The SHA accelerator of the ESP32-S3 is emulated by QEMU, but its GDMA
+# handshake is not: the run ends with "[SHA] Error reading from GDMA buffer"
+# and the heap is corrupted afterwards. The software implementation covers the
+# same manifest verification, so the CI uses it.
+# CONFIG_MBEDTLS_HARDWARE_SHA is not set

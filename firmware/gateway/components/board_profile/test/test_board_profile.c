@@ -9,7 +9,8 @@
 
 static const char *TAG = "board_profile";
 
-TEST_CASE("Connected gateway matches the selected ESP32-S3 memory profile", "[board_profile]")
+TEST_CASE("Connected gateway matches the selected ESP32-S3 memory profile",
+          "[board_profile][hw]")
 {
     board_profile_t profile;
 
@@ -19,7 +20,8 @@ TEST_CASE("Connected gateway matches the selected ESP32-S3 memory profile", "[bo
     TEST_ASSERT_EQUAL_UINT32(EXPECTED_PSRAM_SIZE_BYTES, profile.psram_size_bytes);
 }
 
-TEST_CASE("PSRAM allocates one RGB565 framebuffer-sized 8-bit block", "[board_profile]")
+TEST_CASE("PSRAM allocates one RGB565 framebuffer-sized 8-bit block",
+          "[board_profile][hw]")
 {
     const size_t free_internal_heap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     const size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);

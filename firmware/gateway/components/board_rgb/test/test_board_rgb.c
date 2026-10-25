@@ -3,7 +3,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-TEST_CASE("Onboard WS2812 encoder uses GRB byte order before the GPIO48 smoke test", "[board_rgb]")
+// The smoke test drives the RMT of the onboard WS2812 on GPIO48, so it needs
+// the physical gateway: QEMU has no RMT model and the test hangs there.
+TEST_CASE("Onboard WS2812 encoder uses GRB byte order before the GPIO48 smoke test",
+          "[board_rgb][hw]")
 {
     uint8_t grb[3];
 
