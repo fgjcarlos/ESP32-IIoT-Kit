@@ -14,6 +14,30 @@
 
 ---
 
+## Fuentes de verdad
+
+Cada tema tiene **un** sitio donde se actualiza. Los demás documentos apuntan aquí en lugar de copiar el dato, para que no puedan contradecirse.
+
+| Tema | Fuente de verdad | Qué contiene |
+|------|-------------------|---------------|
+| Hardware del gateway (módulo, pinout, memoria, particiones, display) | `docs/hardware/esp32-s3-wroom-1-n16r8.md` | Perfil del ESP32-S3-WROOM-1-N16R8: hechos confirmados por sonda, pinout **provisional** del carrier, pantalla ST7789V2 de 1,9" **pendiente de verificación física**, tabla de particiones de 16 MB y presupuestos ODD-3 |
+| Protocolo de mensajería | `docs/replanificacion/02-protocolo-unificado.md` | Header, tipos de sensor, `SENSOR_TYPE_CUSTOM = 0xFF`, ACK/retry |
+| Decisiones de replanificación | `docs/replanificacion/01-decisiones-corregidas.md` | DC-01 a DC-13 |
+| Cronograma y fases corregidas | `docs/replanificacion/03-fases-corregidas.md` | Duraciones reales por fase (total 25 semanas) |
+| Arquitectura de alto nivel | `project.md` (este documento) | Topología, stack, fases, riesgos |
+| Estado del firmware | `firmware/gateway/components/` + `AGENTS.md` | Lo que existe de verdad; lo demás es objetivo |
+| Seguridad del OTA | `docs/ota/ota-security.md` | Manifiesto firmado, orden de comprobaciones, rollback |
+| Estado de los cambios | `openspec/changes/` y `openspec/changes/archive/` | Flujo de cambio guiado por specs |
+| Nota de concepto y ADR | `knowledge/Conceptos/` y `knowledge/Decisiones/` | Vault de aprendizaje (Obsidian) |
+
+Reglas que evitan que las fuentes se dupliquen:
+
+- El **sitio MkDocs** (`docs_site/`) es un espejo por enlaces simbólicos de `Tutorial/`, `Fases/` y `knowledge/`. Edita siempre el fichero canónico; el espejo se actualiza solo.
+- Lo **reportado por el vendedor** (dimensiones, 20 mA, 3,3 V, pinout de imagen) no es una fuente de verdad: es contexto pendiente de medir, y se marca como tal en cada sitio donde aparece.
+- Una funcionalidad no se declara implementada sin evidencia en `firmware/gateway/` o en `firmware/common/`.
+
+---
+
 ## 1. Visión General
 
 ### 1.1 Objetivo del Proyecto
@@ -83,6 +107,8 @@ El gateway candidato ESP32-S3-WROOM-1-N16R8 es el corazón previsto del sistema.
 
 **Principio de diseño clave**: el gateway es completamente funcional sin conectividad a Internet. Un navegador se conecta directamente al WiFi AP del gateway y carga la Preact SPA desde SPIFFS. Los datos fluyen por WebSocket en tiempo real y por REST para configuración e historial. MQTT es una integración opcional para conectividad cloud o LAN.
 
+**Estado de implementacion**: el diagrama describe la arquitectura *objetivo*. El firmware del gateway ya existe como base modular (`firmware/gateway/components/`), pero la SPA Preact (`firmware/gateway/web/`) y el firmware de los nodos (`firmware/node/`) **aun no estan en disco**. No declares como implementado nada que no tenga evidencia en `firmware/gateway/`.
+
 ### 2.2 Protocolos de Comunicación
 
 **Prioridad 1: ESP-NOW (backbone del sistema)**
@@ -121,7 +147,7 @@ El gateway candidato ESP32-S3-WROOM-1-N16R8 es el corazón previsto del sistema.
 | **Comunicación** | `esp_now`, `esp_mqtt`, `esp_http_server` | Componentes nativos ESP-IDF |
 | **Almacenamiento** | `nvs_flash` + SPIFFS | NVS para configuración; SPIFFS para Preact SPA |
 | **OTA** | `esp_ota_ops` + `esp_https_ota` | Particiones A/B con rollback |
-| **Testing** | Unity (integrado en ESP-IDF), Wokwi | Tests unitarios + simulación |
+| **Testing** | Unity (integrado en ESP-IDF) sobre el dispositivo, suite en host (`tools/host-tests/`) y suite del dispositivo bajo QEMU | Tests unitarios por componente, sin flashing, y tests en la placa real |
 
 ### 3.2 Dashboard Embebido (Gateway candidato ESP32-S3-WROOM-1-N16R8)
 
@@ -202,7 +228,7 @@ Detalle: `docs/ota/ota-security.md`, `tools/ota/README.md` y
 - **ESP-NOW básico**: envío/recepción entre 2 placas
 - **WiFi AP + STA** simultáneo en el S3 (modo APSTA)
 - **Benchmark de consumo** con multímetro: active, modem sleep, light sleep, deep sleep
-- **Setup Preact + Vite**: instalar Node.js, crear proyecto de prueba, verificar build
+- **Setup Preact + Vite**: instalar Node.js como **herramienta de build** (no como servicio en tiempo de ejecución), crear el proyecto de prueba y verificar el tamaño del bundle
 - **Definir estructura del proyecto** (componentes ESP-IDF, convenciones de código)
 
 **Entregables**: Repositorio Git estructurado, informe de benchmarks, toolchain documentado
@@ -314,7 +340,7 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 
 **Objetivo**: Funcionalidades avanzadas post-v1.0
 
-- **MQTT Sparkplug B**: migración desde MQTT plano a Sparkplug B v1.0 para interoperabilidad industrial. Gateway como EoN Node, nodos sensores como Devices. Protobuf/nanopb en ESP32
+- **MQTT Sparkplug B (integración opcional)**: modo alternativo de publicación sobre MQTT, para interoperabilidad industrial. El gateway actúa como EoN Node y cada nodo sensor como Device. Protobuf/nanopb en ESP32. Vive en `firmware/gateway/components/sparkplug_b/` y se activa con `CONFIG_SPARKPLUG_B_ENABLED=y`, **desactivado por defecto**: el gateway funciona igual sin él, y `mqtt_bridge_start()` sigue siendo un no-op cuando la opción está apagada. Detalle en `Fases/fase-06-mejoras-futuras.md` y `docs/sparkplug_3.0.0-measurements.md`.
 - **OTA vía ESP-NOW** para nodos (fragmentación de firmware en paquetes de 250B con ACK)
 - **Mesh relay automático** con descubrimiento de rutas
 - **Machine Learning edge** para detección de anomalías (TFLite Micro en ESP32-S3)
@@ -330,9 +356,11 @@ Para sensores específicos de dominio (pH, oxígeno disuelto, ORP, nivel de agua
 
 ### 5.1 Requisitos Hardware
 
+> **Fuente de verdad del hardware del gateway**: `docs/hardware/esp32-s3-wroom-1-n16r8.md`. Ese perfil separa lo confirmado por sonda en la unidad conectada de lo reportado por el vendedor, y es el único sitio donde se actualizan pinout, memoria y estado de verificación. Esta tabla resume; no duplica.
+
 | Componente | Especificación | Cantidad | Coste Aprox. |
 |------------|----------------|----------|--------------|
-| Gateway | Candidato ESP32-S3-WROOM-1-N16R8 (16 MB flash Quad-SPI, 8 MB PSRAM Octal-SPI; imagen provisional de pinout del carrier proporcionada por el usuario: GPIO0–GPIO21 y GPIO35–GPIO48, con GPIO0/BOOT, GPIO19/USB D−, GPIO20/USB D+ y GPIO48/RGB_LED; GPIO35–GPIO37 no están disponibles porque el módulo los usa para PSRAM Octal-SPI; pantalla externa confirmada por el usuario: 8 pines, ST7789V2, 170(H) RGB × 320(V), SPI de 4 hilos y tamaño nominal de 1,9 in; especificaciones reportadas por el usuario/listado, no verificadas físicamente: 3,3 V, −20 a 70 °C, dirección de visión a las 12, dos LED blancos en paralelo y corriente de operación de 20 mA de alcance no aclarado; **advertencia: el usuario retiró como incorrecto el valor del vendedor de pitch `0,1155 × 0,1155 mm`; no debe usarse ni debe derivarse geometría de él, ni inferirse un pitch de reemplazo**; las dimensiones mecánicas reportadas por el dibujo del usuario son: área activa 42,720 × 22,695 mm, contorno LCD 48,520 × 24,800 mm, contorno de retroiluminación 49,720 × 25,800 mm, contorno PCB 62,000 × 29,000 mm y separación entre centros de montaje 58,000 × 25,000 mm; no son verificación física y deben compararse con el módulo exacto antes de diseñar la carcasa; el mapa de contactos no asigna GPIO del ESP32 y los niveles lógicos, el manejo de corriente de retroiluminación y todas las especificaciones eléctricas siguen sin validar) | 1 | Por confirmar |
+| Gateway | ESP32-S3-WROOM-1-N16R8: 16 MB flash Quad-SPI, 8 MB PSRAM Octal-SPI. GPIO35/36/37 ocupados por la PSRAM (no disponibles), GPIO48 reservado para el LED RGB onboard, GPIO19/20 reservados para USB nativo mientras se use. **Pinout del carrier y pantalla externa ST7789V2 de 1,9" pendientes de verificación física**: son datos reportados por el usuario y el vendedor, no medidas | 1 | Por confirmar |
 | Nodos | ESP32-C3-MINI-1 (4MB Flash) | 3-10 | 4 €/unidad |
 | Sensor de referencia | DS18B20 (temperatura 1-Wire) | 1+ | 2 €/unidad |
 | Baterías | Li-Ion 18650 3400mAh (ej. NCR18650B) | 3-10 | 5 €/unidad |
@@ -391,49 +419,47 @@ otadata,  data, ota,      0x310000, 0x2000    (8KB)
 
 ### 5.4 Estructura del Proyecto
 
+El gateway es **modular**: cada subsistema es un componente ESP-IDF con su propio `include/`, su `CMakeLists.txt` y sus tests Unity en `test/`. `main/` solo compone. Este es el estado real en disco.
+
 ```
 ESP32-IIoT-Kit/
 ├── firmware/
-│   ├── gateway/                  # Proyecto ESP-IDF para el candidato ESP32-S3-WROOM-1-N16R8
-│   │   ├── main/
-│   │   │   ├── main.c
-│   │   │   ├── wifi_manager.c/.h
-│   │   │   ├── espnow_manager.c/.h
-│   │   │   ├── mqtt_bridge.c/.h  # MQTT opcional
-│   │   │   ├── http_server.c/.h  # REST API + WebSocket
-│   │   │   ├── ota_manager.c/.h
-│   │   │   ├── nvs_config.c/.h
-│   │   │   └── actuator_ctrl.c/.h
-│   │   ├── components/
-│   │   │   └── protocol/         # Protocolo de mensajería compartido
-│   │   ├── web/                  # Fuente Preact SPA (build → SPIFFS)
-│   │   │   ├── src/
-│   │   │   │   ├── app.jsx
-│   │   │   │   ├── components/
-│   │   │   │   └── hooks/
-│   │   │   ├── package.json
-│   │   │   └── vite.config.js    # Preact + build con gzip
-│   │   ├── partitions.csv
+│   ├── gateway/                  # Proyecto ESP-IDF para el ESP32-S3-WROOM-1-N16R8 (target esp32s3)
+│   │   ├── main/                 # app_main + nvs_config
+│   │   ├── components/           # Un componente por subsistema
+│   │   │   ├── board_profile/    # Perfil de placa: flash, PSRAM, particiones
+│   │   │   ├── board_rgb/        # LED RGB onboard en GPIO48
+│   │   │   ├── wifi_manager/     # WiFi APSTA con reconexión
+│   │   │   ├── espnow_manager/   # Backbone ESP-NOW
+│   │   │   ├── http_server/      # API REST + WebSocket
+│   │   │   ├── mqtt_bridge/      # MQTT plano (integración opcional)
+│   │   │   ├── sparkplug_b/      # Modo opcional MQTT Sparkplug B v3.0.0 (EoN-Node)
+│   │   │   ├── ota_manager/      # OTA HTTPS con rollback
+│   │   │   ├── ota_manifest/     # Manifiesto firmado (C puro, testeable en host)
+│   │   │   ├── brand_profile/    # Capa white-label (choice de Kconfig + assets)
+│   │   │   ├── assets_brand/     # Activos de marca embebidos
+│   │   │   ├── lcd_driver/       # Driver SPI del ST7789V2 (contactos 1..8)
+│   │   │   ├── lvgl_port/        # Puerto de LVGL para el panel
+│   │   │   ├── ui_screens/       # Pantallas de la UI
+│   │   │   └── display_manager/  # Orquestación de la cadena de display
+│   │   ├── test/                 # Proyecto Unity de nivel superior
+│   │   ├── partitions.csv        # Tabla personalizada de 16 MB
+│   │   ├── sdkconfig.defaults    # esp32s3 + PSRAM Octal
 │   │   └── CMakeLists.txt
 │   │
-│   ├── node/                     # Proyecto ESP-IDF para ESP32-C3
-│   │   ├── main/
-│   │   │   ├── main.c
-│   │   │   ├── espnow_node.c/.h
-│   │   │   ├── sensor_manager.c/.h
-│   │   │   ├── power_manager.c/.h
-│   │   │   └── nvs_config.c/.h
+│   ├── node/                     # Proyecto ESP-IDF para ESP32-C3 — PLANIFICADO, no existe en disco
+│   │   ├── main/                 # main.c, espnow_node, sensor_manager, power_manager, nvs_config
 │   │   ├── components/
 │   │   │   ├── protocol/         # Mismo componente compartido
-│   │   │   └── drivers/          # Drivers de sensores
-│   │   │       └── ds18b20/      # Driver DS18B20 (sensor de referencia)
+│   │   │   └── drivers/          # Drivers de sensores (ds18b20 como referencia)
 │   │   ├── partitions.csv
 │   │   └── CMakeLists.txt
 │   │
 │   └── common/                   # Código compartido (protocolo, tipos)
 │       └── protocol/
 │           ├── protocol.h        # + SENSOR_TYPE_CUSTOM = 0xFF
-│           └── protocol.c
+│           ├── protocol.c
+│           └── test/             # Tests del protocolo ejecutables en host
 │
 ├── examples/                     # Ejemplos de dominio específico
 │   └── fish-farm/
@@ -449,8 +475,16 @@ ESP32-IIoT-Kit/
 │   ├── Proyecto/                 # Estado y arquitectura del proyecto
 │   └── Referencia/               # Material de referencia rápida
 ├── docs/                         # Documentación interna y replanificación
-├── docs_site/                    # Fuente MkDocs (sitio web publicado)
-├── project.md                    # Este documento (fuente de verdad)
+│   ├── hardware/                 # Perfil del gateway S3 (fuente de verdad del hardware)
+│   ├── ota/                      # Seguridad del OTA
+│   ├── replanificacion/          # Decisiones, protocolo y fases corregidas
+│   └── testing/                  # Plan de pruebas de hardware y de estrés
+├── docs_site/                    # Espejo del sitio MkDocs (enlaces simbólicos a las fuentes canónicas)
+├── openspec/                     # Flujo de cambio guiado por specs
+├── odd/tasks/                    # Plan de trabajo por issue
+├── tools/                        # Utilidades (CI, host tests, OTA, marca, Sparkplug)
+├── project.md                    # Este documento (fuente de verdad de arquitectura)
+├── AGENTS.md                     # Contexto operativo para asistentes de IA
 ├── CLAUDE.md                     # Contexto para asistentes de IA
 ├── README.md                     # Presentación del repositorio
 └── mkdocs.yml                    # Configuración del sitio MkDocs
@@ -489,12 +523,14 @@ ESP32-IIoT-Kit/
 | Fase | Duración | Acumulado |
 |------|----------|-----------|
 | Fase 0: Preparación | 3 semanas | 3 semanas |
-| Fase 1: Gateway núcleo | 4 semanas | 7 semanas |
-| Fase 2: Nodos + ESP-NOW | 4 semanas | 11 semanas |
-| Fase 3: Sensores y actuadores | 3 semanas | 14 semanas |
-| Fase 4: Dashboard embebido + API REST | 4 semanas | 18 semanas |
-| Fase 5: OTA + Seguridad + Pruebas | 4 semanas | 22 semanas |
-| **Total hasta v1.0** | **22 semanas** | |
+| Fase 1: Gateway núcleo | 5 semanas | 8 semanas |
+| Fase 2: Nodos + ESP-NOW | 5 semanas | 13 semanas |
+| Fase 3: Sensores y actuadores | 3 semanas | 16 semanas |
+| Fase 4: Dashboard embebido + API REST | 4 semanas | 20 semanas |
+| Fase 5: OTA + Seguridad + Pruebas | 5 semanas | 25 semanas |
+| **Total hasta v1.0** | **25 semanas** | |
+
+*Las duraciones son las de la replanificación (`docs/replanificacion/03-fases-corregidas.md`): las fases 1, 2 y 5 suman una semana extra cada una, por ACK y validación, WiFi dormido y discovery, y cifrado NVS más tests.*
 
 ### 7.2 Presupuesto Estimado (Hardware)
 
@@ -557,12 +593,12 @@ El enfoque del proyecto requiere validación en el gateway candidato ESP32-S3-WR
 
 ### 9.3 Próximos Pasos
 
-1. **Confirmar hardware**: 1x candidato ESP32-S3-WROOM-1-N16R8, su modelo/revisión y unidad física frente a la imagen provisional de pinout proporcionada por el usuario; GPIO35–GPIO37 permanecen no disponibles por PSRAM Octal-SPI, GPIO48 queda reservado para RGB_LED y GPIO19/GPIO20 para USB D−/D+ mientras se necesite USB nativo. Panel externo de 8 pines ST7789V2 (170(H) RGB × 320(V), SPI de 4 hilos y tamaño nominal de 1,9 in), 3x ESP32-C3-DevKitM y sensor DS18B20; además de las etiquetas físicas y los GPIO del lado de la placa, verificar 3,3 V, niveles lógicos seguros, polaridad de reset, construcción y control de retroiluminación, y qué mide la corriente reportada de 20 mA. **Advertencia: el usuario retiró como incorrecto el valor del vendedor de pitch `0,1155 mm`; no debe usarse, ni su geometría derivada, ni debe inferirse un reemplazo.** Las dimensiones mecánicas ahora son reportadas por el dibujo del usuario: AA 42,720 × 22,695 mm, contorno LCD 48,520 × 24,800 mm, contorno de retroiluminación 49,720 × 25,800 mm, contorno PCB 62,000 × 29,000 mm y separación entre centros de montaje 58,000 × 25,000 mm. Compararlas con el módulo exacto entregado antes de diseñar la carcasa; no son verificación física y no usar especificaciones de la variante distinta de 30 pines (1 semana)
-2. **Setup ESP-IDF v5.x** y validar compilación para ESP32-S3 y ESP32-C3 (1 semana)
-3. **Setup Preact + Vite**: validar que un build de prueba produce un bundle < 200KB gzipped (1 semana)
-4. **Iniciar Fase 0** según cronograma
+1. **Confirmar el hardware contra la unidad física**: el módulo y sus memorias ya están confirmados por sonda (`docs/hardware/esp32-s3-wroom-1-n16r8.md`). Queda pendiente identificar el modelo y la revisión exactos del carrier y comprobar sus etiquetas y el lado de la placa de la pantalla de 8 pines ST7789V2 (170(H) RGB × 320(V), SPI de 4 hilos, tamaño nominal de 1,9"), los niveles lógicos y de alimentación seguros, la polaridad de reset, la construcción y el control de la retroiluminación, y qué mide exactamente la corriente reportada de 20 mA. GPIO35–GPIO37 siguen no disponibles por PSRAM Octal-SPI, GPIO48 queda reservado para RGB_LED y GPIO19/GPIO20 para USB D−/D+ mientras se necesite USB nativo. **Advertencia: el usuario retiró como incorrecto el valor del vendedor de pitch `0,1155 mm`; no debe usarse, ni su geometría derivada, ni debe inferirse un reemplazo.** Las dimensiones reportadas por el dibujo del usuario (AA 42,720 × 22,695 mm; contorno LCD 48,520 × 24,800 mm; contorno de retroiluminación 49,720 × 25,800 mm; contorno PCB 62,000 × 29,000 mm; separación de montantes 58,000 × 25,000 mm) no son verificación física: compararlas con el módulo exacto entregado antes de diseñar la carcasa, y no usar especificaciones de la variante distinta de 30 pines (1 semana)
+2. **Firmware de los nodos (`firmware/node/`)**: crear el proyecto ESP-IDF para ESP32-C3 con el ciclo deep sleep → lectura → ESP-NOW → deep sleep, reutilizando `firmware/common/protocol/` (2 semanas)
+3. **SPA Preact (`firmware/gateway/web/`)**: crear el proyecto Vite + Preact y validar que el bundle queda por debajo de 200 KB gzipped para la partición SPIFFS (1 semana)
+4. **Completar la Fase 0** según cronograma
 
 ---
 
-**Documento v3.0** — Stack: C (ESP-IDF) + Preact/Vite embebido
-*Fecha: 2026-05-23 — Transformación a ESP32-IIoT-Kit (iiot-kit-transformation)*
+**Documento v3.1** — Stack: C (ESP-IDF) + Preact/Vite embebido
+*Fecha: 2026-05-23 — Transformación a ESP32-IIoT-Kit (iiot-kit-transformation) · sincronizado con el gateway ESP32-S3-WROOM-1-N16R8 y la base modular del firmware (issue #15)*

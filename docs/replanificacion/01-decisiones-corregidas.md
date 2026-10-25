@@ -189,4 +189,4 @@
 **Impacto en recursos del gateway**:
 - Flash: nanopb anade ~20-30KB al firmware
 - RAM: buffers de serializacion Protobuf (~1-2KB por mensaje)
-- ESP32-S3 con 8MB flash y 2MB PSRAM soporta esto sin problema
+- El ESP32-S3-WROOM-1-N16R8 adoptado (16MB flash, 8MB PSRAM Octal) soporta esto sin problema

@@ -385,12 +385,12 @@ Timeout cambiado de 60s a 120s para dar margen al init completo (WiFi + MQTT + S
      - DDATA para datos de sensores (reemplaza los publish custom de Fase 4)
      - NCMD/DCMD para comandos desde el servidor
   4. Cambiar topic namespace: `spBv1.0/{mqtt_ns}/{msg_type}/{gateway_id}/{node_id}`
-  5. Adaptar el servidor (Bun/Node) para decodificar payloads Protobuf Sparkplug
+  5. Adaptar el consumidor de los datos (el broker y el dashboard embebido) para decodificar payloads Protobuf Sparkplug
   6. Adaptar el dashboard para consumir la nueva estructura de datos
   7. Mantener retrocompatibilidad temporal: flag en NVS para elegir MQTT plano o Sparkplug B
 - Los nodos sensores NO requieren cambios (hablan ESP-NOW, no MQTT)
 - Dependencias: T4.1.2 (MQTT bridge funcionando), T6.1 (relay, si se implemento)
-- Tiempo estimado: 12-16 horas (gateway 6-8h, servidor 3-4h, dashboard 3-4h)
+- Tiempo estimado: 12-16 horas (gateway 6-8h, broker y consumidores 3-4h, dashboard 3-4h)
 
 ---
 
@@ -414,8 +414,8 @@ T2.4.4 (WiFi dormido) ───────────────────�
 Fase 4                    Fase 5
 ───────                   ───────
 T4.1.2 (MQTT bridge) ───> T5.1.2 (OTA via MQTT trigger)
-T4.2.1 (Mosquitto) ─────> T5.4.2 (MQTT TLS)
-T4.3.1 (DB schema) ─────> T5.3.1 (stress test)
+T4.2.1 (broker MQTT) ──> T5.4.2 (MQTT TLS)
+T4.3.1 (historial) ─────> T5.3.1 (stress test)
 ```
 
 ## Estimaciones ajustadas
