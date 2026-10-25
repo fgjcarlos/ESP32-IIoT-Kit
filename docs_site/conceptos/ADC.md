@@ -1,0 +1,1 @@
+../../knowledge/Conceptos/ADC.md

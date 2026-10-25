@@ -1,0 +1,62 @@
+name: Docs CI
+
+# The documentation site is built from `docs_site/`, whose pages are symlinks
+# into the canonical sources (`Tutorial/`, `Fases/`, `knowledge/`). This gate
+# keeps the site buildable in strict mode and keeps every Obsidian-style roam
+# link resolvable, so a broken cross-reference fails the PR instead of
+# reaching the published site.
+#
+# Issue #15 closed the residual risk recorded by the archived
+# `iiot-kit-transformation` change (AC-05: `mkdocs build --strict` failed
+# with 18 unresolved-roam-link warnings).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs_site/**'
+      - 'Tutorial/**'
+      - 'Fases/**'
+      - 'knowledge/**'
+      - 'docs/**'
+      - 'tools/ci/check-roamlinks.py'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs-ci.yml'
+  pull_request:
+    paths:
+      - 'docs_site/**'
+      - 'Tutorial/**'
+      - 'Fases/**'
+      - 'knowledge/**'
+      - 'docs/**'
+      - 'tools/ci/check-roamlinks.py'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: MkDocs strict build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install MkDocs
+        run: pip install mkdocs-material mkdocs-roamlinks-plugin
+
+      - name: Check that every roam link resolves
+        run: python3 tools/ci/check-roamlinks.py
+
+      - name: Build the site in strict mode
+        run: mkdocs build --strict

@@ -1,0 +1,1 @@
+../../knowledge/Decisiones/004-iiot-kit-transformation.md
