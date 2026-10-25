@@ -47,21 +47,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up ESP-IDF
-        uses: espressif/esp-idf-action@v2
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
         with:
-          version: ${{ env.IDF_VERSION }}
-          idf: v5.4
-          target: ${{ env.IDF_TARGET }}
+          repository: espressif/esp-idf
+          ref: v{{ env.IDF_VERSION }}
+          path: esp-idf
+          submodules: recursive
+          depth: 1
+
+      - name: Cache the ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-${{ runner.os }}
+
+      - name: Install the ESP-IDF tools
+        run: |
+          ./esp-idf/install.sh ${{ env.IDF_TARGET }}
+          echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
       - name: Fetch the managed components
         # The component manager downloads nanopb during the configure step,
         # and the host runner compiles the same component sources. set-target
         # configures the project without paying for a full build.
-        run: idf.py -C firmware/gateway set-target esp32s3
+        run: |
+          . tools/ci/activate-idf.sh
+          idf.py -C firmware/gateway set-target ${{ env.IDF_TARGET }}
 
       - name: Build the host test runner
         run: |
+          . tools/ci/activate-idf.sh
           cmake -S tools/host-tests -B build/host-tests
           cmake --build build/host-tests -j
 
@@ -87,15 +103,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up ESP-IDF
-        uses: espressif/esp-idf-action@v2
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
         with:
-          version: ${{ env.IDF_VERSION }}
-          idf: v5.4
-          target: ${{ env.IDF_TARGET }}
+          repository: espressif/esp-idf
+          ref: v{{ env.IDF_VERSION }}
+          path: esp-idf
+          submodules: recursive
+          depth: 1
+
+      - name: Cache the ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-${{ runner.os }}
+
+      - name: Install the ESP-IDF tools
+        run: |
+          ./esp-idf/install.sh ${{ env.IDF_TARGET }}
+          echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
       - name: Build the gateway
-        run: idf.py -C firmware/gateway build
+        run: |
+          . tools/ci/activate-idf.sh
+          idf.py -C firmware/gateway build
 
       - name: Report the sizes and the partition headroom
         run: |
@@ -106,7 +137,9 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Component size breakdown
-        run: idf.py -C firmware/gateway size --format text --output-file build/size-components.txt
+        run: |
+          . tools/ci/activate-idf.sh
+          idf.py -C firmware/gateway size --format text --output-file build/size-components.txt
 
       - name: Check that the artefact carries no secret
         run: tools/ci/check-no-secrets.sh firmware/gateway/build/gateway.bin
@@ -132,16 +165,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up ESP-IDF
-        uses: espressif/esp-idf-action@v2
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
         with:
-          version: ${{ env.IDF_VERSION }}
-          idf: v5.4
-          target: ${{ env.IDF_TARGET }}
+          repository: espressif/esp-idf
+          ref: v{{ env.IDF_VERSION }}
+          path: esp-idf
+          submodules: recursive
+          depth: 1
+
+      - name: Cache the ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-${{ runner.os }}
+
+      - name: Install the ESP-IDF tools
+        run: |
+          ./esp-idf/install.sh ${{ env.IDF_TARGET }}
+          echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
       - name: Build twice and compare the artefacts
         shell: bash
         run: |
+          . tools/ci/activate-idf.sh
           tools/ci/check-reproducible.sh firmware/gateway build/reproducible \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -151,19 +198,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up ESP-IDF
-        uses: espressif/esp-idf-action@v2
+      - name: Checkout ESP-IDF
+        uses: actions/checkout@v4
         with:
-          version: ${{ env.IDF_VERSION }}
-          idf: v5.4
-          target: ${{ env.IDF_TARGET }}
+          repository: espressif/esp-idf
+          ref: v{{ env.IDF_VERSION }}
+          path: esp-idf
+          submodules: recursive
+          depth: 1
+
+      - name: Cache the ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: esp-idf-tools-${{ env.IDF_VERSION }}-${{ runner.os }}
+
+      - name: Install the ESP-IDF tools
+        run: |
+          ./esp-idf/install.sh ${{ env.IDF_TARGET }}
+          echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
       - name: Install QEMU
-        run: python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+        run: |
+          . tools/ci/activate-idf.sh
+          python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
 
       - name: Run the on-target Unity suite
         shell: bash
         run: |
+          . tools/ci/activate-idf.sh
           tools/ci/run-device-tests.sh firmware/gateway/test build/device-tests 300 \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
