@@ -7,7 +7,7 @@
 - **Objetivo**: Convertir el gateway ESP32-S3 en un servidor web autónomo que sirva un dashboard interactivo desde su propia memoria flash, exponiendo una API REST para datos y configuración, y un WebSocket para actualizaciones en tiempo real.
 - **Duración**: 4 semanas
 - **Prerequisitos**: Fases 0, 1, 2 y 3 completadas (gateway con WiFi AP/STA, ESP-NOW funcionando, nodos enviando datos de sensores, alertas configuradas)
-- **Hardware necesario**: ESP32-S3 gateway (8MB flash, 2MB PSRAM), ESP32-C3 nodos con sensores, cualquier dispositivo con navegador web en la misma red WiFi
+- **Hardware necesario**: gateway ESP32-S3-WROOM-1-N16R8 (16 MB flash Quad-SPI, 8 MB PSRAM Octal-SPI), ESP32-C3 nodos con sensores, cualquier dispositivo con navegador web en la misma red WiFi
 
 ## Arquitectura de la Fase 4
 
@@ -457,14 +457,14 @@ Antes de continuar con la Sub-tarea 4.2, verifica lo siguiente:
 
 ## Sub-tarea 4.2: SPA Preact Embebida en SPIFFS (3 tareas)
 
-Preact es una alternativa a React de 3KB que tiene la misma API. Con Vite como bundler, el resultado es una SPA que cabe cómodamente en la partición SPIFFS de 1.9MB del gateway. El código fuente vive en `firmware/gateway/web/` y el proceso de build genera los assets gzipados que se flashean a SPIFFS.
+Preact es una alternativa a React de 3KB que tiene la misma API. Con Vite como bundler, el resultado es una SPA que cabe cómodamente en la partición SPIFFS de 4 MiB del gateway. El código fuente vive en `firmware/gateway/web/` y el proceso de build genera los assets gzipados que se flashean a SPIFFS.
 
 ### Presupuesto de tamaño SPIFFS
 
 | Recurso | Objetivo | Límite duro |
 |---------|----------|-------------|
 | Preact SPA gzipada (total) | ≤200 KB | 500 KB |
-| Partición SPIFFS total | 1.9 MB | 1.9 MB (fijo en partitions.csv) |
+| Partición SPIFFS total | 4 MiB | 4 MiB (fijo en partitions.csv) |
 | Margen para futuros assets | ≥1.4 MB | — |
 
 > Si tu build supera los 500 KB gzipados, consulta la sección de troubleshooting al final de T4.2.3.
@@ -687,12 +687,13 @@ function Router() {
 # Name,   Type, SubType, Offset,   Size,  Flags
 nvs,      data, nvs,     0x9000,   0x6000,
 otadata,  data, ota,     0xf000,   0x2000,
-ota_0,    app,  ota_0,   0x10000,  0x300000,
-ota_1,    app,  ota_1,   0x310000, 0x300000,
-spiffs,   data, spiffs,  0x610000, 0x1E0000,
+phy_init, data, phy,     0x11000,  0x1000,
+ota_0,    app,  ota_0,   0x20000,  0x300000,
+ota_1,    app,  ota_1,   0x320000, 0x300000,
+spiffs,   data, spiffs,  0x620000, 0x400000,
 ```
 
-> La partición `spiffs` tiene 1.9MB (0x1E0000 bytes). Es donde viven los assets del dashboard.
+> La partición `spiffs` tiene 4 MiB (0x400000 bytes). Es donde viven los assets del dashboard. La tabla completa es `firmware/gateway/partitions.csv` y la fuente de verdad del hardware es `docs/hardware/esp32-s3-wroom-1-n16r8.md`.
 
 **Hook CMake en `firmware/gateway/CMakeLists.txt`**:
 
@@ -719,7 +720,7 @@ set(SPIFFS_IMAGE_PATH ${CMAKE_BINARY_DIR}/spiffs_image.bin)
 add_custom_command(
     OUTPUT ${SPIFFS_IMAGE_PATH}
     COMMAND python3 ${IDF_PATH}/components/spiffs/spiffsgen.py
-            0x1E0000
+            0x400000
             ${CMAKE_CURRENT_SOURCE_DIR}/web/dist
             ${SPIFFS_IMAGE_PATH}
     DEPENDS preact_build
@@ -730,7 +731,7 @@ add_custom_target(spiffs_image ALL DEPENDS ${SPIFFS_IMAGE_PATH})
 
 # 3. Flashear la imagen SPIFFS con idf.py flash
 # El target esptool_py_flash_project se encarga de esto automáticamente
-# si se configura la dirección de la partición spiffs (0x610000)
+# si se configura la dirección de la partición spiffs (0x620000)
 ```
 
 **Flashear la partición SPIFFS por separado** (útil durante desarrollo):
@@ -738,11 +739,11 @@ add_custom_target(spiffs_image ALL DEPENDS ${SPIFFS_IMAGE_PATH})
 ```bash
 # Solo flashear el dashboard (sin reflashear el firmware):
 python3 $IDF_PATH/components/spiffs/spiffsgen.py \
-    0x1E0000 \
+    0x400000 \
     firmware/gateway/web/dist \
     spiffs.bin
 
-esptool.py --port /dev/ttyUSB0 write_flash 0x610000 spiffs.bin
+esptool.py --port /dev/ttyUSB0 write_flash 0x620000 spiffs.bin
 ```
 
 **Servir assets gzipados desde el gateway**:
@@ -1032,7 +1033,7 @@ find dist -name "*.gz" -exec du -sb {} + | awk '{total+=$1} END {print total/102
 | JS principal gzipado | ≤150KB | 400KB |
 | CSS gzipado | ≤20KB | 50KB |
 | Total assets gzipados | ≤200KB | 500KB |
-| Partición SPIFFS usada | ≤600KB | 1.9MB |
+| Partición SPIFFS usada | ≤600KB | 4 MiB |
 
 **Script de verificación automática**:
 
@@ -1081,7 +1082,7 @@ fi
 Responde estas preguntas para verificar tu comprensión de los conceptos de esta fase. Si no puedes responder alguna, revisa la documentación recomendada.
 
 1. **¿Por qué Preact en lugar de React para el dashboard embebido? ¿Cuál es la diferencia de tamaño y qué implicaciones tiene para la partición SPIFFS?**
-   > Pista: Compara el tamaño gzipado de Preact (~3KB) con React (~40KB). ¿Cuántos KBs quedan disponibles en la partición SPIFFS de 1.9MB para el resto de assets?
+   > Pista: Compara el tamaño gzipado de Preact (~3KB) con React (~40KB). ¿Cuántos KBs quedan disponibles en la partición SPIFFS de 4 MiB para el resto de assets?
 
 2. **¿Por qué `esp_http_server` soporta WebSocket de forma nativa? ¿Qué ventaja tiene esto frente a implementar un servidor WebSocket separado?**
    > Pista: El ESP32-S3 tiene un solo socket de servidor HTTP. ¿Qué pasa con la memoria si tienes dos servidores HTTP en el mismo dispositivo?
@@ -1155,7 +1156,7 @@ Responde estas preguntas para verificar tu comprensión de los conceptos de esta
 ### 5. SPIFFS no montada antes de servir archivos
 **Síntoma**: El servidor HTTP devuelve 404 para todos los archivos estáticos.
 **Causa**: `esp_vfs_spiffs_register()` no se llamó antes de iniciar el servidor HTTP, o la imagen SPIFFS no se flasheó a la dirección correcta.
-**Solución**: Verificar el orden de inicialización en `app_main()`: NVS → SPIFFS → WiFi → HTTP Server. Verificar que la imagen se flasheó a la dirección de la partición `spiffs` (0x610000 en la configuración por defecto).
+**Solución**: Verificar el orden de inicialización en `app_main()`: NVS → SPIFFS → WiFi → HTTP Server. Verificar que la imagen se flasheó a la dirección de la partición `spiffs` (0x620000 en la configuración por defecto).
 
 ### 6. Acceso concurrente al array `ws_clients[]` sin mutex
 **Síntoma**: El gateway se reinicia aleatoriamente con `LoadProhibited` o `StoreProhibited` (acceso a dirección inválida).

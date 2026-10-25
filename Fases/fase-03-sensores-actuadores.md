@@ -7,7 +7,7 @@
 ## Resumen general
 
 - **Objetivo**: Implementar el driver para el sensor de temperatura DS18B20 (ejemplo universal de sensor digital), sistema de validacion y filtrado de lecturas, y control de actuadores con alertas. El DS18B20 demuestra todos los patrones que se aplican a cualquier tipo de sensor en una plataforma IIoT.
-- **Duracion estimada**: 2 semanas
+- **Duracion estimada**: 3 semanas
 - **Prerequisitos**: Fase 0 (Entorno), Fase 1 (Firmware base) y Fase 2 (Comunicaciones) completadas
 - **Hardware necesario**:
   - Sensor de temperatura DS18B20 (con resistencia pull-up de 4.7K ohm)

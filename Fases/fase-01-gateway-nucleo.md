@@ -5,9 +5,9 @@
 ## Resumen
 
 - **Objetivo**: Construir un gateway ESP32-S3 funcional con triple conectividad (ESP-NOW + WiFi AP + WiFi STA), servidor web embebido y API REST basica.
-- **Duracion estimada**: 4 semanas
+- **Duracion estimada**: 5 semanas
 - **Prerequisitos**: Fase 0 completada (entorno de desarrollo configurado, toolchain ESP-IDF instalado, proyecto base compilando y flasheando correctamente)
-- **Hardware necesario**: ESP32-S3-DevKitC, al menos 1x ESP32-C3 para pruebas ESP-NOW, router WiFi para pruebas modo STA
+- **Hardware necesario**: carrier ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB PSRAM Octal), al menos 1x ESP32-C3 para pruebas ESP-NOW, router WiFi para pruebas modo STA
 
 ## Dependencias externas
 

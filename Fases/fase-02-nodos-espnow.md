@@ -7,9 +7,9 @@
 | Campo | Valor |
 |-------|-------|
 | **Objetivo** | Crear firmware generico para nodos ESP32-C3 con ciclo deep sleep, protocolo de mensajeria fiable sobre ESP-NOW, y auto-discovery |
-| **Duracion estimada** | 4 semanas |
+| **Duracion estimada** | 5 semanas |
 | **Prerequisitos** | Fase 0 y Fase 1 completadas |
-| **Hardware necesario** | ESP32-C3-DevKitM (2-3 unidades), ESP32-S3 con firmware gateway de Fase 1 |
+| **Hardware necesario** | ESP32-C3 (2-3 unidades; el modelo exacto de la placa de nodo esta por confirmar), carrier ESP32-S3-WROOM-1-N16R8 con el firmware gateway de Fase 1 |
 | **Total de tareas** | 14 |
 
 ## Dependencias externas
