@@ -218,10 +218,18 @@ jobs:
           ./esp-idf/install.sh esp32s3
           echo "IDF_PATH=$GITHUB_WORKSPACE/esp-idf" >> "$GITHUB_ENV"
 
+      - name: Install the runtime libraries of QEMU
+        run: |
+          sudo apt-get update
+          # The SDL2 runtime is not part of the image of the runner, and the
+          # package was renamed in Ubuntu 24.04.
+          sudo apt-get install -y libsdl2-2.0-0t64 || sudo apt-get install -y libsdl2-2.0-0
+
       - name: Install QEMU
         run: |
           . tools/ci/activate-idf.sh
           python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+          qemu-system-xtensa --version
 
       - name: Run the on-target Unity suite
         shell: bash
