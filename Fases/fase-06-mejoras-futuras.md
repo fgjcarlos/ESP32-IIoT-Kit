@@ -70,7 +70,7 @@ En v1.0, la OTA de nodos requiere que se conecten temporalmente al WiFi AP del g
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Implementar el protocolo diseñado en T6.1.1. Gateway: lee el binario del firmware del nodo (desde SPIFFS o descargado del servidor), lo fragmenta y envia secuencialmente por ESP-NOW. Nodo: al recibir comando "inicio OTA", permanece despierto, recibe fragmentos, escribe en particion OTA, envia ACK por cada grupo. Al completar, verifica hash SHA-256, si es correcto aplica OTA y reinicia.
-- **Archivos a crear/modificar**: `firmware/gateway/main/ota_espnow_sender.c/.h`, `firmware/node/main/ota_espnow_receiver.c/.h`, `firmware/common/protocol/ota_espnow_protocol.c`
+- **Archivos a crear/modificar**: `firmware/gateway/components/ota_espnow_sender/ota_espnow_sender.c`, `firmware/gateway/components/ota_espnow_sender/include/ota_espnow_sender.h`, `firmware/node/main/ota_espnow_receiver.c/.h`, `firmware/common/protocol/ota_espnow_protocol.c`
 - **Criterio de aceptacion**:
   - [ ] Transferencia completa de firmware de ~1MB en menos de 15 minutos
   - [ ] Verificacion SHA-256 exitosa tras transferencia
@@ -111,7 +111,7 @@ En v1.0, cada nodo debe poder alcanzar directamente al gateway por ESP-NOW (~200
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Implementar el protocolo de T6.2.1. Cada nodo relay mantiene una tabla de vecinos con RSSI y hops. Cuando un nodo no alcanza el gateway directamente, busca el vecino con mejor ruta y le reenvia el mensaje. El gateway mantiene la topologia completa del sistema. Implementar deteccion de bucles (TTL decrementa en cada salto, se descarta si llega a 0).
-- **Archivos a crear/modificar**: `firmware/node/main/mesh_relay.c/.h`, `firmware/gateway/main/mesh_topology.c/.h`, `firmware/common/protocol/mesh_protocol.c`
+- **Archivos a crear/modificar**: `firmware/node/main/mesh_relay.c/.h`, `firmware/gateway/components/mesh_topology/mesh_topology.c`, `firmware/gateway/components/mesh_topology/include/mesh_topology.h`, `firmware/common/protocol/mesh_protocol.c`
 - **Criterio de aceptacion**:
   - [ ] Un nodo fuera de alcance del gateway puede enviar datos a traves de un nodo intermedio
   - [ ] Las rutas se descubren automaticamente
@@ -152,7 +152,7 @@ Los umbrales fijos (alerta si temperatura > 28°C) son utiles pero limitados. Un
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Integrar TFLite Micro en el firmware del gateway (ESP32-S3). Cargar el modelo desde flash. Cuando llegan lecturas de sensores, ejecutar inferencia. Si el modelo detecta anomalia (error de reconstruccion alto), generar alerta especial "anomalia ML" diferenciada de las alertas por umbral. El S3 tiene instrucciones SIMD que aceleran operaciones de tensores.
-- **Archivos a crear/modificar**: `firmware/gateway/main/ml_anomaly.c/.h`, `firmware/gateway/CMakeLists.txt` (añadir TFLite Micro como componente)
+- **Archivos a crear/modificar**: `firmware/gateway/components/ml_anomaly/ml_anomaly.c`, `firmware/gateway/components/ml_anomaly/include/ml_anomaly.h`, `firmware/gateway/CMakeLists.txt` (añadir TFLite Micro como componente)
 - **Criterio de aceptacion**:
   - [ ] El modelo se carga y ejecuta inferencia en el ESP32-S3
   - [ ] Tiempo de inferencia < 100ms por prediccion
@@ -177,7 +177,7 @@ Algunas instalaciones industriales no tienen cobertura WiFi o la conexion es ine
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Conectar modulo SIM7600 al ESP32-S3 via UART. Implementar driver basico con comandos AT: verificar SIM insertada (`AT+CPIN?`), registrarse en red movil (`AT+CREG?`), establecer conexion de datos PPP. Usar el componente `esp_modem` de ESP-IDF que simplifica la interaccion con modems. Verificar que tras establecer PPP, el ESP32 puede hacer ping a un servidor externo.
-- **Archivos a crear/modificar**: `firmware/gateway/main/cellular_manager.c/.h`, `firmware/gateway/main/CMakeLists.txt` (añadir esp_modem)
+- **Archivos a crear/modificar**: `firmware/gateway/components/cellular_manager/cellular_manager.c`, `firmware/gateway/components/cellular_manager/include/cellular_manager.h`, `firmware/gateway/components/cellular_manager/CMakeLists.txt` (añadir `esp_modem` a REQUIRES)
 - **Criterio de aceptacion**:
   - [ ] El modulo SIM7600 se inicializa correctamente
   - [ ] Se establece conexion de datos PPP
@@ -192,7 +192,7 @@ Algunas instalaciones industriales no tienen cobertura WiFi o la conexion es ine
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Implementar logica de failover: si WiFi STA pierde conexion durante mas de 5 minutos (despues de agotar los reintentos de backoff), activar la conexion 4G automaticamente. MQTT debe reconectar transparentemente a traves de la nueva interfaz de red. Cuando WiFi vuelve, desactivar 4G para ahorrar datos moviles (y coste). Logear cada transicion.
-- **Archivos a crear/modificar**: `firmware/gateway/main/connectivity_manager.c/.h` (orquestador de conexiones), `firmware/gateway/main/mqtt_bridge.c` (reconexion transparente)
+- **Archivos a crear/modificar**: `firmware/gateway/components/connectivity_manager/connectivity_manager.c`, `firmware/gateway/components/connectivity_manager/include/connectivity_manager.h` (orquestador de conexiones), `firmware/gateway/components/mqtt_bridge/mqtt_bridge.c` (reconexion transparente)
 - **Criterio de aceptacion**:
   - [ ] Si WiFi se pierde > 5 minutos, 4G se activa automaticamente
   - [ ] MQTT reconecta via 4G y los datos fluyen al servidor
@@ -218,7 +218,7 @@ Si MQTT no esta disponible (WiFi caido, broker offline, sin 4G), los datos de se
 
 - **Dificultad**: [Intermedio]
 - **Descripcion**: Conectar modulo de tarjeta SD al ESP32-S3 via SPI. Montar sistema de ficheros FAT en la tarjeta. Verificar que se pueden crear, escribir y leer ficheros. Mostrar espacio total y disponible en el dashboard.
-- **Archivos a crear/modificar**: `firmware/gateway/main/sd_manager.c/.h`, `firmware/gateway/main/CMakeLists.txt`
+- **Archivos a crear/modificar**: `firmware/gateway/components/sd_manager/sd_manager.c`, `firmware/gateway/components/sd_manager/include/sd_manager.h`, `firmware/gateway/components/sd_manager/CMakeLists.txt` (registrar el componente)
 - **Criterio de aceptacion**:
   - [ ] La tarjeta SD se monta correctamente al arrancar
   - [ ] Se pueden crear y leer ficheros
@@ -233,7 +233,7 @@ Si MQTT no esta disponible (WiFi caido, broker offline, sin 4G), los datos de se
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Implementar patron store-and-forward: cuando MQTT no esta disponible, guardar datos de sensores en ficheros CSV en la SD (un fichero por dia: `2026-02-18.csv`). Cuando MQTT reconecta, leer los ficheros pendientes y publicar los datos con sus timestamps originales. Marcar ficheros como enviados (renombrar o mover a subdirectorio). Implementar rotacion: eliminar ficheros de mas de 30 dias para no llenar la SD.
-- **Archivos a crear/modificar**: `firmware/gateway/main/sd_manager.c` (ampliar), `firmware/gateway/main/mqtt_bridge.c` (integrar store-and-forward)
+- **Archivos a crear/modificar**: `firmware/gateway/components/sd_manager/sd_manager.c` (ampliar), `firmware/gateway/components/mqtt_bridge/mqtt_bridge.c` (integrar store-and-forward)
 - **Criterio de aceptacion**:
   - [ ] Cuando MQTT esta offline, los datos se guardan en la SD
   - [ ] Cuando MQTT reconecta, los datos pendientes se envian con timestamp original

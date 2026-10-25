@@ -9,7 +9,7 @@ En el contexto de ESP32-IIoT-Kit, Preact es la biblioteca elegida para construir
 
 ## Por que importa en este proyecto
 
-El dashboard del gateway se almacena en la partición SPIFFS (1,9 MB disponibles). Con React (~40 KB gzipped sin dependencias, >100 KB con react-dom) no queda margen para el resto de la aplicación. Con Preact (~3 KB gzipped) el presupuesto de tamaño es completamente viable:
+El dashboard del gateway se almacena en la partición SPIFFS (4 MiB disponibles en el ESP32-S3-WROOM-1-N16R8). Con React (~40 KB gzipped sin dependencias, >100 KB con react-dom) no queda margen para el resto de la aplicación. Con Preact (~3 KB gzipped) el presupuesto de tamaño es completamente viable:
 
 | Biblioteca | Tamaño gzipped |
 |------------|----------------|
@@ -77,7 +77,7 @@ Con `preact/compat` puedes usar librerías de React sin modificarlas, a costa de
 
 | Alternativa | Cuándo usarla |
 |-------------|--------------|
-| **Preact** | Dashboard embebido con lógica reactiva, <1,9 MB SPIFFS |
+| **Preact** | Dashboard embebido con lógica reactiva, dentro de la partición SPIFFS de 4 MiB |
 | **Vanilla JS** | Páginas muy simples, sin estado reactivo complejo |
 | **HTMX** | Si prefieres hipermedia sobre API REST; añade ~15 KB |
 | **React** | Solo si el bundle puede ir en una CDN (no embebido) |

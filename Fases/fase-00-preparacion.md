@@ -1033,6 +1033,8 @@
 
 **Objetivo**: Establecer la estructura de build del proyecto con CMake y crear el componente compartido entre gateway y node.
 
+> **Estructura modular**: cada subsistema del gateway es un componente ESP-IDF en `firmware/gateway/components/<nombre>/`, con su propio `CMakeLists.txt`, su `.c` en la raiz del componente y su cabecera publica en `components/<nombre>/include/`. `EXTRA_COMPONENT_DIRS "components"` hace que ESP-IDF los descubra solos: **no hay que registrar cada componente a mano en `main/CMakeLists.txt`**. En `firmware/gateway/main/` solo viven `main.c` (el `app_main` que compone todo), `nvs_config.c/.h` y el `CMakeLists.txt` del componente principal.
+
 ---
 
 ### Tarea T0.8.1: Crear CMakeLists.txt para gateway y node
@@ -1042,7 +1044,7 @@
      ```cmake
      cmake_minimum_required(VERSION 3.16)
 
-     set(EXTRA_COMPONENT_DIRS "../common")
+     set(EXTRA_COMPONENT_DIRS "components" "../common/protocol")
 
      include($ENV{IDF_PATH}/tools/cmake/project.cmake)
      project(gateway)
@@ -1059,7 +1061,7 @@
      ```cmake
      cmake_minimum_required(VERSION 3.16)
 
-     set(EXTRA_COMPONENT_DIRS "../common")
+     set(EXTRA_COMPONENT_DIRS "components" "../common/protocol")
 
      include($ENV{IDF_PATH}/tools/cmake/project.cmake)
      project(node)

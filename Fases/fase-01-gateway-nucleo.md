@@ -77,10 +77,10 @@ Esta sub-tarea establece los cimientos del gateway. Sin una inicializacion corre
   4. Registrar event handlers basicos (se expandiran en T1.2.1).
   5. Llamar a `wifi_manager_init()` en `app_main()` despues de NVS.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/wifi_manager.h` (crear)
-  - `firmware/gateway/main/wifi_manager.c` (crear)
+  - `firmware/gateway/components/wifi_manager/include/wifi_manager.h` (crear)
+  - `firmware/gateway/components/wifi_manager/wifi_manager.c` (crear)
   - `firmware/gateway/main/main.c` (modificar - agregar llamada despues de nvs_config_init)
-  - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar wifi_manager.c a SRCS)
+  - `firmware/gateway/components/wifi_manager/CMakeLists.txt` (crear - registrar el componente)
 - **Criterio de aceptacion**:
   - Al arrancar el ESP32, aparece la red WiFi "IIoT-Gateway" visible desde un telefono o PC
   - Un dispositivo puede conectarse al AP con la password configurada
@@ -117,10 +117,10 @@ Esta sub-tarea establece los cimientos del gateway. Sin una inicializacion corre
   4. Llamar a `espnow_manager_init()` en `app_main()` DESPUES de `wifi_manager_init()`.
   5. Verificar que ESP-NOW esta activo logeando el estado.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.h` (crear)
-  - `firmware/gateway/main/espnow_manager.c` (crear)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (crear)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (crear)
   - `firmware/gateway/main/main.c` (modificar - agregar llamada despues de wifi_manager_init)
-  - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar espnow_manager.c a SRCS, agregar `esp_wifi` a REQUIRES)
+  - `firmware/gateway/components/espnow_manager/CMakeLists.txt` (crear - registrar el componente, agregar `esp_wifi` a REQUIRES)
 - **Criterio de aceptacion**:
   - `esp_now_init()` retorna `ESP_OK` en el log
   - El canal WiFi reportado coincide con el canal del AP/STA
@@ -208,8 +208,8 @@ Esta sub-tarea mejora la robustez de la conexion WiFi, implementando manejo comp
   4. Registrar el handler con `esp_event_handler_instance_register()` para ambos grupos de eventos.
   5. Crear variable global o estatica `bool wifi_sta_is_connected(void)` para consultar el estado.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/wifi_manager.c` (modificar - agregar event handler completo)
-  - `firmware/gateway/main/wifi_manager.h` (modificar - exponer funcion de estado `wifi_sta_is_connected()`)
+  - `firmware/gateway/components/wifi_manager/wifi_manager.c` (modificar - agregar event handler completo)
+  - `firmware/gateway/components/wifi_manager/include/wifi_manager.h` (modificar - exponer funcion de estado `wifi_sta_is_connected()`)
 - **Criterio de aceptacion**:
   - Al conectar STA al router, el log muestra: IP obtenida, SSID y canal
   - Al desconectar el router (apagarlo), el log muestra la razon de desconexion
@@ -248,7 +248,7 @@ Esta sub-tarea mejora la robustez de la conexion WiFi, implementando manejo comp
      b. Logear "Conectado exitosamente tras %d intentos".
   4. Alternativa mas simple: usar `vTaskDelay(pdMS_TO_TICKS(s_backoff_ms))` en una tarea dedicada a reconexion en lugar de un timer.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/wifi_manager.c` (modificar - agregar logica de backoff en event handler)
+  - `firmware/gateway/components/wifi_manager/wifi_manager.c` (modificar - agregar logica de backoff en event handler)
 - **Criterio de aceptacion**:
   - Al perder conexion STA, los intentos de reconexion se espacian: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s...
   - El log muestra claramente el numero de intento y el tiempo de espera
@@ -291,7 +291,7 @@ Esta sub-tarea mejora la robustez de la conexion WiFi, implementando manejo comp
 - **Archivos a crear/modificar**:
   - `firmware/gateway/main/nvs_config.h` (modificar - agregar declaraciones de funciones WiFi)
   - `firmware/gateway/main/nvs_config.c` (modificar - implementar funciones WiFi)
-  - `firmware/gateway/main/wifi_manager.c` (modificar - cargar credenciales desde NVS al iniciar)
+  - `firmware/gateway/components/wifi_manager/wifi_manager.c` (modificar - cargar credenciales desde NVS al iniciar)
 - **Criterio de aceptacion**:
   - Al guardar credenciales y reiniciar el ESP32, se cargan automaticamente las credenciales guardadas
   - Si no hay credenciales guardadas, se usan los valores por defecto sin error
@@ -343,10 +343,10 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
   4. El HTML inicial puede ser simple: `<html><body><h1>Gateway IIoT</h1><p>Sistema activo</p></body></html>`.
   5. Llamar a `http_server_start()` en `app_main()` despues de WiFi.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.h` (crear)
-  - `firmware/gateway/main/http_server.c` (crear)
+  - `firmware/gateway/components/http_server/include/http_server.h` (crear)
+  - `firmware/gateway/components/http_server/http_server.c` (crear)
   - `firmware/gateway/main/main.c` (modificar - agregar llamada para iniciar servidor)
-  - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar http_server.c a SRCS, agregar `esp_http_server` a REQUIRES)
+  - `firmware/gateway/components/http_server/CMakeLists.txt` (crear - registrar el componente, agregar `esp_http_server` a REQUIRES)
 - **Criterio de aceptacion**:
   - Al conectarse al AP del gateway (192.168.4.1) desde un navegador, se muestra la pagina "Gateway IIoT"
   - El servidor responde con codigo HTTP 200 y Content-Type "text/html"
@@ -385,9 +385,9 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
   4. Crear una funcion auxiliar para decodificar URL-encoded strings (reemplazar `+` por espacio, `%XX` por el caracter).
   5. Registrar ambos handlers en el servidor HTTP.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - agregar handlers GET /config y POST /config/wifi)
-  - `firmware/gateway/main/wifi_manager.h` (modificar - agregar funcion para reconectar con nuevas credenciales)
-  - `firmware/gateway/main/wifi_manager.c` (modificar - implementar funcion de reconexion)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - agregar handlers GET /config y POST /config/wifi)
+  - `firmware/gateway/components/wifi_manager/include/wifi_manager.h` (modificar - agregar funcion para reconectar con nuevas credenciales)
+  - `firmware/gateway/components/wifi_manager/wifi_manager.c` (modificar - implementar funcion de reconexion)
 - **Criterio de aceptacion**:
   - Al navegar a `http://192.168.4.1/config` se muestra el formulario con campos SSID y password
   - Al enviar el formulario con credenciales validas, el gateway se conecta al nuevo router
@@ -437,7 +437,7 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
   - `firmware/gateway/web/style.css` (crear)
   - `firmware/gateway/web/config.html` (crear)
   - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar EMBED_FILES)
-  - `firmware/gateway/main/http_server.c` (modificar - usar archivos embebidos en handlers)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - usar archivos embebidos en handlers)
 - **Criterio de aceptacion**:
   - El proyecto compila sin errores con los archivos embebidos
   - Al navegar a `http://192.168.4.1/` se muestra la pagina index.html con estilos CSS aplicados
@@ -476,7 +476,7 @@ Esta sub-tarea implementa el servidor HTTP embebido que permite configurar y mon
   4. Opcionalmente, crear un handler generico de archivos estaticos que sirva cualquier archivo embebido segun su ruta.
   5. Registrar todos los handlers de archivos estaticos en el servidor.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - agregar handlers para archivos estaticos)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - agregar handlers para archivos estaticos)
 - **Criterio de aceptacion**:
   - Al solicitar `http://192.168.4.1/style.css` el navegador recibe Content-Type "text/css"
   - Los estilos CSS se aplican correctamente en la pagina HTML (verificar visualmente)
@@ -532,10 +532,10 @@ Esta sub-tarea implementa los endpoints JSON que permitiran a la interfaz web (y
      e. Liberar la memoria de cJSON con `cJSON_Delete()` y `free()` para el string.
   4. Registrar el handler en el servidor.
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - agregar handler GET /api/status)
-  - `firmware/gateway/main/wifi_manager.h` (modificar - exponer funciones de estado si no estan)
-  - `firmware/gateway/main/espnow_manager.h` (modificar - exponer funcion `espnow_is_active()`)
-  - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar `cjson` a REQUIRES si es necesario)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - agregar handler GET /api/status)
+  - `firmware/gateway/components/wifi_manager/include/wifi_manager.h` (modificar - exponer funciones de estado si no estan)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar - exponer funcion `espnow_is_active()`)
+  - `firmware/gateway/components/http_server/CMakeLists.txt` (modificar - agregar `cjson` a REQUIRES si es necesario)
 - **Criterio de aceptacion**:
   - `curl http://192.168.4.1/api/status` devuelve JSON valido (verificar con `jq` o JSON validator online)
   - El JSON contiene todos los campos: uptime, free_heap, wifi_sta_connected, wifi_sta_ip, wifi_ap_clients, espnow_active, time
@@ -587,9 +587,9 @@ Esta sub-tarea implementa los endpoints JSON que permitiran a la interfaz web (y
      }
      ```
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - agregar handler GET /api/nodes)
-  - `firmware/gateway/main/espnow_manager.h` (modificar - agregar struct node_info_t y funciones de acceso)
-  - `firmware/gateway/main/espnow_manager.c` (modificar - agregar array de nodos y funciones)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - agregar handler GET /api/nodes)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar - agregar struct node_info_t y funciones de acceso)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - agregar array de nodos y funciones)
 - **Criterio de aceptacion**:
   - `curl http://192.168.4.1/api/nodes` devuelve JSON valido con array "nodes" (vacio inicialmente)
   - El JSON incluye "count" (0) y "max_nodes" (20)
@@ -635,7 +635,7 @@ Esta sub-tarea implementa los endpoints JSON que permitiran a la interfaz web (y
      ```
   4. Validar los datos: SSID no vacio y longitud maxima 32 chars, password longitud entre 8-64 chars (o vacia para red abierta).
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - agregar handler POST /api/config)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - agregar handler POST /api/config)
 - **Criterio de aceptacion**:
   - `curl -X POST -H "Content-Type: application/json" -d '{"wifi":{"ssid":"test","password":"12345678"}}' http://192.168.4.1/api/config` retorna JSON con status "ok"
   - Con JSON invalido, retorna HTTP 400 con mensaje de error descriptivo
@@ -693,7 +693,7 @@ Esta sub-tarea implementa la logica para recibir datos via ESP-NOW y mantener un
      ```
   4. Probar enviando un paquete ESP-NOW desde otro ESP32 (el ESP32-C3 de pruebas).
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.c` (modificar - implementar callback con logging)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - implementar callback con logging)
 - **Criterio de aceptacion**:
   - Al recibir un paquete ESP-NOW, el log muestra: MAC del remitente, tamanio del paquete y RSSI
   - El hex dump muestra los datos del paquete en formato legible
@@ -739,8 +739,8 @@ Esta sub-tarea implementa la logica para recibir datos via ESP-NOW y mantener un
      d. Incrementar `paquetes_recibidos`.
   5. Agregar un mutex (`SemaphoreHandle_t`) para proteger el acceso al array de nodos desde multiples contextos (callback ESP-NOW y handler HTTP).
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.c` (modificar - agregar logica de registro de nodos)
-  - `firmware/gateway/main/espnow_manager.h` (modificar - actualizar struct si es necesario, agregar funciones de acceso thread-safe)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - agregar logica de registro de nodos)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar - actualizar struct si es necesario, agregar funciones de acceso thread-safe)
 - **Criterio de aceptacion**:
   - Al recibir el primer paquete de un nodo nuevo, el log muestra "Nuevo nodo registrado: XX:XX:XX:XX:XX:XX"
   - Al recibir paquetes posteriores del mismo nodo, solo se actualizan los campos (sin duplicar)
@@ -781,7 +781,7 @@ Esta sub-tarea implementa la logica para recibir datos via ESP-NOW y mantener un
   5. Incluir metadatos: "count", "max_nodes" y opcionalmente "last_update".
   6. Asegurar que el acceso a los nodos es thread-safe (usar las funciones de acceso con mutex de T1.5.2).
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/http_server.c` (modificar - actualizar handler GET /api/nodes)
+  - `firmware/gateway/components/http_server/http_server.c` (modificar - actualizar handler GET /api/nodes)
 - **Criterio de aceptacion**:
   - Despues de recibir paquetes ESP-NOW de nodos, `GET /api/nodes` muestra los nodos registrados
   - Cada nodo tiene todos los campos: mac, tipo_sensor, ultimo_contacto, rssi, paquetes_recibidos
@@ -833,7 +833,7 @@ Esta sub-tarea mejora la observabilidad y confiabilidad del gateway, implementan
      - `nvs_config.c`: `static const char *TAG = "NVS";`
   2. Configurar niveles de log por defecto en `menuconfig`:
      - Component config -> Log output -> Default log verbosity: INFO
-  3. Crear un modulo auxiliar `firmware/gateway/main/log_config.c/.h` con:
+  3. Crear un modulo auxiliar `firmware/gateway/components/log_config/log_config.c`, `firmware/gateway/components/log_config/include/log_config.h` con:
      - Funcion `void log_config_init(void)` que configure niveles iniciales.
      - Funcion `void log_set_module_level(const char *tag, esp_log_level_t level)` wrapper de `esp_log_level_set()`.
      - Funcion `void log_set_all_verbose(void)` para modo debug.
@@ -846,10 +846,10 @@ Esta sub-tarea mejora la observabilidad y confiabilidad del gateway, implementan
      - `ESP_LOGD`: Depuracion detallada
      - `ESP_LOGV`: Verbose (tracing)
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/log_config.h` (crear)
-  - `firmware/gateway/main/log_config.c` (crear)
+  - `firmware/gateway/components/log_config/include/log_config.h` (crear)
+  - `firmware/gateway/components/log_config/log_config.c` (crear)
   - `firmware/gateway/main/main.c` (modificar - llamar a log_config_init al inicio)
-  - `firmware/gateway/main/CMakeLists.txt` (modificar - agregar log_config.c a SRCS)
+  - `firmware/gateway/components/log_config/CMakeLists.txt` (crear - registrar el componente)
   - Todos los archivos .c existentes (verificar TAGs y niveles de log)
 - **Criterio de aceptacion**:
   - Cada modulo usa su propio TAG en los mensajes de log
