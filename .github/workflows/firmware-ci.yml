@@ -239,7 +239,6 @@ jobs:
         run: |
           . tools/ci/activate-idf.sh
           python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
-          qemu-system-xtensa --version
 
       - name: Run the on-target Unity suite
         shell: bash

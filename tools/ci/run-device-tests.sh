@@ -39,10 +39,18 @@ if ! command -v idf.py >/dev/null 2>&1; then
     exit 1
 fi
 
+# QEMU is an optional tool of ESP-IDF, and the tool manager installs it in a
+# directory that the environment of the shell does not know about: the
+# environment was exported before the tool was installed. The binary is
+# looked up where the tool manager puts it.
 if ! command -v qemu-system-xtensa >/dev/null 2>&1; then
-    echo "run-device-tests: qemu-system-xtensa is not installed; run" >&2
-    echo "  python \$IDF_PATH/tools/idf_tools.py install qemu-xtensa" >&2
-    exit 1
+    qemu_bin="$(find "${HOME}/.espressif/tools" -name qemu-system-xtensa -type f 2>/dev/null | head -1)"
+    if [[ -z "${qemu_bin}" ]]; then
+        echo "run-device-tests: qemu-system-xtensa is not installed; run" >&2
+        echo "  python \$IDF_PATH/tools/idf_tools.py install qemu-xtensa" >&2
+        exit 1
+    fi
+    export PATH="$(dirname "${qemu_bin}"):${PATH}"
 fi
 
 echo "run-device-tests: building the CI profile of the test application" >&2
