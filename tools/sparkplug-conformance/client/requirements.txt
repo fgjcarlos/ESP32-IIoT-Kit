@@ -8,5 +8,5 @@
 # vendored, so the harness builds from a stock base image with no credentials.
 
 grpcio-tools==1.62.2
-protobuf==4.25.3
+protobuf==5.29.6
 paho-mqtt==2.1.0
