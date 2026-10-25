@@ -234,9 +234,9 @@ Respuesta 400 Bad Request:
 > **Pista**: El handler OTA devuelve 202 inmediatamente y ejecuta la descarga en una tarea FreeRTOS separada. El gateway se reinicia automáticamente al completar la actualización.
 
 **Archivos a crear/modificar**:
-- Crear: `firmware/gateway/main/http_api.c`
-- Crear: `firmware/gateway/main/http_api.h`
-- Modificar: `firmware/gateway/main/http_server.c` (registrar los nuevos handlers)
+- Crear: `firmware/gateway/components/http_api/http_api.c`
+- Crear: `firmware/gateway/components/http_api/include/http_api.h`
+- Modificar: `firmware/gateway/components/http_server/http_server.c` (registrar los nuevos handlers)
 
 **Criterio de aceptación**:
 - `curl http://192.168.4.1/api/status` devuelve JSON válido con los campos definidos

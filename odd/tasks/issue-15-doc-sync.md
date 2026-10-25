@@ -97,13 +97,31 @@
 
 ## Fuera de alcance
 
-- Las 107 referencias a `firmware/gateway/main/<componente>.c` de `Fases/` y
-  `Tutorial/`: describen donde crear el codigo de cada fase y siguen el
-  esquema de proyecto plano. Corregirlas es un trabajo mecanico que excede
-  esta issue; queda anotado aqui para abordarlo aparte.
 - La carpeta activa `openspec/changes/issue-9-gateway-firmware-foundation/`:
   solo conserva `apply-progress.md` y `tasks.md` sin `state.yaml`, asi que no
   declara un estado que contradiga al archivo.
+
+## Segunda pasada: tres huecos que quedaban
+
+Una segunda entrega cerro tres incoherencias que sobrevivieron a la primera:
+
+- **Rutas planas en `Fases/` y `Tutorial/`**: 63 referencias a
+  `firmware/gateway/main/<componente>.c` describian un firmware plano que ya no
+  existe. Ahora apuntan a `firmware/gateway/components/<nombre>/<nombre>.c` y a
+  `firmware/gateway/components/<nombre>/include/<nombre>.h`. Los ficheros que si
+  viven en `main/` (`main.c`, `nvs_config.c/.h`, `CMakeLists.txt`,
+  `Kconfig.projbuild`, `idf_component.yml`) se dejan intactos. Las tareas que
+  decian "agregar X.c a SRCS en `main/CMakeLists.txt`" decian una cosa y el build
+  hacia otra: ahora dicen "crear `components/<nombre>/CMakeLists.txt`", que es lo
+  que hace `EXTRA_COMPONENT_DIRS "components"`. La traduccion esta en
+  `tools/docs/fix-flat-gateway-paths.py`.
+- **Cifra de memoria contradictoria en una pagina publicada**:
+  `knowledge/Conceptos/Preact.md` seguia diciendo que la particion SPIFFS tiene
+  1,9 MB, cuando son 4 MiB.
+- **El trabajo sin aterrizar**: la cadena de PRs quedaba abierta, de modo que la
+  rama canonica seguia arrastrando el backend `Bun + TypeScript + SQLite` del
+  `README.md`. La cadena se fusiona de abajo arriba y `main` queda con el estado
+  corregido.
 
 ## Criterios de aceptacion
 

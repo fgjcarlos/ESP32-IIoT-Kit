@@ -42,8 +42,8 @@ El gateway esta en una instalacion que puede ser remota. Cada vez que corriges u
 ### Tarea T5.1.2: Implementar OTA via HTTPS
 
 - **Dificultad**: [Intermedio]
-- **Descripcion**: Crear o ampliar `firmware/gateway/main/ota_manager.c/.h`. Implementar funcion `ota_manager_start(const char *url)` que descargue un binario firmware desde una URL HTTPS y lo escriba en la particion OTA siguiente. Usar la API `esp_https_ota()` que simplifica todo el proceso. El certificado CA del servidor debe embeberse en el firmware. El trigger para iniciar OTA puede ser un boton en el dashboard embebido Preact o un comando MQTT en el topic `{mqtt_ns}/{gw_id}/control/ota` (ver namespace configurable en Fase 4).
-- **Archivos a crear/modificar**: `firmware/gateway/main/ota_manager.c`, `firmware/gateway/main/ota_manager.h`, `firmware/gateway/main/CMakeLists.txt` (embeber certificado)
+- **Descripcion**: Crear o ampliar `firmware/gateway/components/ota_manager/ota_manager.c`, `firmware/gateway/components/ota_manager/include/ota_manager.h`. Implementar funcion `ota_manager_start(const char *url)` que descargue un binario firmware desde una URL HTTPS y lo escriba en la particion OTA siguiente. Usar la API `esp_https_ota()` que simplifica todo el proceso. El certificado CA del servidor debe embeberse en el firmware. El trigger para iniciar OTA puede ser un boton en el dashboard embebido Preact o un comando MQTT en el topic `{mqtt_ns}/{gw_id}/control/ota` (ver namespace configurable en Fase 4).
+- **Archivos a crear/modificar**: `firmware/gateway/components/ota_manager/ota_manager.c`, `firmware/gateway/components/ota_manager/include/ota_manager.h`, `firmware/gateway/components/ota_manager/CMakeLists.txt` (embeber certificado)
 - **Criterio de aceptacion**:
   - [ ] Al pulsar "Actualizar firmware" en el dashboard embebido, el gateway descarga el binario y se actualiza
   - [ ] Tras reinicio, el gateway arranca con el nuevo firmware
@@ -58,7 +58,7 @@ El gateway esta en una instalacion que puede ser remota. Cada vez que corriges u
 
 - **Dificultad**: [Avanzado]
 - **Descripcion**: Implementar mecanismo de rollback: tras un OTA exitoso y reinicio, el nuevo firmware tiene 60 segundos para "confirmarse" llamando a `esp_ota_mark_app_valid_cancel_rollback()`. Si el firmware crashea antes de confirmarse, el bootloader revertira automaticamente a la particion anterior en el proximo arranque. La confirmacion debe hacerse despues de verificar que los sistemas criticos funcionan (WiFi conecta, ESP-NOW activo, al menos 1 nodo responde).
-- **Archivos a crear/modificar**: `firmware/gateway/main/ota_manager.c`, `firmware/gateway/main/main.c`
+- **Archivos a crear/modificar**: `firmware/gateway/components/ota_manager/ota_manager.c`, `firmware/gateway/main/main.c`
 - **Criterio de aceptacion**:
   - [ ] Tras OTA, si el nuevo firmware funciona correctamente, se confirma y queda activo
   - [ ] Si se flashea un firmware defectuoso que crashea al arrancar, tras reinicio se vuelve al firmware anterior automaticamente
@@ -101,7 +101,7 @@ Los nodos ESP32-C3 no tienen conexion WiFi directa a internet (solo usan ESP-NOW
 
 - **Dificultad**: [Intermedio]
 - **Descripcion**: El gateway debe servir el binario del firmware del nodo en un endpoint HTTP. Opciones: 1) Almacenar el binario en SPIFFS del gateway (si cabe, ~1.5MB), 2) El gateway actua como proxy, descargando del servidor y reenviando al nodo. Implementar endpoint `GET /ota/node.bin` en el HTTP server del gateway. El servidor backend puede subir el binario al gateway via otro endpoint `POST /ota/upload`.
-- **Archivos a crear/modificar**: `firmware/gateway/main/http_server.c` (nuevo endpoint), `firmware/gateway/main/ota_manager.c` (gestion de binarios)
+- **Archivos a crear/modificar**: `firmware/gateway/components/http_server/http_server.c` (nuevo endpoint), `firmware/gateway/components/ota_manager/ota_manager.c` (gestion de binarios)
 - **Criterio de aceptacion**:
   - [ ] El endpoint `GET /ota/node.bin` devuelve el binario del firmware del nodo
   - [ ] El Content-Length es correcto
@@ -206,7 +206,7 @@ Un sistema IoT en produccion debe proteger los datos en transito y en reposo. Si
 
 - **Dificultad**: [Intermedio]
 - **Descripcion**: Habilitar cifrado en las comunicaciones ESP-NOW. Configurar una Primary Master Key (PMK) compartida entre gateway y todos los nodos. Configurar Local Master Keys (LMK) por cada par gateway-nodo para cifrado individual. Almacenar las claves en NVS. Verificar que los datos en transito estan cifrados (un tercer ESP32 sin las claves no puede leer los datos).
-- **Archivos a crear/modificar**: `firmware/gateway/main/espnow_manager.c`, `firmware/node/main/espnow_node.c`, `firmware/gateway/main/nvs_config.c` (almacenamiento de claves)
+- **Archivos a crear/modificar**: `firmware/gateway/components/espnow_manager/espnow_manager.c`, `firmware/node/main/espnow_node.c`, `firmware/gateway/main/nvs_config.c` (almacenamiento de claves)
 - **Criterio de aceptacion**:
   - [ ] ESP-NOW usa cifrado AES-128 (CCMP)
   - [ ] Un nodo sin la PMK/LMK correcta no puede comunicarse con el gateway
@@ -237,7 +237,7 @@ Un sistema IoT en produccion debe proteger los datos en transito y en reposo. Si
 
 - **Dificultad**: [Intermedio]
 - **Descripcion**: Proteger el panel web del gateway con autenticacion basica HTTP. Al acceder a cualquier pagina o endpoint API, el navegador pedira usuario y password. Las credenciales se almacenan en NVS (password hasheada, no en texto plano). Proteger especialmente los endpoints sensibles: `/api/config`, `/ota/`, `/api/actuator`.
-- **Archivos a crear/modificar**: `firmware/gateway/main/http_server.c`, `firmware/gateway/main/nvs_config.c`
+- **Archivos a crear/modificar**: `firmware/gateway/components/http_server/http_server.c`, `firmware/gateway/main/nvs_config.c`
 - **Criterio de aceptacion**:
   - [ ] Al acceder al panel web sin credenciales, se recibe codigo 401 y el navegador muestra dialogo de login
   - [ ] Con credenciales correctas, se accede normalmente
