@@ -18,8 +18,8 @@
                  ┌────────────────┐
                  │    GATEWAY      │ <-- WiFi APSTA
                  │    ESP32-S3     │     (AP: panel local)
-                 │  8MB Flash      │     (STA: red/cloud opcional)
-                 │  2MB PSRAM      │
+                 │  16MB Flash     │     (STA: red/cloud opcional)
+                 │  8MB PSRAM      │     (Octal-SPI)
                  │                 │     Firmware: C (ESP-IDF v5.x)
                  │  [MQTT bridge]  │     ESP-NOW + WiFi APSTA + HTTP + WS
                  │   (opcional)    │
@@ -65,8 +65,9 @@
 |-------------|-------|
 | ESP-NOW max payload | 250 bytes |
 | ESP-NOW max peers (sin cifrar) | 20 |
-| Gateway flash | 8MB (2x3MB OTA + 1.9MB SPIFFS + NVS) |
-| SPIFFS Preact SPA budget | ≤200 KB gzipped (objetivo), 1.9 MB limite absoluto |
+| Gateway flash | 16MB (2x3MB OTA + 4MB SPIFFS + NVS) |
+| Gateway PSRAM | 8MB Octal-SPI (GPIO35/36/37 no disponibles) |
+| SPIFFS Preact SPA budget | ≤200 KB gzipped (objetivo), 500 KiB limite duro |
 | Node flash | 4MB (2x1.5MB OTA + NVS) |
 | Node bateria target | 12+ meses (3400mAh, wake cada 5min) |
 | FreeRTOS stack default | 4KB |
