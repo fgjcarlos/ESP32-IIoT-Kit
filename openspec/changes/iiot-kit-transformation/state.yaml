@@ -1,20 +1,32 @@
 change: iiot-kit-transformation
-status: in-progress
-current_phase: apply
+status: completed
+current_phase: archive
 completed_phases:
   - explore
   - proposal
   - spec
   - design
   - tasks
-next_phase: apply
+  - apply
+  - verify
+  - archive
+next_phase: null
 artifact_store: openspec
 execution_mode: interactive
-delivery_strategy: ask-on-risk
+delivery_strategy: auto-chain
+chain_strategy: stacked-to-main
 created: 2026-05-23
 tasks_completed: 2026-05-23
 apply_wave1_completed: 2026-05-23
 apply_wave2_partial: 2026-05-23
 apply_wave3_completed: 2026-05-23
-tasks_done: [T-01, T-02, T-03, T-04, T-06, T-07, T-08, T-09, T-10]
-tasks_remaining: [T-05, T-11, T-12, T-13, T-14, T-15, T-16, T-17, T-18, T-19, T-20, T-21, T-22]
+archived_at: 2026-09-27
+archive_path: openspec/changes/archive/2026-09-27-iiot-kit-transformation
+tasks_done: [T-01, T-02, T-03, T-04, T-05, T-06, T-07, T-08, T-09, T-10, T-11, T-12, T-13, T-14, T-15, T-16, T-17, T-18, T-19, T-20, T-21, T-22]
+tasks_remaining: []
+tasks_total: 22
+notes:
+  - 'This folder is the synced summary record of the change. The full artifact set (per-domain specs, verify-report.md, archive-report.md) lives in archive_path and is preserved verbatim as the audit trail.'
+  - 'The 22 task checkboxes in tasks.md are all checked; tasks_remaining is empty. The archived copy of tasks.md and apply-progress.md is the authoritative final version.'
+  - 'AC-05 (mkdocs build --strict) failed at archive time with 18 warnings and was recorded as a residual risk. It was remediated by issue #15 on 2026-10-25: the docs_site mirror now carries the concept notes and ADR-004/005, the reference pages use their canonical vault filenames, and the dangling roam links were fixed. mkdocs build --strict now exits 0.'
+  - 'AC-01..AC-04 and AC-06..AC-10 passed at archive time; the per-criterion evidence is in openspec/changes/archive/2026-09-27-iiot-kit-transformation/verify-report.md.'
