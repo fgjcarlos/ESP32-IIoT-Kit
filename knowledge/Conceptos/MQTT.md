@@ -23,4 +23,4 @@ Ver Fase 4 (Dashboard Embebido + API REST) para el diseno completo.
 (por completar — anotar cosas que te sorprendan)
 
 ## Enlaces
-- [[`_MOC`]]
+- [[_MOC]]

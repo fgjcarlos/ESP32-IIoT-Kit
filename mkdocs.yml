@@ -60,7 +60,7 @@ docs_dir: docs_site
 
 nav:
   - Inicio: index.md
-  - Arquitectura: arquitectura.md
+  - Arquitectura: Arquitectura.md
   - Tutorial:
     - Introduccion: tutorial/README.md
     - "Fase 0: Preparacion": tutorial/tutorial-00-preparacion.md
@@ -79,10 +79,35 @@ nav:
     - "Fase 4": tareas/fase-04-mqtt-dashboard.md
     - "Fase 5": tareas/fase-05-ota-optimizacion.md
     - "Fase 6": tareas/fase-06-mejoras-futuras.md
+  - Conceptos:
+    - "Mapa del vault": _MOC.md
+    - GPIO: conceptos/GPIO.md
+    - ADC: conceptos/ADC.md
+    - I2C: conceptos/I2C.md
+    - SPI: conceptos/SPI.md
+    - "Deep Sleep": conceptos/Deep-Sleep.md
+    - "ESP-IDF": conceptos/ESP-IDF.md
+    - FreeRTOS: conceptos/FreeRTOS.md
+    - "CMake ESP-IDF": conceptos/CMake-ESP-IDF.md
+    - Kconfig: conceptos/Kconfig.md
+    - NVS: conceptos/NVS.md
+    - "ESP-NOW": conceptos/ESP-NOW.md
+    - "Modos WiFi": conceptos/WiFi-Modos.md
+    - MQTT: conceptos/MQTT.md
+    - OTA: conceptos/OTA.md
+    - Watchdog: conceptos/Watchdog.md
+    - "White-label": conceptos/White-label.md
+    - Preact: conceptos/Preact.md
+    - "REST API": conceptos/REST-API.md
+    - WebSocket: conceptos/WebSocket.md
   - Referencia:
-    - Protocolo ESP-NOW: referencia/protocolo.md
-    - Errores comunes: referencia/errores-comunes.md
+    - Protocolo ESP-NOW: referencia/Protocolo-Mensajes.md
+    - Errores comunes: referencia/Errores-Comunes.md
     - Decisiones:
       - "C vs TinyGo": decisiones/001-c-vs-tinygo.md
       - "ESP-NOW sin cifrado": decisiones/002-esp-now-sin-cifrado.md
       - "Protocolo unificado": decisiones/003-protocolo-unificado.md
+      - "Transformacion a plataforma IIoT": decisiones/004-iiot-kit-transformation.md
+      - "Manifiesto OTA firmado": decisiones/005-ota-manifiesto-firmado.md
+  - Proyecto:
+    - Progreso: Progreso.md
