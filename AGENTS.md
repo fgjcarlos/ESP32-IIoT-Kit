@@ -24,9 +24,30 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 - `odd/tasks/` — per-issue task plans (`issue-NN-slug.md`) with scope, constraints, and work plan
 - `docs_site/`, `Tutorial/`, `Fases/`, `knowledge/` — MkDocs site and Obsidian learning vault (European Spanish)
 - `docs/replanificacion/` — authoritative decisions and corrected phase plan
+- `docs/hardware/esp32-s3-wroom-1-n16r8.md` — authoritative gateway hardware profile (board, pinout, memory, partitions, display status)
 - `examples/fish-farm/` — domain example on the same platform
 
 `firmware/node/` (ESP32-C3 sensor nodes) and `firmware/gateway/web/` (Preact dashboard) are **planned but not on disk** — do not assume they are runnable.
+
+`docs_site/` is a **mirror made of symlinks** into `Tutorial/`, `Fases/` and `knowledge/`. Edit the canonical file; the mirror follows. Never hand-edit a page under `docs_site/`, and never add a second copy of a fact — point at the source of truth instead.
+
+## Documentation sources of truth
+
+Each topic is updated in exactly one place; every other document links to it.
+
+| Topic | Source of truth |
+|-------|-----------------|
+| Gateway hardware, pinout, memory, partitions, display status | `docs/hardware/esp32-s3-wroom-1-n16r8.md` |
+| Wire protocol | `docs/replanificacion/02-protocolo-unificado.md` |
+| Corrected decisions and phase plan | `docs/replanificacion/01-decisiones-corregidas.md`, `docs/replanificacion/03-fases-corregidas.md` |
+| High-level architecture | `project.md` |
+| What the firmware actually contains | `firmware/gateway/components/` and this file |
+| OTA security | `docs/ota/ota-security.md` |
+| Change status | `openspec/changes/` and `openspec/changes/archive/` |
+| Concept notes and ADRs | `knowledge/Conceptos/`, `knowledge/Decisiones/` |
+
+Vendor-reported values (the carrier pinout image, the display dimensions, the 20 mA, the 3,3 V) are context pending measurement, never a source of truth, and must stay marked as such wherever they appear.
+
 
 ## Code style
 
@@ -60,6 +81,8 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 - The LCD's reported 20 mA is unscoped (module vs. backlight vs. per-LED) — do not treat it as a backlight limit
 - Display contact map (1 GND, 2 VCC, 3 SCL, 4 SDA, 5 RES, 6 DC, 7 CS, 8 BLK) is display-side, not GPIO assignment
 - FreeRTOS default task stack is 4KB — avoid large stack allocations
+- Sparkplug B is an **optional** MQTT mode: `CONFIG_SPARKPLUG_B_ENABLED` defaults to `n` and `mqtt_bridge_start()` is a no-op while it is off
+- The gateway is autonomous: no Bun/Node server, no SQLite, no mandatory MQTT broker. MQTT is an optional integration
 
 ## PR & commit conventions
 
