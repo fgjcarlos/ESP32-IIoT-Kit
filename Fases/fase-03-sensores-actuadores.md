@@ -313,9 +313,9 @@ El monitoreo sin accion no es suficiente. Cuando los parametros del entorno moni
   4. Probar: conectar un LED o un rele a un GPIO, llamar al endpoint REST y verificar que se enciende/apaga.
 
 - **Archivos a crear/modificar**:
-  - Crear: `firmware/gateway/main/actuator_ctrl.h`
-  - Crear: `firmware/gateway/main/actuator_ctrl.c`
-  - Modificar: `firmware/gateway/main/http_server.c` (agregar endpoints REST para actuadores)
+  - Crear: `firmware/gateway/components/actuator_ctrl/include/actuator_ctrl.h`
+  - Crear: `firmware/gateway/components/actuator_ctrl/actuator_ctrl.c`
+  - Modificar: `firmware/gateway/components/http_server/http_server.c` (agregar endpoints REST para actuadores)
 
 - **Criterio de aceptacion**:
   - Se puede encender y apagar un rele desde la API REST del gateway.
@@ -392,10 +392,10 @@ El monitoreo sin accion no es suficiente. Cuando los parametros del entorno moni
      - `DELETE /api/alerts/{index}`: Elimina una regla.
 
 - **Archivos a crear/modificar**:
-  - Crear: `firmware/gateway/main/alert_system.h`
-  - Crear: `firmware/gateway/main/alert_system.c`
+  - Crear: `firmware/gateway/components/alert_system/include/alert_system.h`
+  - Crear: `firmware/gateway/components/alert_system/alert_system.c`
   - Modificar: `firmware/gateway/main/main.c` (llamar a `alert_process_reading` al recibir datos)
-  - Modificar: `firmware/gateway/main/http_server.c` (agregar endpoints REST para alertas)
+  - Modificar: `firmware/gateway/components/http_server/http_server.c` (agregar endpoints REST para alertas)
 
 - **Criterio de aceptacion**:
   - Con una regla de temperatura (activar a 28, desactivar a 26), al enviar lecturas simuladas:

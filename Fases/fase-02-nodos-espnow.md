@@ -389,7 +389,7 @@ Antes de continuar con el sub-grupo 2.2, verifica lo siguiente:
   1. Incluir `protocol.h` en el proyecto del gateway. Opciones:
      - Copiar los archivos de `firmware/common/protocol/` a `firmware/gateway/components/protocol/`
      - O crear un symlink / referencia CMake a la carpeta comun
-  2. En `firmware/gateway/main/espnow_manager.c`, modificar el callback de recepcion ESP-NOW:
+  2. En `firmware/gateway/components/espnow_manager/espnow_manager.c`, modificar el callback de recepcion ESP-NOW:
      - Deserializar la cabecera del paquete recibido con `protocol_deserialize_header()`
      - Si `msg_type == MSG_TYPE_DATA`:
        a. Deserializar el mensaje completo con `protocol_deserialize_sensor_data()`
@@ -405,8 +405,8 @@ Antes de continuar con el sub-grupo 2.2, verifica lo siguiente:
   4. Verificar que el ACK llega al nodo (visible en el callback de recepcion del nodo)
 
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.c` (modificar - añadir logica de ACK)
-  - `firmware/gateway/main/espnow_manager.h` (modificar si es necesario)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - añadir logica de ACK)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar si es necesario)
   - `firmware/gateway/components/protocol/` (crear o enlazar desde common)
   - `firmware/gateway/CMakeLists.txt` (modificar si se añade el componente protocol)
 
@@ -848,8 +848,8 @@ Antes de continuar con el sub-grupo 2.4, verifica lo siguiente:
   5. Opcional: crear una funcion `espnow_manager_get_nodes()` para que otros modulos puedan consultar la lista de nodos registrados (util para el servidor web del gateway)
 
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.c` (modificar - añadir procesamiento de DISCOVERY y registro de nodos)
-  - `firmware/gateway/main/espnow_manager.h` (modificar - declarar `register_node`, `get_nodes`, y la estructura `registered_node_t`)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - añadir procesamiento de DISCOVERY y registro de nodos)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar - declarar `register_node`, `get_nodes`, y la estructura `registered_node_t`)
 
 - **Criterio de aceptacion**:
   - [ ] Al recibir un DISCOVERY, el gateway logea toda la informacion del nodo
@@ -919,10 +919,10 @@ Antes de continuar con el sub-grupo 2.4, verifica lo siguiente:
   4. **Para probar**: añadir un comando por UART o por la API REST del gateway que permita invocar `espnow_manager_set_node_config(mac, nuevo_intervalo)`. Por ejemplo, un handler HTTP `POST /api/nodes/{mac}/config` con el nuevo intervalo en el body
 
 - **Archivos a crear/modificar**:
-  - `firmware/gateway/main/espnow_manager.c` (modificar - logica CONFIG pendiente y envio)
-  - `firmware/gateway/main/espnow_manager.h` (modificar - declarar `set_node_config`, `pending_config_t`)
+  - `firmware/gateway/components/espnow_manager/espnow_manager.c` (modificar - logica CONFIG pendiente y envio)
+  - `firmware/gateway/components/espnow_manager/include/espnow_manager.h` (modificar - declarar `set_node_config`, `pending_config_t`)
   - `firmware/node/main/espnow_node.c` (modificar - manejar MSG_TYPE_CONFIG en callback de recepcion)
-  - Opcionalmente: `firmware/gateway/main/http_server.c` (modificar - añadir endpoint de configuracion)
+  - Opcionalmente: `firmware/gateway/components/http_server/http_server.c` (modificar - añadir endpoint de configuracion)
 
 - **Criterio de aceptacion**:
   - [ ] Desde el gateway se puede marcar una config pendiente para un nodo especifico (por MAC)
