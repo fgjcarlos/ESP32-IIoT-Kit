@@ -91,6 +91,8 @@ static void brand_profile_init_once(void)
     s_profile.profile_id = BRAND_BUILD_PROFILE_ID;
     s_profile.brand_name = CONFIG_BRAND_NAME;
     s_profile.model = CONFIG_BRAND_MODEL;
+    s_profile.product_id = CONFIG_BRAND_PRODUCT_ID;
+    s_profile.hw_revision = CONFIG_BRAND_HW_REVISION;
     s_profile.support_url = CONFIG_BRAND_SUPPORT_URL;
     s_profile.ap_ssid = CONFIG_BRAND_AP_SSID;
     s_profile.firmware_version = CONFIG_BRAND_FIRMWARE_VERSION;
@@ -153,8 +155,10 @@ esp_err_t brand_profile_log(void)
     }
 
     ESP_LOGI(TAG,
-             "brand: name=%s model=%s version=%s revision=%s channel=%s",
-             profile->brand_name, profile->model, profile->firmware_version,
+             "brand: name=%s model=%s product=%s hw_rev=%s version=%s "
+             "revision=%s channel=%s",
+             profile->brand_name, profile->model, profile->product_id,
+             profile->hw_revision, profile->firmware_version,
              profile->revision, profile->ota_channel);
 
     ESP_LOGI(TAG,

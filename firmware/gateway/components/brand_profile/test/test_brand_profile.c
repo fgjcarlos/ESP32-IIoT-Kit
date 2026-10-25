@@ -13,6 +13,8 @@ static void brand_test_fill(brand_profile_t *profile)
     profile->profile_id = "acme-industrial";
     profile->brand_name = "Acme Industrial";
     profile->model = "AX-200";
+    profile->product_id = "acme-ax200";
+    profile->hw_revision = "rev-a";
     profile->support_url = "https://support.acme.example";
     profile->ap_ssid = "Acme-AX200";
     profile->firmware_version = "1.2.0";
@@ -150,6 +152,8 @@ TEST_CASE("Brand JSON payload is deterministic and carries the identity", "[bran
      * three fields the API has to expose. */
     TEST_ASSERT_NOT_NULL(strstr(payload, "\"brand\":\"Acme Industrial\""));
     TEST_ASSERT_NOT_NULL(strstr(payload, "\"model\":\"AX-200\""));
+    TEST_ASSERT_NOT_NULL(strstr(payload, "\"product\":\"acme-ax200\""));
+    TEST_ASSERT_NOT_NULL(strstr(payload, "\"hw_revision\":\"rev-a\""));
     TEST_ASSERT_NOT_NULL(strstr(payload, "\"version\":\"1.2.0\""));
     TEST_ASSERT_NOT_NULL(strstr(payload, "\"revision\":\"abc12345\""));
     TEST_ASSERT_NOT_NULL(strstr(payload, "\"channel\":\"beta\""));
@@ -198,6 +202,10 @@ TEST_CASE("The compiled brand profile is coherent", "[brand_profile]")
     TEST_ASSERT_TRUE(strlen(profile->brand_name) > 0u);
     TEST_ASSERT_NOT_NULL(profile->model);
     TEST_ASSERT_TRUE(strlen(profile->model) > 0u);
+    TEST_ASSERT_NOT_NULL(profile->product_id);
+    TEST_ASSERT_TRUE(strlen(profile->product_id) > 0u);
+    TEST_ASSERT_NOT_NULL(profile->hw_revision);
+    TEST_ASSERT_TRUE(strlen(profile->hw_revision) > 0u);
 
     /* The revision is the build revision; it is never empty, even when the
      * build could not read it from the repository. */

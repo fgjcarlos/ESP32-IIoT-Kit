@@ -103,6 +103,23 @@ esp_err_t brand_profile_validate(const brand_profile_t *profile)
         return ESP_ERR_INVALID_SIZE;
     }
 
+    /* The product identifier and the hardware revision are the two facts an
+     * OTA manifest is matched against, so they have to be part of the
+     * identity of the profile. */
+    if (profile->product_id == NULL || profile->product_id[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (strlen(profile->product_id) >= BRAND_PROFILE_PRODUCT_ID_MAX_LEN) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    if (profile->hw_revision == NULL || profile->hw_revision[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (strlen(profile->hw_revision) >= BRAND_PROFILE_HW_REVISION_MAX_LEN) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
     if (profile->support_url == NULL || profile->support_url[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
@@ -186,7 +203,9 @@ size_t brand_profile_json_size(const brand_profile_t *profile)
 
     const int needed = snprintf(NULL, 0,
                                 "{\"profile\":\"%s\",\"brand\":\"%s\","
-                                "\"model\":\"%s\",\"version\":\"%s\","
+                                "\"model\":\"%s\",\"product\":\"%s\","
+                                "\"hw_revision\":\"%s\","
+                                "\"version\":\"%s\","
                                 "\"revision\":\"%s\",\"channel\":\"%s\","
                                 "\"support_url\":\"%s\",\"ap_ssid\":\"%s\","
                                 "\"colors\":{\"background\":\"%s\","
@@ -194,7 +213,8 @@ size_t brand_profile_json_size(const brand_profile_t *profile)
                                 "\"logo\":{\"width\":%u,\"height\":%u,"
                                 "\"bytes\":%u}}",
                                 profile->profile_id, profile->brand_name,
-                                profile->model, profile->firmware_version,
+                                profile->model, profile->product_id,
+                                profile->hw_revision, profile->firmware_version,
                                 profile->revision, profile->ota_channel,
                                 profile->support_url, profile->ap_ssid,
                                 background, foreground, accent,
@@ -230,7 +250,9 @@ esp_err_t brand_profile_format_json(const brand_profile_t *profile,
 
     const int written = snprintf(out, out_len,
                                  "{\"profile\":\"%s\",\"brand\":\"%s\","
-                                 "\"model\":\"%s\",\"version\":\"%s\","
+                                 "\"model\":\"%s\",\"product\":\"%s\","
+                                 "\"hw_revision\":\"%s\","
+                                 "\"version\":\"%s\","
                                  "\"revision\":\"%s\",\"channel\":\"%s\","
                                  "\"support_url\":\"%s\",\"ap_ssid\":\"%s\","
                                  "\"colors\":{\"background\":\"%s\","
@@ -238,7 +260,8 @@ esp_err_t brand_profile_format_json(const brand_profile_t *profile,
                                  "\"logo\":{\"width\":%u,\"height\":%u,"
                                  "\"bytes\":%u}}",
                                  profile->profile_id, profile->brand_name,
-                                 profile->model, profile->firmware_version,
+                                 profile->model, profile->product_id,
+                                 profile->hw_revision, profile->firmware_version,
                                  profile->revision, profile->ota_channel,
                                  profile->support_url, profile->ap_ssid,
                                  background, foreground, accent,

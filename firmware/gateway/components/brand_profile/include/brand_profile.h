@@ -15,9 +15,9 @@
  *
  * Two kinds of data live here and they must never be mixed:
  *
- *   - **Public configuration** — name, model, support URL, initial SSID,
- *     OTA channel, colours. Authored in `Kconfig.projbuild`, versioned in
- *     Git, safe to publish.
+ *   - **Public configuration** — name, model, product identifier, hardware
+ *     revision, support URL, initial SSID, OTA channel, colours. Authored in
+ *     `Kconfig.projbuild`, versioned in Git, safe to publish.
  *   - **Manufacturing secrets** — provisioning key, support token and the
  *     factory AP password. Injected at build time from `/.env` through
  *     `tools/brand/gen-brand-secrets.sh` into the gitignored
@@ -47,6 +47,8 @@ extern "C" {
 #define BRAND_PROFILE_NAME_MAX_LEN        48u
 /** Maximum length of the product model, including the terminator. */
 #define BRAND_PROFILE_MODEL_MAX_LEN       32u
+/** Maximum length of the product identifier, including the terminator. */
+#define BRAND_PROFILE_PRODUCT_ID_MAX_LEN  48u
 /** Maximum length of the support URL, including the terminator. */
 #define BRAND_PROFILE_URL_MAX_LEN         128u
 /** Maximum length of the initial soft-AP SSID, including the terminator. */
@@ -55,6 +57,8 @@ extern "C" {
 #define BRAND_PROFILE_CHANNEL_MAX_LEN     16u
 /** Maximum length of the build revision, including the terminator. */
 #define BRAND_PROFILE_REVISION_MAX_LEN    16u
+/** Maximum length of the hardware revision, including the terminator. */
+#define BRAND_PROFILE_HW_REVISION_MAX_LEN 16u
 /** Maximum length of the firmware version, including the terminator. */
 #define BRAND_PROFILE_VERSION_MAX_LEN     32u
 /** Maximum length of the profile identifier, including the terminator. */
@@ -64,7 +68,7 @@ extern "C" {
 /** Maximum length of the generated artifact name, including the terminator. */
 #define BRAND_PROFILE_ARTIFACT_MAX_LEN   160u
 /** Maximum length of the JSON payload, including the terminator. */
-#define BRAND_PROFILE_JSON_MAX_LEN       512u
+#define BRAND_PROFILE_JSON_MAX_LEN       768u
 
 /**
  * @brief Public identity of the product, as compiled into the firmware.
@@ -76,11 +80,13 @@ typedef struct {
     const char *profile_id;       /**< Identifier of the compiled profile. */
     const char *brand_name;       /**< Brand name shown to the user. */
     const char *model;            /**< Commercial model of the product. */
+    const char *product_id;       /**< Stable identifier of the product. */
     const char *support_url;      /**< Public support address. */
     const char *ap_ssid;          /**< Initial soft-AP SSID. */
     const char *firmware_version; /**< Version of this build. */
     const char *ota_channel;      /**< OTA release channel. */
     const char *revision;         /**< Build revision (short commit SHA). */
+    const char *hw_revision;      /**< Hardware revision of the carrier. */
     uint32_t    color_background; /**< Background colour as 0xRRGGBB. */
     uint32_t    color_foreground; /**< Foreground colour as 0xRRGGBB. */
     uint32_t    color_accent;     /**< Accent colour as 0xRRGGBB. */
