@@ -1,0 +1,32 @@
+change: issue-16-gateway-product-rollup
+status: completed
+current_phase: archive
+completed_phases:
+  - explore
+  - proposal
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+next_phase: null
+artifact_store: openspec
+execution_mode: interactive
+delivery_strategy: auto
+chain_strategy: stacked-to-main
+created: 2026-10-26
+tasks_completed: 2026-10-26
+tasks_done: [T-16.01, T-16.02, T-16.03, T-16.04, T-16.05, T-16.06, T-16.07, T-16.08, T-16.09, T-16.10, T-16.11, T-16.12, T-16.13, T-16.14, T-16.15, T-16.16, T-16.17, T-16.18]
+tasks_remaining: []
+tasks_total: 18
+archived_at: 2026-10-26
+archive_path: openspec/changes/archive/2026-10-26-issue-16-gateway-product-rollup
+notes:
+  - 'This change is a roll-up: it audits the eight dependent issues of #16 against real evidence, fixes the stack-overflow defect the audit exposed, and writes the ledger that maps every acceptance criterion of #16 to its evidence.'
+  - 'The ledger is in verify-report.md. Four criteria are met, two are partially met.'
+  - 'The two partial criteria are AC-02 (the carrier is not physically verified) and AC-03 (the ST7789V2 and the ESP-NOW are contract-only under the hardware hold). Both need the physical unit in the developer''s hands; neither can be closed from a terminal. They are recorded as deferred, not as failed.'
+  - 'The defect: the on-target Unity suite exhausted the 8192-byte main task stack. The suite printed "114 Tests 0 Failures", the FreeRTOS overflow detector fired right after, and the CI reported success over a crashing application. Fixed by the measured stack (16384 B, 7504 B of headroom), by a deterministic end of the run (esp_restart), and by a gate that fails on a crash and on a headroom below its floor.'
+  - 'A second interaction was found while fixing the first: the CI profile used to end the QEMU run because the overflow crashed the chip. With the stack fixed, the application idled and the run hit the CI timeout. esp_restart() ends the run deterministically, and it is not a panic, so the gate still tells a crash from a clean end.'
+  - 'The generated sdkconfig is not tracked. A stale one keeps the old value of CONFIG_ESP_MAIN_TASK_STACK_SIZE, so the generated file has to be removed for the change of the default to take effect. The headroom floor catches it: with the old 8192 the headroom is 0 and the gate fails.'
+  - 'The committed conflict markers of openspec/changes/issue-9-gateway-firmware-foundation/apply-progress.md were removed. The resolution is verified against the archived copy, which is byte-identical once the markers are gone.'
