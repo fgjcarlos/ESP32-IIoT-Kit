@@ -1,0 +1,31 @@
+change: issue-9-gateway-firmware-foundation
+status: completed
+current_phase: archive
+completed_phases:
+  - explore
+  - proposal
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+next_phase: null
+artifact_store: openspec
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+chain_strategy: feature-branch-chain
+created: 2026-09-27
+tasks_completed: 2026-09-29
+merged_at: '41449df' # Merge of PR #29
+archived_at: 2026-09-29
+archive_path: openspec/changes/archive/2026-09-29-issue-9-gateway-firmware-foundation
+tasks_done: [T-00.01, T-01.01, T-01.02, T-01.03, T-01.04, T-01.05, T-01.06, T-01.07, T-01.08]
+tasks_remaining: []
+tasks_total: 9
+notes:
+  - 'This folder is the synced summary record of the change. The full artifact set (the state with the per-PR ledger, the verify evidence and the archive report) lives in archive_path and is preserved verbatim as the audit trail.'
+  - 'The change is closed: its nine tasks are done and the change was archived on 2026-09-29.'
+  - 'The folder is kept in changes/ because it still carries the working artifacts of the apply phase — tasks.md and apply-progress.md — and because the repository convention, established with the iiot-kit-transformation change, is that a completed change keeps a synced summary here that points at its archive.'
+  - 'Before this summary existed, the folder declared no state at all, and that ambiguity had to be explained away by hand in the closing comment of issue #15. This file removes the ambiguity: the change is completed and archived, and the authoritative copy is in archive_path.'
+  - 'The committed conflict markers of apply-progress.md were removed on 2026-10-26 by the issue-16 roll-up. The resolution was verified against the archived copy, which is byte-identical once the markers are gone.'
