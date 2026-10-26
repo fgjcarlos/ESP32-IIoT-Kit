@@ -69,6 +69,7 @@ Vendor-reported values (the carrier pinout image, the display dimensions, the 20
 - A test that needs the physical gateway carries the `[hw]` tag; the CI profile leaves those out, so an untagged hardware test fails in the CI
 - New behavior needs a Unity test in the owning component's `test/` directory — compile success plus Unity tag presence is the verifiable equivalent when hardware is unavailable
 - Firmware must build clean before tests are claimed green
+- A green Unity summary is not a green run: the suite runs inside `app_main()`, so the main task stack has to hold the deepest single test. `tools/ci/run-device-tests.sh` fails the run on a crash after the summary and on a main task headroom below its floor — do not raise the stack past the measurement without re-checking the headroom
 - The CI (`firmware-ci.yml`) is the gate: host tests, node load, firmware build, reproducible build, device tests under QEMU and Sparkplug B conformance
 
 ## Hardware and protocol constraints

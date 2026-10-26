@@ -251,6 +251,7 @@ Payload: variable, max 230 bytes (sensor readings)
 13. NVS keys longer than 15 characters (returns `ESP_ERR_NVS_KEY_TOO_LONG` and silently kills the config load)
 14. Reusing the withdrawn `0.1155 mm` pixel pitch, or deriving geometry from it
 15. Treating the carrier pinout image or the seller display specs as verified hardware
+16. Assuming a green Unity summary means a healthy run — the summary is printed before the FreeRTOS stack overflow detector fires, so an application that overflows the main task stack looks green. The whole suite runs in `app_main()`, so `CONFIG_ESP_MAIN_TASK_STACK_SIZE` has to hold the deepest single test, and `tools/ci/run-device-tests.sh` checks the headroom and fails on a crash
 
 ## How to Help the Developer
 
