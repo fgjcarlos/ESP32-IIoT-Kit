@@ -21,6 +21,14 @@ The separation is mechanical, not a convention:
 source $HOME/esp/esp-idf/export.sh
 
 # The profile of the board: every test, including the [hw] ones.
+#
+# The generated sdkconfig is removed first. It is a generated file, and a
+# stale one keeps the old value of a symbol that sdkconfig.defaults has
+# changed — the build then succeeds with the previous configuration and the
+# change looks like it had no effect. The CI profile of the application does
+# the same thing for sdkconfig.qemu.
+rm -f firmware/gateway/test/sdkconfig
+
 idf.py -C firmware/gateway/test build
 idf.py -C firmware/gateway/test -p /dev/ttyACM0 monitor
 ```
@@ -30,6 +38,55 @@ output appears on `/dev/ttyACM*` and not on the UART0 pins.
 
 The result of the run has to be copied into the run sheet of the change: the
 summary line (`N Tests M Failures K Ignored`) and the version of the image.
+
+After the suite the application restarts the unit on purpose, so the end of
+the run is an event the environment can observe. Without it the chip would
+sit in the idle task and the emulation would only stop at the CI timeout.
+
+## A green summary is not a green run
+
+The Unity summary is printed **before** the FreeRTOS stack overflow detector
+speaks. A run whose stack is too small looks like this:
+
+```
+114 Tests 0 Failures 0 Ignored
+OK
+I (8943) gateway_test: Main task stack headroom after the run: 0 bytes of 8192
+***ERROR*** A stack overflow in task main has been detected.
+```
+
+The suite passed and the application crashed. This is not a theoretical
+case: it is what happened on the 8192-byte main task stack, in both
+profiles, and the CI reported success over it because the gate only looked
+at the summary.
+
+`tools/ci/run-device-tests.sh` therefore fails the run when:
+
+| Condition | Why |
+|---|---|
+| The log contains a crash after the summary (`***ERROR***`, `stack overflow`, `Guru Meditation`, `abort() was called`, `Rebooting...`) | A crashed application is not a passing run, whatever the summary says. |
+| The headroom of the main task was not measured | The measurement is missing, so the run cannot be judged. |
+| The headroom is below the floor (1024 bytes, overridable with `HEADROOM_FLOOR_BYTES`) | The next growth of the suite would turn the missing headroom into an overflow. |
+
+The headroom line is the measurement that makes the value of
+`CONFIG_ESP_MAIN_TASK_STACK_SIZE` a fact rather than a guess:
+
+```
+I (8943) gateway_test: Main task stack headroom after the run: 7504 bytes of 16384
+```
+
+The whole suite runs in `app_main()`, in the main task, so the stack has to
+hold the deepest single test and not the average one. Adding a test can
+therefore break the build of the suite without touching anything that looks
+like a stack — the headroom floor is what turns that into a failure that is
+visible in the CI.
+
+The product reports its own headroom in the same way, at the end of the
+initialisation chain of `app_main()`:
+
+```
+I (1451) gateway: Main task stack headroom after the init chain: 5648 bytes of 8192
+```
 
 ## The catalogue
 

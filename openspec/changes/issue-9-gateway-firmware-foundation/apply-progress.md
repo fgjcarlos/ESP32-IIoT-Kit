@@ -258,8 +258,6 @@ A content search of the complete `mqtt_bridge` component found no `mqtt_client.h
 - `idf.py -C firmware/gateway build` succeeded: `gateway.bin` 0x374d0 bytes (93% free).
 - `idf.py -C firmware/gateway/test build` succeeded: `gateway_test.bin` 0x3bbb0 bytes (77% free).
 - ELF symbol verification (`xtensa-esp32s3-elf-nm`): `display_manager_init` exported at `0x4200ac8c T`. Unity test tag `[display_manager]` present in the test ELF.
-<<<<<<< Updated upstream
-=======
 
 ## Slice 7 — T-01.07 Cumulative build/test evidence on `main`
 
@@ -303,4 +301,3 @@ A content search of the complete `mqtt_bridge` component found no `mqtt_client.h
 - T-01.07 closed (cumulative build + test ELF verification on `main`).
 - T-01.08 closed (physical-board boot smoke on `/dev/ttyACM0`).
 - All nine `tasks.md` boxes for the new component contract work (`T-01.04` through `T-01.08` plus the related `T-01.06` increments) are eligible to be marked `[x]` after this slice.
->>>>>>> Stashed changes
