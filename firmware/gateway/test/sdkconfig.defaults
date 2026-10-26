@@ -9,11 +9,27 @@ CONFIG_SPIRAM_MODE_OCT=y
 # Without this the 64-bit assertions fail with "Unity 64-bit Support Disabled".
 CONFIG_UNITY_ENABLE_64BIT=y
 
-# Main task stack: nvs_flash_init() is called from app_main (the main task)
-# and the NVS driver needs more than the 3584-byte default. With the default
-# the on-device run aborts with "A stack overflow in task main has been
-# detected" as soon as the Sparkplug NVS test executes.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# Main task stack: the whole Unity suite runs in app_main, in the main task,
+# so the stack has to hold the deepest test and not just the application.
+#
+# The history is worth keeping:
+#   3584 (IDF default) overflowed in nvs_flash_init();
+#   8192 was enough until the suite grew, and then it stopped being enough:
+#   the run ended with "Main task stack headroom after the run: 0 bytes of
+#   8192" and the FreeRTOS overflow detector fired right after the summary.
+#   The summary still said "114 Tests 0 Failures", so the suite looked green
+#   while the application was crashing.
+#
+# 16384 is the measured value: the suite of 114 tests leaves 7504 bytes of
+# headroom. tools/ci/run-device-tests.sh checks that headroom and fails the
+# run when it drops below its floor, so the next growth of the suite is
+# caught before it becomes an overflow.
+#
+# The generated sdkconfig is a build artefact and it is not tracked. A stale
+# one keeps the old value of this symbol, so the generated file has to be
+# removed for a change of this line to take effect. See
+# docs/testing/hardware-tests.md.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 
 # Console: this carrier only wires the native USB port, so UART0 is not
 # reachable. The secondary USB-Serial/JTAG console is what makes the

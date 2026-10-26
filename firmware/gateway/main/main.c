@@ -9,6 +9,8 @@
 #include "wifi_manager.h"
 #include "mqtt_bridge.h"
 #include "ota_manager.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "sdkconfig.h"
 
 #if CONFIG_SPARKPLUG_B_ENABLED
@@ -192,4 +194,18 @@ void app_main(void)
         return;
     }
 #endif
+
+    /* The headroom of the main task: the bytes of the stack that the
+     * initialisation chain never used. It is the evidence behind
+     * CONFIG_ESP_MAIN_TASK_STACK_SIZE, and the reason the value is not a
+     * guess: the chain below brings up the NVS driver, the brand layer, the
+     * display contracts, the Wi-Fi driver and the OTA manager, and the stack
+     * of the main task has to hold all of it.
+     *
+     * A run whose headroom is close to zero is a run that is one subsystem
+     * away from "A stack overflow in task main has been detected", and the
+     * FreeRTOS overflow detector only speaks once it is too late. */
+    const UBaseType_t headroom = uxTaskGetStackHighWaterMark(NULL);
+    ESP_LOGI(TAG, "Main task stack headroom after the init chain: %u bytes of %u",
+             (unsigned)headroom, (unsigned)CONFIG_ESP_MAIN_TASK_STACK_SIZE);
 }

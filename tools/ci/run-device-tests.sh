@@ -12,7 +12,10 @@
 # The script fails when:
 #   - QEMU did not finish inside the timeout (a hang is a failure, not a pass);
 #   - the Unity summary is missing (the application did not reach the end);
-#   - the summary reports a failure.
+#   - the summary reports a failure;
+#   - the application crashed after the summary (a green summary over a
+#     crashed application is a failure, not a pass);
+#   - the headroom of the main task is missing or below the floor.
 #
 # Usage:
 #   tools/ci/run-device-tests.sh [project-dir] [build-dir] [timeout-seconds]
@@ -107,12 +110,56 @@ if [[ "${failures}" != "0" || "${verdict}" != "OK" ]]; then
     exit 1
 fi
 
+# A green summary is not a green run.
+#
+# The suite can pass every test and still leave the application crashing: the
+# Unity summary is printed before the FreeRTOS stack overflow detector fires,
+# so a run that ends with an overflow looks green to the checks above. That is
+# exactly what happened with the 8192-byte main task stack: "114 Tests 0
+# Failures" followed by "A stack overflow in task main has been detected" and
+# a reboot.
+#
+# A crash after the summary is a failure of the run, so it is checked here.
+crash_lines="$(grep -a -n -E '\*\*\*ERROR\*\*\*|stack overflow|Guru Meditation|abort\(\) was called|Rebooting\.\.\.|rst:0x[0-9a-f]+ \(.*(PANIC|panic)' "${CLEAN_LOG}" | head -10)"
+
+if [[ -n "${crash_lines}" ]]; then
+    echo "run-device-tests: the application crashed after the summary; the run is a failure" >&2
+    echo "${crash_lines}" >&2
+    exit 1
+fi
+
+# The headroom of the main task is the early warning of the overflow above.
+# The application measures it at the end of the run and prints it; a run that
+# leaves less than the floor is a run that is one test away from an overflow,
+# and it is cheaper to catch it here than in the crash report.
+#
+# The floor is 1024 bytes. The measured value with the 114 tests of the suite
+# is 7504 bytes of 16384, so the floor leaves room for the suite to grow
+# before it has to be a deliberate change.
+HEADROOM_FLOOR_BYTES="${HEADROOM_FLOOR_BYTES:-1024}"
+
+headroom_line="$(grep -a -E 'Main task stack headroom after the run: [0-9]+ bytes of [0-9]+' "${CLEAN_LOG}" | tail -1)"
+
+if [[ -z "${headroom_line}" ]]; then
+    echo "run-device-tests: the main task stack headroom was not measured; the run is a failure" >&2
+    tail -40 "${CLEAN_LOG}" >&2
+    exit 1
+fi
+
+headroom="$(echo "${headroom_line}" | sed -E 's/.*headroom after the run: ([0-9]+) bytes.*/\1/')"
+
+if [[ "${headroom}" -lt "${HEADROOM_FLOOR_BYTES}" ]]; then
+    echo "run-device-tests: the main task stack headroom is ${headroom} bytes, below the floor of ${HEADROOM_FLOOR_BYTES}" >&2
+    exit 1
+fi
+
 echo
 echo "## Device tests under QEMU"
 echo
 echo '```'
 echo "${summary}"
 echo "${verdict}"
+echo "${headroom_line}"
 echo '```'
 echo
 echo "The tests tagged \`[hw]\` are excluded from this run: they need the physical gateway."
