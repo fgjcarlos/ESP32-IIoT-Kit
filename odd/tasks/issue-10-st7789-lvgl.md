@@ -1,5 +1,20 @@
 # Issue #10 — ST7789 + LVGL local display
 
+> **SUPERSEDED IN PART — read this first (issue #67).**
+>
+> Every GPIO22 reference in this document is **withdrawn**: the
+> ESP32-S3-WROOM-1 module does not expose GPIO22 (it exposes IO0–IO21,
+> IO35–IO42 and IO45–IO48), so the backlight candidate recorded here could
+> never be wired on this hardware. The replacement candidate is **GPIO7**,
+> still provisional and still **not approved for wiring**; the display's
+> `BLK` contact stays unconnected until the panel's interface is documented.
+>
+> The body below is kept unchanged as the historical record of issue #10 and
+> is deliberately **not** rewritten. The authoritative candidate connection
+> map, its reservations and its evidence status live in
+> `docs/hardware/esp32-s3-wroom-1-n16r8.md`; the bring-up procedure and the
+> power-up block live in `docs/hardware/display-bringup-protocol.md`.
+
 ## Objective
 
 Add the gateway-side contract for the 1.9-inch 170×320 ST7789V2 LCD and a LVGL local UI framework, mirroring the issue-9 chained-PR style: contract-only headers + skeleton sources + per-component Unity tests + on-target boot smoke on `/dev/ttyACM0`. No runtime `esp_lcd_*` or LVGL calls in this issue. Runtime driver implementation, panel bring-up, LVGL port rendering, and bus arbitration with a future TF card driver are deferred to later Fases.
@@ -40,6 +55,7 @@ Issue #10's body lists a real implementation (`Driver ST7789`, `Integración de 
 - 8-pin display contact map confirmed by the user: 1 GND, 2 VCC, 3 SCL (clock), 4 SDA (data input), 5 RES, 6 DC, 7 CS, 8 BLK.
 - Display model: ST7789V2, 4-wire SPI, 170(H) RGB × 320(V), nominal 1.9-inch, 8 pins. The body of issue #10 says `172×320`; user confirmed it is a typo and the correct resolution is `170×320` (matches `DISPLAY_MANAGER_FRAMEBUFFER_SIZE_BYTES`).
 - Backlight candidate: **GPIO22** — `pending physical verification`. The user could not find explicit ESP32-S3 carrier documentation for GPIO22→BLK; the assignment will be confirmed by reading the actual carrier pins. Document this in the header with a `[pending physical verification]` note; do not assume it.
+  - **Withdrawn by issue #67:** GPIO22 does not exist on the ESP32-S3-WROOM-1 module. The candidate is now GPIO7, still provisional and not approved for wiring. See the banner at the top of this document.
 - ESP-IDF v5.4, xtensa toolchain. Toolchain at `$HOME/esp/esp-idf`. Source before `idf.py` invocations.
 - `firmware/gateway/test/` uses the dual-target assembly: `gateway_test.bin` is the on-target Unity runner with `TEST_COMPONENTS` listed components registered.
 - `delivery_strategy: ask-on-risk`. Pause before each push+PR cycle. Slice size ≤400 lines/PR.

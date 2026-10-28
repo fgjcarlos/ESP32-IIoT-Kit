@@ -6,7 +6,7 @@
 
 1. Use `esp32s3` when firmware work begins.
 2. Reserve GPIO35, GPIO36, and GPIO37: the N16R8 module uses them for Octal PSRAM.
-3. Do not wire the display until physical labels, board-side GPIO mapping, supply and logic levels, and backlight requirements are validated.
+3. Do not wire the display until physical labels, board-side GPIO mapping, supply and logic levels, and backlight requirements are validated. The candidate map below is the target of that validation, not an approval to wire.
 4. Keep autonomous dashboard and OTA as requirements; use the ODD-3 custom 16 MB partition layout and validate its runtime budgets on hardware.
 
 ## Confirmed module facts
@@ -220,14 +220,142 @@ A full RGB565 framebuffer is 170 × 320 × 2 = 108,800 bytes (106.25 KiB), and a
 ### Remaining open items
 
 - Compare the drawing-reported dimensions with the exact delivered 8-pin module, including its physical labels, before enclosure design.
-- Map the display contacts to safe board-side ESP32-S3 GPIOs; no MCU GPIO assignments are established here.
-- Verify the VCC and logic voltage requirements and safe signal levels; 3.3 V operating voltage does not determine logic input levels.
+- Verify the candidate mapping published below against the carrier in hand: the mapping is a proposal for that verification, not an approval to wire.
+- Verify the VCC and logic voltage requirements and safe signal levels; the reported 3.3 V operating voltage does not determine the panel's permitted input range, its input current limits, or its behaviour with unpowered inputs.
 - Verify what the reported 20 mA measures and the backlight current/control requirements; no LED driver or current-limit circuit is established here.
 - Confirm the carrier wiring before making any electrical connection.
 
 The [AliExpress display listing](https://es.aliexpress.com/item/1005008546903854.html) did not expose complete specifications. Its associated PDF appears to describe a distinct 30-pin variant; **do not apply that variant's pinout to this user's 8-pin unit**.
 
-No display GPIO assignment or electrical connection is approved until the remaining open items are validated.
+No display GPIO assignment or electrical connection is approved until the remaining open items are validated. The candidate mapping below exists so that validation has a concrete target.
+
+## Display connection map — candidate, not approved for wiring
+
+**Status: candidate mapping published for review. No wiring, no supply and no
+first power-up are authorized.** Neither Authorization A (power-only electrical
+characterization) nor Authorization B (signal and functional bringup) is
+granted; see the release state below. Issue #67 publishes the candidate mapping
+so the integrator knows what to look for on the carrier; every row stays
+provisional until the evidence in the bring-up protocol is recorded.
+
+Procedure: `docs/hardware/display-bringup-protocol.md`. The two documents are
+one record split in half: the protocol produces the evidence, this profile
+holds the map and the block.
+
+### Candidate mapping (display contact → signal → GPIO candidate)
+
+| Display contact | Panel signal | Carrier signal (candidate) | GPIO candidate | Basis | Status |
+|---|---|---|---|---|---|
+| 1 | GND | GND | — | Panel ground | Conditional: only once the panel's supply rating is documented and the carrier's ground is identified against a documented ground test point or module ground pin (protocol Stage 3). |
+| 2 | VCC | 3V3 | — | Panel supply | Conditional: only with a documented supply rating, a documented rail capacity, and the PRE-POWER RELEASE GATE released by a named person. |
+| 3 | SCL | SPI2 SCLK | **GPIO12** | SPI2 IOMUX | Provisional. |
+| 4 | SDA | SPI2 MOSI | **GPIO11** | SPI2 IOMUX | Provisional. |
+| 5 | RES | general output | **GPIO9** | Plain GPIO; the SPI2 QUADHD pad is unused in 4-wire SPI | Provisional. |
+| 6 | DC | general output | **GPIO8** | Plain GPIO | Provisional. |
+| 7 | CS | SPI2 CS0 | **GPIO10** | SPI2 IOMUX | Provisional. |
+| 8 | BLK | backlight control | **GPIO7** | Module exposes IO7 as a general-purpose IO | Provisional and conditional: only if the panel's documented interface proves a compatible logic input. Otherwise the contact stays unconnected and no GPIO sources current into it. |
+
+- The panel is a **4-wire SPI** part, so the quad-SPI pads are not used. GPIO9 is
+  therefore available as a plain output for `RES`; it must not be routed as quad
+  data.
+- The **contact numbers in this table are the user-supplied pinout image's
+  numbering, not validated positions**. Stage 1 of the bring-up protocol reads
+  the order from the unit itself, and every connection uses those validated
+  positions instead of these numbers.
+- **GPIO13 stays unassigned**, held for a future MISO if a read path is ever
+  needed.
+- No TF card, no SDMMC and no other SPI device is assigned here. A future
+  LCD + TF arrangement has to arbitrate the shared bus explicitly; that
+  implementation does not exist yet.
+- The signal choices are IOMUX-aligned with SPI2 (`CS0=10`, `SCLK=12`,
+  `MISO=13`, `MOSI=11`). The ESP32-S3 GPIO matrix can route other signals, so
+  the alignment is a preference, not a hard constraint.
+- GPIO7 is published as `LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE` in
+  `firmware/gateway/components/lcd_driver/include/lcd_driver.h`. It is a
+  proposal, not a binding assignment, and the firmware assigns no GPIO.
+
+### Reserved pins (must not appear in a display candidate)
+
+| Pins | Reason |
+|---|---|
+| GPIO35, GPIO36, GPIO37 | Octal PSRAM on the confirmed N16R8 module. |
+| GPIO19, GPIO20 | Native USB D− / D+. |
+| GPIO43, GPIO44 | UART0 (TXD0 / RXD0) on the module. |
+| GPIO0, GPIO3, GPIO45, GPIO46 | Strapping pins; GPIO0 is also BOOT. |
+| GPIO48 | Onboard WS2812, functionally confirmed on this unit. |
+
+### Evidence record (copy of record)
+
+This is the record of record. The bring-up protocol keeps the working copy with
+the same row IDs; **each measurement is taken once** and its value is recorded
+here. Every row needs the instrument or document, the value, the unit, the date
+and the verdict. **All physical results are pending.**
+
+| ID | Requirement / measurement | Instrument or document | Value | Unit | Date | Status |
+|---|---|---|---|---|---|---|
+| A3 | Validated physical contact order and positions | — | | — | | pending |
+| G1 | Panel supply, current, permitted input range, absolute max, input current limits, unpowered/back-power restrictions, reset polarity, power-up/power-down sequence | | | — | | pending |
+| G2 | Panel `BLK` interface and input current limit | | | — | | pending |
+| G3 | Carrier schematic: header → GPIO, rail per header, documented ground point | | | — | | pending |
+| G4 | Carrier 3V3 rail capacity and current limit | | | — | | pending |
+| B1 | Carrier ground header position, against a documented ground point | | | — | | pending |
+| B2 | Panel ground contact position, against a documented point | | | — | | pending |
+| C2 | Continuity header → documented GPIO point, per signal | | | — | | pending |
+| C3 | Reserved pins confirmed absent from the candidate positions | | | — | | pending |
+| D1 | Carrier 3V3 rail voltage | | | V | | pending |
+| D3 | 3V3 rail under light load | | | V | | pending |
+| P2 | Named human release of the PRE-POWER RELEASE GATE | — | | — | | pending — not granted |
+| E1 | Supply source and current limit, with its derivation | | | — | | pending |
+| E2 | Supply connections made, with validated positions | — | | — | | pending |
+| E4 | Display-side supply voltage | | | V | | pending |
+| E5 | Display current draw | | | mA | | pending |
+| E6 | Backlight observation with `BLK` unconnected | — | | — | | pending |
+| F0 | Common signal-reference ground established, rails discharged | | | — | | pending |
+| F1 | Input-level compatibility verdict and safe sequence (or the block) | | | — | | pending |
+
+### Release state — two authorizations, both pending
+
+| Authorization | Scope | Requires | Status |
+|---|---|---|---|
+| **A — power-only electrical characterization** | Connect the panel's validated ground and supply contacts to one documented source; measure the panel's supply voltage, current and backlight behaviour | The PRE-POWER RELEASE GATE: Stages 1–5 complete with only A3, G1, G2, G3, G4, B1, B2, C2, C3, D1 and D3 recorded (optional D3 may record justified non-performance), followed by P2's named human release | **not granted — pending** |
+| **B — signal and functional bringup** | Connect the panel's signal contacts, drive the controller, observe an image | Authorization A completed (E1, E2, E4, E5, E6), plus a documented safe power-up/power-down sequence and F1's documented full voltage/current-envelope and logic-level compatibility verdict; unknown or incompatible limits block B | **not granted — pending** |
+
+A is released on documentation and carrier-side measurements, and it produces
+the panel-side measurements that B needs. **Nothing in A requires the panel to
+have been powered before A is granted**, and nothing in B starts until A is
+complete. P2 is the release record, not a prerequisite to itself. E1/E2/E4/E5/E6
+are recorded under A, not before it; F1's documentary assessment precedes B,
+while F0's physical common-ground verification follows B with all sources off.
+Later rows remain pending until their authorized stages. Documentation alone
+never reaches a supply connection: the named release is what does.
+
+| Release field | Value |
+|---|---|
+| Released by (name) | *pending* |
+| Date | *pending* |
+| Stages 1–5 complete | *pending* |
+| Authorization A granted | *pending — not granted* |
+| Authorization B granted | *pending — not granted* |
+
+**The first display power-up stays blocked.** No panel supply contact is
+connected, no signal contact is connected and no GPIO is driven until the
+release above happens. A blank or noisy panel at power-up is not evidence of
+anything and no result may be inferred from it.
+
+The gate is non-circular by construction: the panel's current, permitted input
+range and back-power restrictions come from its documentation, so the gate never
+asks for a measurement of the powered panel in order to permit the first power.
+
+### Sources for the candidate mapping
+
+- [ESP32-S3-WROOM-1/WROOM-1U datasheet (official)](https://documentation.espressif.com/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf)
+  — module pin diagram: IO7…IO12 are exposed; IO22…IO34 are not.
+- [ESP-IDF v5.4 SPI master documentation](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/peripherals/spi_master.html)
+  — SPI2 IOMUX: `CS0=10`, `SCLK=12`, `MISO=13`, `MOSI=11`, `QUADWP=14`,
+  `QUADHD=9`, plus the GPIO-matrix alternatives.
+
+Neither source documents the carrier in hand. The mapping proves only that the
+module can carry it; the carrier wiring remains unknown.
 
 ## Migration implications
 
@@ -240,11 +368,12 @@ No display GPIO assignment or electrical connection is approved until the remain
 
 ### ODD-4 display status
 
-The external ST7789 remains disconnected and untested. Do not assign its RES/DC/CS/SCL/SDA/BLK pins or connect its VCC/backlight until the exact module is matched and its logic-level, backlight-current, and control requirements are confirmed.
+The external ST7789 remains disconnected and untested. Do not assign its RES/DC/CS/SCL/SDA/BLK pins or connect its VCC/backlight until the exact module is matched and its logic-level, backlight-current, and control requirements are confirmed. The candidate mapping in this profile is the target of that verification, not an approval to wire.
 
 ## Sources
 
 - [Espressif ESP32-S3-WROOM-1/WROOM-1U datasheet (official)](https://documentation.espressif.com/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf)
+- [ESP-IDF v5.4 SPI master API reference](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/peripherals/spi_master.html) — SPI2 IOMUX assignments used by the candidate mapping
 - [Candidate seller listing](https://es.aliexpress.com/item/1005006418608267.html) — incomplete fetched specifications
 - [YD-ESP32-S3 / ESP32-S3-WROOM-1 Dev reference](https://github.com/profharris/YD-ESP32-S3_ESP32-S3-WROOM-1_Dev) — third-party and marked work in progress
 - [User-provided display listing](https://es.aliexpress.com/item/1005008546903854.html) — incomplete fetched specifications; its associated PDF appears to describe a different 30-pin variant
