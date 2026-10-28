@@ -50,43 +50,43 @@ Los criterios de aceptación detallados viven en cada issue; esta tabla es el ma
 
 | ID | GitHub | Resultado | Depende de |
 |---|---|---|---|
-| H01 | pendiente de publicación | Validar la conexión segura de la nueva placa y pantalla | Ninguna |
-| W01 | pendiente de publicación | Validar los wireframes web de acceso y configuración inicial | Ninguna |
-| W02 | pendiente de publicación | Acceder a un portal local protegido servido por el gateway | W01 |
-| W03 | pendiente de publicación | Guardar la red Wi-Fi desde la web y recuperar el acceso local | W02 |
-| W04 | pendiente de publicación | Validar los wireframes web de nodos, lecturas y mantenimiento | W01 |
-| L01 | pendiente de publicación | Validar datos, navegación y wireframes de la pantalla local | H01, W04 |
+| H01 | [#67](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/67) | Validar la conexión segura de la nueva placa y pantalla | Ninguna |
+| W01 | [#68](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/68) | Validar los wireframes web de acceso y configuración inicial | Ninguna |
+| W02 | [#69](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/69) | Acceder a un portal local protegido servido por el gateway | W01 |
+| W03 | [#70](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/70) | Guardar la red Wi-Fi desde la web y recuperar el acceso local | W02 |
+| W04 | [#71](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/71) | Validar los wireframes web de nodos, lecturas y mantenimiento | W01 |
+| L01 | [#86](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/86) | Validar datos, navegación y wireframes de la pantalla local | H01, W04 |
 
 ### Nodos, sensores y control
 
 | ID | GitHub | Resultado | Depende de |
 |---|---|---|---|
-| N01 | pendiente de publicación | Dar de alta un nodo C3 y aprobarlo desde la web | W02, W04 |
-| N02 | pendiente de publicación | Entregar una lectura C3 al gateway con ACK y reintentos | N01 |
-| N03 | pendiente de publicación | Dormir el nodo y conservar su identidad entre ciclos | N02 |
-| N04 | pendiente de publicación | Recuperar la entrega del nodo tras perder el canal del gateway | N02, W03 |
-| S01 | pendiente de publicación | Mostrar temperatura real de un DS18B20 conectado al nodo | N02 |
-| S02 | pendiente de publicación | Mostrar lecturas validadas y filtradas dentro de cada despertar | S01 |
-| N05 | pendiente de publicación | Cambiar el intervalo de un nodo desde la web con confirmación | N03, W04 |
-| A01 | pendiente de publicación | Accionar una salida de relé desde la web con estado seguro | N02, W04 |
-| A02 | pendiente de publicación | Configurar y visualizar una alerta por umbral con histéresis | S02, W04 |
-| A03 | pendiente de publicación | Vincular una alerta a una salida con recuperación segura | A01, A02 |
+| N01 | [#72](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/72) | Dar de alta un nodo C3 y aprobarlo desde la web | W02, W04 |
+| N02 | [#73](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/73) | Entregar una lectura C3 al gateway con ACK y reintentos | N01 |
+| N03 | [#74](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/74) | Dormir el nodo y conservar su identidad entre ciclos | N02 |
+| N04 | [#75](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/75) | Recuperar la entrega del nodo tras perder el canal del gateway | N02, W03 |
+| S01 | [#76](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/76) | Mostrar temperatura real de un DS18B20 conectado al nodo | N02 |
+| S02 | [#77](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/77) | Mostrar lecturas validadas y filtradas dentro de cada despertar | S01 |
+| N05 | [#78](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/78) | Cambiar el intervalo de un nodo desde la web con confirmación | N03, W04 |
+| A01 | [#79](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/79) | Accionar una salida de relé desde la web con estado seguro | N02, W04 |
+| A02 | [#80](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/80) | Configurar y visualizar una alerta por umbral con histéresis | S02, W04 |
+| A03 | [#81](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/81) | Vincular una alerta a una salida con recuperación segura | A01, A02 |
 
 ### Monitorización, pantalla y mantenimiento
 
 | ID | GitHub | Resultado | Depende de |
 |---|---|---|---|
-| W05 | pendiente de publicación | Ver lecturas en directo y recuperar la conexión del navegador | N02, W04 |
-| W06 | pendiente de publicación | Consultar un historial local acotado desde la web | W05 |
-| W07 | pendiente de publicación | Configurar la integración Sparkplug B opcional desde la web | W02, W04, N02 |
-| W08 | pendiente de publicación | Consultar diagnóstico y validez horaria desde la web | W02, W04 |
-| L02 | pendiente de publicación | Mostrar el estado real del gateway en la pantalla verificada | H01, L01, W08 |
-| L03 | pendiente de publicación | Consultar nodos, medidas y alarmas en la pantalla local | L02, W05, A02 |
-| O01 | pendiente de publicación | Actualizar el gateway desde la web usando la OTA segura existente | W02, W04 |
-| O02 | pendiente de publicación | Actualizar un nodo C3 mediante el AP del gateway | N05, O01 |
-| Q01 | pendiente de publicación | Proteger las credenciales persistentes y verificar su recuperación | W03, W07 |
-| Q02 | pendiente de publicación | Validar el funcionamiento conjunto y la recuperación del sistema | N04, N05, A03, W06, W07, W08, L03, O02, Q01 |
-| Q03 | pendiente de publicación | Poner en marcha el sistema siguiendo una guía de operador | Q02 |
+| W05 | [#82](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/82) | Ver lecturas en directo y recuperar la conexión del navegador | N02, W04 |
+| W06 | [#83](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/83) | Consultar un historial local acotado desde la web | W05 |
+| W07 | [#84](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/84) | Configurar la integración Sparkplug B opcional desde la web | W02, W04, N02 |
+| W08 | [#85](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/85) | Consultar diagnóstico y validez horaria desde la web | W02, W04 |
+| L02 | [#87](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/87) | Mostrar el estado real del gateway en la pantalla verificada | H01, L01, W08 |
+| L03 | [#88](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/88) | Consultar nodos, medidas y alarmas en la pantalla local | L02, W05, A02 |
+| O01 | [#89](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/89) | Actualizar el gateway desde la web usando la OTA segura existente | W02, W04 |
+| O02 | [#90](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/90) | Actualizar un nodo C3 mediante el AP del gateway | N05, O01 |
+| Q01 | [#91](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/91) | Proteger las credenciales persistentes y verificar su recuperación | W03, W07 |
+| Q02 | [#92](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/92) | Validar el funcionamiento conjunto y la recuperación del sistema | N04, N05, A03, W06, W07, W08, L03, O02, Q01 |
+| Q03 | [#93](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/93) | Poner en marcha el sistema siguiendo una guía de operador | Q02 |
 
 ### Fase 6: opciones posteriores a v1
 
@@ -97,14 +97,14 @@ La OTA por ESP-NOW no sustituye la primera OTA del nodo mediante AP; los roles m
 
 | ID | GitHub | Resultado | Depende de |
 |---|---|---|---|
-| F01 | pendiente de publicación | Comunicar un nodo autorizado mediante ESP-NOW cifrado | Q03 |
-| F02 | pendiente de publicación | Recibir lecturas mediante un relay estático de un salto | Q03 |
-| F03 | pendiente de publicación | Actualizar un nodo por ESP-NOW con transferencia recuperable | O02, Q03 |
-| F04 | pendiente de publicación | Señalar una anomalía local con un modelo de ejemplo validado | Q03 |
-| F05 | pendiente de publicación | Mantener la integración externa mediante respaldo LTE | W07, Q03 |
-| F06 | pendiente de publicación | Conservar y recuperar lecturas desde una tarjeta SD validada | W06, Q03 |
-| F07 | pendiente de publicación | Separar consulta y administración con dos roles locales | Q03 |
-| F08 | pendiente de publicación | Consultar estado y lecturas desde una API externa de sólo lectura | F07 |
+| F01 | [#94](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/94) | Comunicar un nodo autorizado mediante ESP-NOW cifrado | Q03 |
+| F02 | [#95](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/95) | Recibir lecturas mediante un relay estático de un salto | Q03 |
+| F03 | [#96](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/96) | Actualizar un nodo por ESP-NOW con transferencia recuperable | O02, Q03 |
+| F04 | [#97](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/97) | Señalar una anomalía local con un modelo de ejemplo validado | Q03 |
+| F05 | [#98](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/98) | Mantener la integración externa mediante respaldo LTE | W07, Q03 |
+| F06 | [#99](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/99) | Conservar y recuperar lecturas desde una tarjeta SD validada | W06, Q03 |
+| F07 | [#100](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/100) | Separar consulta y administración con dos roles locales | Q03 |
+| F08 | [#101](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/101) | Consultar estado y lecturas desde una API externa de sólo lectura | F07 |
 
 ## Orden y puertas de aprobación
 

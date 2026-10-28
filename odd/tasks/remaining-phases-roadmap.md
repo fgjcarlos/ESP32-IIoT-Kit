@@ -13,8 +13,8 @@ Branch: `codex/remaining-phases-roadmap`; delivery: ask-on-risk, forecast 300 au
 
 ## Tasks
 
-- [x] T1 (S1–S3), inline: canonical roadmap written; mapping trigger handled by read-only explorer; no writer trigger. Structural checks passed; commit identity recorded in T2 log after commit.
-- [ ] T2 (S1–S4), inline: publish non-duplicate stories using the technical-proposal form, reconcile issue links and read back both documents and the memory mirror. Commit: pending.
+- [x] T1 (S1–S3), inline: canonical roadmap written; mapping trigger handled by read-only explorer; no writer trigger. Structural checks passed; commit: `4d1de93bfb7b7b5cde0e92c1895525e269a164a1`.
+- [x] T2 (S1–S4), inline: 35 stories published and read back using the technical-proposal form; issue links reconciled; all checks passed. Commit: this work unit; identity recorded in the Engram mirror after commit.
 
 ## Log
 
@@ -25,3 +25,7 @@ Branch: `codex/remaining-phases-roadmap`; delivery: ask-on-risk, forecast 300 au
 - L5: Reuse #11 Sparkplug B, #12 branding, #13 gateway OTA and #14 CI. New stories cover distinct deferred/runtime/integration outcomes; do not reopen or automatically comment on the completed proposals.
 - L6: No meaningful runnable RED for passive planning documents; structural, dependency, privacy and exact GitHub readback checks replace runtime tests. Firmware builds and hardware checks are not applicable to this change.
 - L7: Created docs/replanificacion/04-roadmap-historias.md: 27 v1 stories and 8 optional Phase 6 stories, with vertical outcomes and explicit validation exceptions. Added a locator to the original corrected phase plan; no source-of-truth hardware/protocol facts duplicated.
+- L8: T1 committed as 4d1de93bfb7b7b5cde0e92c1895525e269a164a1. Native assessment: passive/non_executable_only, review_due=false, reason=passive; boundary advanced to that commit.
+- L9: Created and independently read back GitHub issues #67–#101: 27 v1 stories (#67–#93), 8 optional Phase 6 stories (#94–#101). Each is OPEN with enhancement; no protected labels, comments, reopenings or changes to existing issues. All 35 mutations classified confirmed; no retries or uncertain outcomes.
+- L10: Checked exact title/body roundtrip and stable target-host identity per creation. Checked 35 unique roadmap entries, issue links, dependency graph without cycles and local file references. mkdocs build --strict passed (dependency deprecation/advisory output, no build failure); firmware/Unity/hardware tests are N/A for this documentation-only change.
+- L11: Roadmap publication does not approve wireframes, select unknown electrical values, authorize firmware implementation, spend money or publish a release. Next: H01 (#67) physical evidence and W01 (#68) first-access/configuration wireframes. No push or PR requested.
