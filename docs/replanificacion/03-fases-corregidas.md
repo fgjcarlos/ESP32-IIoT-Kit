@@ -1,5 +1,7 @@
 # Fases Corregidas
 
+> Para el estado de entrega pendiente, las historias pequeñas y sus dependencias, consulta el [roadmap de historias](04-roadmap-historias.md). Las duraciones de este documento son la estimación original, no el calendario restante.
+
 ## Vista general
 
 ```
