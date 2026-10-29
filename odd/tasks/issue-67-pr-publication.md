@@ -11,8 +11,8 @@ Tracker: draft/no-merge `feat/issue-67-tracker`; verification uses existing buil
 
 ## Tasks
 - [x] P1 (S1–S5), parent: actor ADMIN/MAINTAIN and target/default verified; issue label mutation read back preserving `enhancement` and OPEN; fresh `origin/main` fetched; tracker worktree registered.
-- [ ] P2 (S3–S5), parent + bounded body writer: prepare tracker/child branches and descriptions; verify slice diffs and focused checks; commit evidence pending.
-- [ ] P3 (S1–S5), parent: push exact branches, create draft tracker plus five nonclosing children, exactly one supported type label per PR; read back target/head/base/body/labels.
+- [x] P2 (S3–S5), parent + bounded body writer: branches and bodies prepared; slice diffs and focused checks passed; body writer mvu0xyxd-6-cpxy and parent structural readback accepted.
+- [ ] P3 (S1–S5), parent: IN PROGRESS; branches pushed, create draft tracker plus five nonclosing children with one supported type label each, read back exact head/base/body/labels.
 - [ ] P4 (S1–S5), parent: verify dependency links and CI state; report pending/failed checks, without merge or approval claims.
 
 ## Log
@@ -21,3 +21,5 @@ Tracker: draft/no-merge `feat/issue-67-tracker`; verification uses existing buil
 - L3: Issue 67 approval granted and confirmed: `enhancement,status:approved`, state OPEN. Target `main` freshly fetched to `5335ccefded24c1a09ae91710da6287b73f0c4cb`; local original main/feature refs remain untouched.
 - L4: Five measured slices are 394/292/370/332/382 lines. `shellcheck tools/lcd-smoke/run-host.sh` and original feature diff whitespace checks passed. New source changes are not needed for publication.
 - L5: Prior evidence: gateway/device builds; QEMU112/112 (hardware tags excluded); diagnostic host6/6, full diagnostic build, independent verifier PASS, authorized flash/hashes and user-visible bands+border. Initial console capture remained ROM DOWNLOAD (failed check), later physical observation established execution. Native review unavailable (managed assets/untracked declaration), no native approval claimed.
+- L6: Atomic HTTPS push confirmed all six new branches; no PR exists yet. Tracker7def660; slice heads a49eafd/08e0b0a/97dac0f/4c2e9b8/85a5bb5. Final worktree host6/6,ShellCheck,MkDocs strict and whitespace checks passed; content equals previously tested firmware/tools. Body writer mvu0xyxd-6-cpxy still awaited; do not mark P2/P3 complete.
+- L7: Bodies received and reviewed; native assessment of publication metadata passive/reviewDue=false. Parent will replace ordinary PR-number placeholders with actual creation results and verify each mutation before the next. No automatic retries, merges or issue closure.
