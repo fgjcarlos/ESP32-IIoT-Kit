@@ -25,16 +25,29 @@ esp_err_t lcd_driver_init(void);
 /**
  * @brief Backlight control GPIO candidate.
  *
- * Documented as candidate, **NOT** a binding assignment. The actual
- * carrier-to-display wiring (BLK contact on the 8-pin module) is pending
- * physical verification. Treat the value here as a design-time proposal
- * that must be confirmed by reading the carrier pins before any production
- * wiring decision.
+ * Documented as candidate, **NOT** a binding assignment, and **not approved
+ * for wiring**. The actual carrier-to-display wiring (BLK contact on the
+ * 8-pin module) is pending physical verification.
+ *
+ * The candidate is **GPIO7**. The ESP32-S3-WROOM-1 module exposes GPIO0–21,
+ * GPIO35–42 and GPIO45–48; it does not expose GPIO22, so the issue-10
+ * candidate was impossible on this hardware (issue #67). GPIO7 is only a
+ * design-time proposal: the module exposes it as a general-purpose IO, but
+ * the carrier in hand is unknown and the panel's BLK contact may be a logic
+ * input or part of the backlight LED circuit.
+ *
+ * Treat the value here as a proposal that must be confirmed by reading the
+ * carrier pins and the panel's input specifications before any production
+ * wiring decision. Until then the BLK contact stays unconnected and nothing
+ * sources current into it.
  *
  * Defined here (header) rather than in the .c so future wiring code can
  * `#include` it and reference a single source of truth for the candidate.
+ * The canonical hardware profile
+ * (`docs/hardware/esp32-s3-wroom-1-n16r8.md`) holds the full candidate
+ * connection map; this header only carries the backlight proposal.
  */
-#define LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE 22
+#define LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE 7
 
 /* -------------------------------------------------------------------------
  * Display contact map — confirmed by user on issue #10.
@@ -52,8 +65,8 @@ esp_err_t lcd_driver_init(void);
  *   5  RES    — reset (display contact; polarity unverified)
  *   6  DC     — data/command select (display contact)
  *   7  CS     — chip select (display contact)
- *   8  BLK    — backlight (display contact; GPIO22 candidate, pending
- *               physical verification — see LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE)
+ *   8  BLK    — backlight (display contact; provisional GPIO7 candidate, not
+ *               approved for wiring — see LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE)
  *
  * The framebuffer constant lives in `display_manager.h`
  * (DISPLAY_MANAGER_FRAMEBUFFER_SIZE_BYTES = 170 × 320 × 2 = 108,800 bytes).

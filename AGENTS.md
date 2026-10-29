@@ -76,8 +76,8 @@ Vendor-reported values (the carrier pinout image, the display dimensions, the 20
 
 - ESP-NOW and WiFi must share the same channel; the gateway fixes the channel
 - ESP-NOW: max 250 bytes/frame, max 20 encrypted peers
-- GPIO35/36/37 are occupied by Octal PSRAM; GPIO48 is the onboard RGB LED; GPIO19/20 are native USB — do not reassign
-- GPIO22 as LCD backlight is a **candidate only**, pending physical carrier verification
+- GPIO35/36/37 are occupied by Octal PSRAM; GPIO48 is the onboard RGB LED; GPIO19/20 are native USB; GPIO43/44 are UART0; GPIO0/3/45/46 are strapping pins — do not reassign
+- The LCD backlight candidate is **GPIO7**, provisional and **not approved for wiring** — GPIO22 does not exist on this module, which exposes IO0–21, IO35–42 and IO45–48. The candidate connection map and its evidence status live in the canonical hardware profile; do not duplicate them here
 - The seller pixel pitch `0.1155 mm` is **withdrawn** — never reuse it or geometry derived from it
 - The LCD's reported 20 mA is unscoped (module vs. backlight vs. per-LED) — do not treat it as a backlight limit
 - Display contact map (1 GND, 2 VCC, 3 SCL, 4 SDA, 5 RES, 6 DC, 7 CS, 8 BLK) is display-side, not GPIO assignment
