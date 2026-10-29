@@ -1,6 +1,6 @@
 # ESP32-S3-WROOM-1-N16R8 gateway candidate
 
-**Current status: selected candidate; connected SoC and memory are probe-confirmed, and onboard GPIO48 RGB behavior passed a visual smoke check; carrier model/revision and external display remain unvalidated.** This profile replaces the failed ESP32-C6-LCD-1.47 candidate for gateway planning. It distinguishes read-only probe observations and the RGB smoke result from exact module/carrier identity and unknown external-display details.
+**Current status: selected candidate; connected SoC and memory are probe-confirmed, and onboard GPIO48 RGB behavior passed a visual smoke check; the integrator now reports visible color bands on the external display; carrier identity and electrical characterization remain incompletely validated.** This profile replaces the failed ESP32-C6-LCD-1.47 candidate for gateway planning. It distinguishes read-only probe observations and the RGB smoke result from exact module/carrier identity and unknown external-display details.
 
 ## Quick path
 
@@ -201,7 +201,9 @@ All values in this table are **user/listing-reported**, not physically verified 
 
 ### Integrator report (statement, not a measurement)
 
-The integrator's own photographs show an **ESP32-S3-WROOM-1-N16R8** module and a panel whose rear marking reads **`M190-170320-RGB-B-V1.0`**, with a rear declaration of **`ST7789V2/4-SPI 170x320`**. The integrator further reports that the electrical connection is validated and that **VCC and the SPI signals and BLK run at 3.3 V**; the backlight was already lit before anything was driven on **GPIO7**, which is wired to BLK. All of it is recorded here as the integrator's statement about their own setup: this project took no measurement, validated no circuit and saw no image, so it fills no row of the evidence record below and releases no gate.
+The integrator's own photographs show an **ESP32-S3-WROOM-1-N16R8** module and a panel whose rear marking reads **`M190-170320-RGB-B-V1.0`**, with a rear declaration of **`ST7789V2/4-SPI 170x320`**. The integrator further reports that the electrical connection is validated and that **VCC and the SPI signals and BLK run at 3.3 V**; the backlight was already lit before anything was driven on **GPIO7**, which is wired to BLK. All of it is recorded here as the integrator's statement about their own setup: no agent-performed electrical measurement or circuit validation is established, so it fills no electrical evidence row below and releases no general wiring gate.
+
+**Standalone functional observation:** after explicitly authorized flashing of `tools/lcd-smoke/` to the identified Espressif board, the integrator reported: "Si veo vandas de colores". This is user-observed evidence of diagnostic execution and visible panel output, not a console-derived image verdict. The integrator subsequently answered "si correcto" when asked to confirm red/green/blue/white/black bands and a complete magenta border. This completes the minimal image observation on this unit with X/Y gaps `35/0`, inversion enabled and RGB order. No photograph or agent-performed electrical measurement accompanies that confirmation. The diagnostic leaves GPIO7 unconfigured; this does not validate its backlight circuit.
 
 ### Drawing-reported mechanical dimensions
 
@@ -372,7 +374,7 @@ module can carry it; the carrier wiring remains unknown.
 
 ### ODD-4 display status
 
-The external ST7789 remains disconnected and untested. Do not assign its RES/DC/CS/SCL/SDA/BLK pins or connect its VCC/backlight until the exact module is matched and its logic-level, backlight-current, and control requirements are confirmed. The candidate mapping in this profile is the target of that verification, not an approval to wire.
+The earlier disconnected/untested status is superseded by the standalone functional observation above: the integrator has connected the panel, authorized the bench diagnostic and reported visible color bands. The integrator confirmed the expected bands and complete border in the standalone test. This is not a production gateway display implementation or agent-performed electrical characterization. The candidate mapping remains specific to this reported setup; electrical limits and any backlight-control implementation need their own evidence.
 
 ## Sources
 

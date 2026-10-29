@@ -41,6 +41,5 @@
       failures, the suite is unchanged.
 - [x] T-04.3 Configure and compile of the diagnostic application with the
       ESP-IDF toolchain, out of the worktree.
-- [x] T-04.4 Parent full diagnostic build: `build/lcd-smoke/lcd_smoke.bin`, 246080 bytes; gateway build also passed. No serial device accessed.
-- [ ] T-04.5 Flash and look at the panel: an integrator with the board in
-      front of them.
+- [x] T-04.4 Parent full diagnostic build: `build/lcd-smoke/lcd_smoke.bin`, 246080 bytes; gateway build also passed. This build check did not access a serial device.
+- [x] T-04.5 Authorized flash and hashes passed; integrator confirmed expected bands and complete border. Physical evidence and its limitations are recorded in the canonical hardware profile; the earlier console capture in ROM DOWNLOAD was not a successful execution check.

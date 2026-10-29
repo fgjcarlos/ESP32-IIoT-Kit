@@ -65,7 +65,7 @@ memory instead of a partial one.
 | Existing host suite of the repository | 78 tests, 0 failures, unchanged |
 | ESP-IDF configure and application compilation | passed, out of the worktree |
 | Full image build of the diagnostic | passed, `build/lcd-smoke/lcd_smoke.bin` (246080 bytes); gateway build also passed |
-| Picture on the panel | pending, an integrator observes it |
+| Picture on the panel | integrator confirmed expected pattern; see the canonical hardware profile's standalone functional observation |
 
 ## Risks
 
