@@ -18,7 +18,7 @@
  *
  * @note The LVGL port is a thin adapter above `display_manager` (which owns
  *       the framebuffer constant `DISPLAY_MANAGER_FRAMEBUFFER_SIZE_BYTES`)
- *       and `lcd_driver` (which owns the panel contact map and the GPIO22
+ *       and `lcd_driver` (which owns the panel contact map and the provisional GPIO7
  *       backlight candidate). This header depends on both at the source
  *       level (`REQUIRES display_manager lcd_driver`) but it does NOT
  *       include their headers here — public callers should include them

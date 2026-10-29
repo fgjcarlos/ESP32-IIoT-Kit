@@ -19,11 +19,11 @@ bloqueo físico: el bloqueo se mantiene mientras falte prueba.
 
 ## Tasks
 
-- [x] T1 (S1–S9), inline: documento de feature + espejo Engram (`odd/issue-67-connection-map/tasks.md`). Commit: protocol slice (identity recorded in the Engram mirror after commit).
+- [x] T1 (S1–S9), inline: documento de feature + espejo Engram (`odd/issue-67-connection-map/tasks.md`). Commit: `de5bea3` (protocol slice).
 - [x] T2 (S3, S4, S5), delegated: `docs/hardware/display-bringup-protocol.md` — protocolo por etapas con puntos de medida, criterio de aprobación por paso, reglas de seguridad y tabla de registro de evidencia.
 - [x] T3 (S2, S4, S5), delegated: perfil canónico `docs/hardware/esp32-s3-wroom-1-n16r8.md` — esquema de conexión (contacto → señal de carrier → GPIO candidato), reservas vigentes, tabla de estado de evidencia y bloqueo explícito.
 - [x] T4 (S6, S9), delegated: corregir el candidato imposible `LCD_DRIVER_BACKLIGHT_GPIO_CANDIDATE` (22 → candidato vigente) en `firmware/gateway/components/lcd_driver/`, su test Unity, y las menciones obsoletas de GPIO22 en `AGENTS.md` y `CLAUDE.md`.
-- [ ] T5 (S1–S9), inline: verificación — build del proyecto de test y ejecución del caso Unity de `lcd_driver`, lectura del diff y commit de unidad de trabajo.
+- [x] T5 (S1–S9), inline: verificación — build del proyecto de test y ejecución del caso Unity de `lcd_driver`, lectura del diff y commits de unidad de trabajo; protocol: `de5bea3`, map/contract: this slice (identity recorded in Engram after commit). Physical T6 remains blocked.
 
 - [ ] T6 (S3–S5), external BLOCK: exact-unit identification, documentary ratings, measurements and named per-stage release from the integrator. No connection or power authorization.
 
@@ -50,3 +50,4 @@ bloqueo físico: el bloqueo se mantiene mientras falte prueba.
 - L18: Targeted recheck resolved B2 but same B1/B3 persisted: all-row P1 circularity, mere overlap vs full-envelope compatibility, and Stage6 powered-rewiring order. Parent applied final surgical correction to those same blockers only; final targeted recheck requested. P1 explicit pre-power IDs exclude P2/E/F; E2 wires with sources off, E3 enables after; full voltage/current envelope plus VIH/VIL required or B blocked. No further broad verification or correction rounds authorized by this plan.
 - L19: Final targeted verifier mvskkdhf-5-w7tq resolved B1, B3 and Stage6 sequencing; B2 previously resolved. Documentary T2/T3 accepted, not physical S3/S4. Final checks: firmware+Unity build, QEMU112/112, LCD3/3, host78/78, stress0, MkDocs strict and diff check passed. Hardware tests excluded; physical evidence unavailable.
 - L20: Delivery slices: (1) protocol + feature tracker, (2) canonical map + candidate contract/test + active/historical guidance and local task mirror. Each below400 authored lines; no push/PR/issue closure. Risk: item 6 (physical safety cannot be proved by software).
+- L21: Protocol/tracker committed as de5bea3 (394 authored lines). Native assessment remained unavailable while the local task mirror was undeclared/untracked; no native review approval claimed. Second slice includes intended mirror, removing that declaration ambiguity; assess each exact committed range after normalization.
