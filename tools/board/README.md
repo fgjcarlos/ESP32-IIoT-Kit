@@ -2,6 +2,13 @@
 
 Helpers for the connected ESP32-S3 board.
 
+## `../lcd-smoke`
+
+The standalone ST7789 image diagnostic lives in
+[`tools/lcd-smoke/`](../lcd-smoke/README.md). It paints one known pattern on
+the panel, and it is flashed as a project of its own, which overwrites the
+application currently on the board.
+
 ## `boot_from_flash.py`
 
 Restarts the board so that it runs the application from its SPI flash, and

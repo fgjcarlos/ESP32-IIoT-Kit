@@ -151,3 +151,38 @@ TEST_CASE("lcd smoke pattern rejects an unusable buffer and writes nothing", "[l
         TEST_ASSERT_EQUAL_HEX8(SENTINEL, s_framebuffer[i]);
     }
 }
+
+TEST_CASE("lcd smoke exact frame and bounds", "[lcd-smoke][pattern]")
+{
+    static uint8_t frame[108802];
+    const uint16_t colors[] = {0xf800, 0x07e0, 0x001f, 0xffff, 0x0000};
+    memset(frame, SENTINEL, sizeof(frame));
+    TEST_ESP_OK(lcd_smoke_pattern_fill(frame + 1, 108801));
+
+    for (int y = 0; y < 320; ++y) {
+        for (int x = 0; x < 170; ++x) {
+            const uint16_t want = (x < 2 || x >= 168 || y < 2 || y >= 318)
+                ? 0xf81f : colors[y / 64];
+            const size_t i = 1 + ((size_t)y * 170 + x) * 2;
+            TEST_ASSERT_EQUAL_HEX8(want >> 8, frame[i]);
+            TEST_ASSERT_EQUAL_HEX8(want & 255, frame[i + 1]);
+        }
+    }
+    TEST_ASSERT_EQUAL_HEX8(SENTINEL, frame[0]);
+    TEST_ASSERT_EQUAL_HEX8(SENTINEL, frame[108801]);
+}
+
+TEST_CASE("lcd smoke rejected sizes preserve all bytes", "[lcd-smoke][pattern]")
+{
+    const size_t sizes[] = {0, 1, 108798, 108799};
+    memset(s_framebuffer, SENTINEL, sizeof(s_framebuffer));
+    TEST_ESP_ERR(ESP_ERR_INVALID_ARG, lcd_smoke_pattern_fill(NULL, 0));
+    TEST_ESP_ERR(ESP_ERR_INVALID_ARG, lcd_smoke_pattern_fill(NULL, sizeof(s_framebuffer)));
+
+    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); ++i) {
+        TEST_ESP_ERR(ESP_ERR_INVALID_SIZE, lcd_smoke_pattern_fill(s_framebuffer, sizes[i]));
+        for (size_t byte = 0; byte < sizeof(s_framebuffer); ++byte) {
+            TEST_ASSERT_EQUAL_HEX8(SENTINEL, s_framebuffer[byte]);
+        }
+    }
+}

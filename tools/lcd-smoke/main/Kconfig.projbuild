@@ -1,0 +1,45 @@
+menu "ST7789 image diagnostic"
+
+    config LCD_SMOKE_X_GAP
+        int "Panel X gap (pixels)"
+        range 0 240
+        default 35
+        help
+            Column offset of the visible area inside the controller RAM.
+            35 is the offset commonly used with the 170x320 ST7789
+            modules. It is a provisional software tuning, not a verified
+            fact about the panel in hand.
+
+    config LCD_SMOKE_Y_GAP
+        int "Panel Y gap (pixels)"
+        range 0 320
+        default 0
+        help
+            Row offset of the visible area inside the controller RAM.
+            Provisional software tuning, not a verified panel fact.
+
+    config LCD_SMOKE_INVERT_COLOR
+        bool "Invert the colours of the panel"
+        default y
+        help
+            Sends the INVON command after the panel initialisation. Whether
+            the panel in hand needs it is unknown: the value is a
+            provisional software tuning, and the diagnostic exists to find
+            out which tuning the panel answers to.
+
+    choice LCD_SMOKE_COLOR_ORDER
+        prompt "Panel colour element order"
+        default LCD_SMOKE_COLOR_ORDER_RGB
+        help
+            The RGB or BGR bit of the MADCTL command. Provisional software
+            tuning: the marking of the panel carries a "B" suffix, but a
+            marking is not a verified statement about the colour order.
+
+        config LCD_SMOKE_COLOR_ORDER_RGB
+            bool "RGB"
+
+        config LCD_SMOKE_COLOR_ORDER_BGR
+            bool "BGR"
+    endchoice
+
+endmenu
