@@ -199,6 +199,10 @@ All values in this table are **user/listing-reported**, not physically verified 
 | Backlight construction | Two white LEDs in parallel | User/listing-reported; not physically verified | Confirm the internal backlight arrangement and BLK electrical requirements. |
 | Operating current | 20 mA | User/listing-reported; not physically verified | Scope is explicitly unclear: it may describe the whole module, backlight, or another condition; it is not established as a per-LED or total-backlight rating. |
 
+### Integrator report (statement, not a measurement)
+
+The integrator's own photographs show an **ESP32-S3-WROOM-1-N16R8** module and a panel whose rear marking reads **`M190-170320-RGB-B-V1.0`**, with a rear declaration of **`ST7789V2/4-SPI 170x320`**. The integrator further reports that the electrical connection is validated and that **VCC and the SPI signals and BLK run at 3.3 V**; the backlight was already lit before anything was driven on **GPIO7**, which is wired to BLK. All of it is recorded here as the integrator's statement about their own setup: this project took no measurement, validated no circuit and saw no image, so it fills no row of the evidence record below and releases no gate.
+
 ### Drawing-reported mechanical dimensions
 
 The following dimensions come from the **latest user-provided mechanical drawing**. They are drawing-reported values, **not physical verification** of the delivered 8-pin module.
