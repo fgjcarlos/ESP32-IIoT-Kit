@@ -76,7 +76,7 @@ void app_main(void)
      *
      *     display_manager  (carrier init — not touched here)
      *         |
-     *         +-- lcd_driver  (panel contact map + GPIO22 candidate)
+     *         +-- lcd_driver  (panel contact map + provisional GPIO7 candidate)
      *              |
      *              +-- lvgl_port  (LVGL adapter, contract only)
      *                   |

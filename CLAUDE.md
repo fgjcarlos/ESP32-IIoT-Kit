@@ -11,7 +11,7 @@ The gateway is an **ESP32-S3-WROOM-1-N16R8**: 16 MB Quad-SPI flash and 8 MB Octa
 
 **Withdrawn value — never reuse:** the seller pixel pitch `0.1155 × 0.1155 mm` was withdrawn as incorrect. Do not use it, do not derive geometry from it, and do not infer a replacement pitch. The drawing-reported dimensions (AA 42.720 × 22.695 mm, LCD 48.520 × 24.800 mm, backlight 49.720 × 25.800 mm, PCB 62.000 × 29.000 mm, mounting spacing 58.000 × 25.000 mm) are **not** physical verification and must be compared with the exact delivered module before enclosure design.
 
-Reserved on the confirmed N16R8 module: GPIO35, GPIO36 and GPIO37 are consumed by the Octal PSRAM and are unavailable for external use even though the candidate image labels them; GPIO48 drives the onboard WS2812 (functionally confirmed by an on-target smoke test); GPIO19/GPIO20 are native USB D−/D+. GPIO22 as the LCD backlight is a **candidate only**, pending physical carrier verification.
+Reserved on the confirmed N16R8 module: GPIO35, GPIO36 and GPIO37 are consumed by the Octal PSRAM and are unavailable for external use even though the candidate image labels them; GPIO48 drives the onboard WS2812 (functionally confirmed by an on-target smoke test); GPIO19/GPIO20 are native USB D−/D+. The LCD backlight candidate is **GPIO7**, provisional and **not approved for wiring**: GPIO22 does not exist on this module, which exposes IO0–21, IO35–42 and IO45–48. The candidate connection map, its reservations and its evidence status live in the canonical hardware profile — link to it instead of copying it.
 
 ## Sources of truth
 
@@ -161,7 +161,7 @@ ESP32-IIoT-Kit/
 | Gateway partitions | 2 × 3 MiB OTA slots + 4 MiB SPIFFS (`firmware/gateway/partitions.csv`) |
 | SPIFFS budget for the Preact SPA | Target ≤200 KB gzipped, hard limit ≤500 KiB |
 | Provisional carrier pinout | User-supplied image, not manufacturer verification. GPIO35–37 unavailable (PSRAM); GPIO48 = RGB LED; GPIO19/20 = native USB while needed. |
-| External display | 8-pin ST7789V2, 170(H) RGB × 320(V), 4-wire SPI, nominal 1,9 in — **pending physical verification**. Contacts are display-side, not GPIOs. GPIO22 backlight is a candidate only. |
+| External display | 8-pin ST7789V2, 170(H) RGB × 320(V), 4-wire SPI, nominal 1,9 in — **pending physical verification**. Contacts are display-side, not GPIOs. The backlight candidate is GPIO7, provisional and not approved for wiring; the candidate map lives in the canonical hardware profile. |
 | RGB565 framebuffer | 170 × 320 × 2 = 108,800 bytes (106.25 KiB); a PSRAM allocation of that size passed in the Unity app, but display DMA suitability and throughput are unmeasured |
 | Node flash | 4 MB: 2 × 1.5 MB OTA + NVS |
 | Node target battery life | 12+ months (wake every 5 min, 3400 mAh 18650) |
