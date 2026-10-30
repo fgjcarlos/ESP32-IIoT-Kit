@@ -27,7 +27,7 @@ No workspace-wide test/lint command exists. There is no formatter or linter conf
 - `docs/hardware/esp32-s3-wroom-1-n16r8.md` — authoritative gateway hardware profile (board, pinout, memory, partitions, display status)
 - `examples/fish-farm/` — domain example on the same platform
 
-`firmware/node/` (ESP32-C3 sensor nodes) and `firmware/gateway/web/` (Preact dashboard) are **planned but not on disk** — do not assume they are runnable.
+`firmware/node/` (ESP32-C3 sensor nodes) is **planned but not on disk** — do not assume it is runnable. `firmware/gateway/web/` holds a **local, read-only demo** of the network status panel (Preact + Vite, demo data, no device, no API): see `firmware/gateway/web/README.md`.
 
 `docs_site/` is a **mirror made of symlinks** into `Tutorial/`, `Fases/` and `knowledge/`. Edit the canonical file; the mirror follows. Never hand-edit a page under `docs_site/`, and never add a second copy of a fact — point at the source of truth instead.
 
