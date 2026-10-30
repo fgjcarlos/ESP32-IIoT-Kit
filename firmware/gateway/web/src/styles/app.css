@@ -1,0 +1,71 @@
+/*
+ * Tokens de la base visual propuesta (design/system.md, W01-v0.1).
+ * Propuesta de trabajo: no es la identidad visual aprobada del gateway.
+ * Todos los valores proceden de design/system.md; sin sombras y sin animaciones.
+ */
+:root {
+  /* Color */
+  --paper: #ffffff;
+  --canvas: #f3f4f6;
+  --ink: #111827;
+  --muted: #374151;
+  --line: #6b7280;
+  --focus: #1d4ed8;
+  --success: #166534;
+
+  /* Tipografia */
+  --font-family: system-ui, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+
+  /* Espaciado */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+
+  /* Radio */
+  --radius-md: 0.5rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.cabecera {
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-4) var(--space-6);
+}
+
+.kicker { margin: 0 0 var(--space-1); color: var(--muted); font-size: var(--text-sm); }
+.titulo { margin: 0 0 var(--space-2); font-size: var(--text-xl); }
+.entradilla { margin: 0; max-width: 60ch; color: var(--muted); }
+.contenido { max-width: 60rem; margin: 0 auto; padding: var(--space-6); }
+h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); }
+.meta { margin: 0 0 var(--space-4); max-width: 70ch; color: var(--muted); font-size: var(--text-sm); }
+.tarjetas { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.tarjeta { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4); }
+.tarjeta-titulo { margin: 0 0 var(--space-2); font-size: var(--text-base); }
+.pilula { display: inline-block; margin: 0 0 var(--space-2); padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); color: var(--muted); font-size: var(--text-sm); }
+.pilula[data-clase="ok"] { color: var(--success); border-color: var(--success); }
+.detalle { margin: 0; }
+.nota { margin: var(--space-6) 0 0; padding: var(--space-3); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); color: var(--muted); font-size: var(--text-sm); }
+
+@media (max-width: 480px) {
+  .cabecera { padding: var(--space-4); }
+  .contenido { padding: var(--space-4); }
+  .tarjetas { grid-template-columns: 1fr; }
+}

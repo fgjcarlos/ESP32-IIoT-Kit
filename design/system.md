@@ -6,7 +6,7 @@
 
 - `site/assets/stylesheets/main.484c7ddc.min.css`: tema generado por Material para MkDocs; excluido de la UI del gateway.
 - `mkdocs.yml`: configura la documentación, no el producto.
-- `firmware/gateway/web/`: no existe todavía; no hay tokens de UI que extraer.
+- `firmware/gateway/web/`: demo local de estado que aplica estos tokens propuestos; no es una fuente de identidad visual de producto aprobada.
 - `firmware/gateway/components/brand_profile/README.md`: la marca es configurable; esta propuesta no fija su identidad ni sustituye perfiles.
 
 Valores extraídos del producto: **0**. Los siguientes tokens son una propuesta neutra para comparar recorridos; requieren aceptación junto con el diseño, no describen firmware entregado.
