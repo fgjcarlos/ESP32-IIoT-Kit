@@ -90,7 +90,7 @@ Vendor-reported values (the carrier pinout image, the display dimensions, the 20
 - Branch from `main`; never push to `main` directly
 - Conventional commits with scope, matching history: `feat(gateway/sparkplug_b): …`, `test(gateway): …`, `docs(odd): …`, `build(gateway): …`
 - Branch naming: `feature/issue-NN-slug` or `feat/issue-NN-slug`
-- Keep PRs ≤400 lines; chain larger work as one PR per slice
+- Keep PRs ≤400 lines; chain larger work as one PR per slice. One narrow exception: a delivery that adds one self-contained screen or diagnostic — its own rendering code, its own tests and its own documentation, changing no existing behaviour — may be delivered as a chain of slices of up to 800 authored lines each, when every slice carries its file map and its reviewer checklist in the description, the chain advances one slice at a time and every required check passes at the exact head. The 400-line guide still applies to every other change, and the exception never waives the review requirement of one approving review on `main`
 - Open PR via `gh pr create` once build and tests are green
 
 ## Security
