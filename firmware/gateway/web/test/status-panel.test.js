@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { h } from 'preact';
 import { render } from 'preact-render-to-string';
 import { App } from '../src/app.js';
+import { Header } from '../src/components/Header.js';
+import { StatusView } from '../src/components/StatusView.js';
 
-// Las pruebas consultan solo la salida publica de render del panel.
-const html = render(h(App));
+// La vista de estado (desbloqueada) conserva las garantias de W01-v0.1.
+const html = render(h(StatusView));
+const cabecera = render(h(App));
 
 test('muestra las cuatro tarjetas de estado con su titulo', () => {
   assert.equal((html.match(/<article/g) ?? []).length, 4);
@@ -21,18 +24,18 @@ test('cada tarjeta declara su estado actual', () => {
 });
 
 test('la cabecera identifica el diseno, la demostracion y la aprobacion pendiente', () => {
-  assert.ok(html.includes('W01-v0.1'));
-  assert.ok(html.includes('Demostración local'));
-  assert.ok(html.includes('Aprobación pendiente'));
-  assert.ok(html.includes('<header'));
+  assert.ok(cabecera.includes('W01-v0.2'));
+  assert.ok(cabecera.includes('Demostración local'));
+  assert.ok(cabecera.includes('Aprobación pendiente'));
+  assert.ok(cabecera.includes('<header'));
   assert.ok(html.includes('<main'));
 });
 
-test('el panel es de solo lectura: no hay controles de configuracion', () => {
+test('la vista de estado es de solo lectura: no hay controles de configuracion', () => {
   assert.ok(!/<(input|button|select|textarea|form)\b/.test(html));
 });
 
-test('no fija valores de red ni credenciales', () => {
+test('la vista de estado no fija valores de red ni credenciales', () => {
   assert.ok(!/\b\d{1,3}(\.\d{1,3}){3}\b/.test(html));
   assert.ok(!/ssid|password|contraseña|clave/i.test(html));
 });
@@ -40,4 +43,8 @@ test('no fija valores de red ni credenciales', () => {
 test('el canal compartido se explica como contexto, no como campo editable', () => {
   assert.ok(html.includes('comparten canal'));
   assert.ok(!/<(input|button)\b/.test(html));
+});
+
+test('la cabecera conserva la exclusion de red y escritura', () => {
+  assert.ok(cabecera.includes('no hay dispositivo conectado'));
 });

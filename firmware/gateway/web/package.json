@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Demo local de solo lectura del estado de red y del acceso local del gateway (W01-v0.1). Sin API, sin firmware y sin datos reales.",
+  "description": "Demo local de acceso protegido y estado de red del gateway (W01-v0.2). Sin API, sin firmware y sin datos reales.",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174 --strictPort",
     "build": "vite build",

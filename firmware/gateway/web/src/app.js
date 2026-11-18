@@ -1,23 +1,29 @@
 import { h } from 'preact';
+import { useState } from 'preact/hooks';
 import { Header } from './components/Header.js';
-import { StatusCard } from './components/StatusCard.js';
-import { DEMO_STATUSES } from './data/demo-statuses.js';
+import { StatusView } from './components/StatusView.js';
+import { AccessGate } from './components/AccessGate.js';
+import { createDemoDevice, tryUnlock } from './data/demo-device.js';
 
 /**
- * Panel de estado de red y acceso local (demo local, solo lectura).
- * No hay estado propio ni acciones: la lista de estados es inmutable.
+ * Demo de acceso y estado del gateway (W01-v0.2). El estado del dispositivo
+ * vive en memoria: cerrada al arrancar, la vista de estado solo aparece tras
+ * desbloquear. Recargar vuelve a cerrar: no hay persistencia.
  */
 export function App() {
+  const [device, setDevice] = useState(createDemoDevice());
+  const [error, setError] = useState(null);
+
+  function handleSubmit(credential) {
+    const result = tryUnlock(device, credential);
+    setDevice(result.device);
+    setError(result.error);
+  }
+
   return h('div', { class: 'app' },
     h(Header, null),
-    h('main', { class: 'contenido', id: 'contenido' },
-      h('section', { class: 'estado', 'aria-labelledby': 'titulo-estado' },
-        h('h2', { id: 'titulo-estado' }, 'Estado de red y acceso local'),
-        h('p', { class: 'meta' }, 'Demostración local con datos de ejemplo: no proceden del firmware, no hay dispositivo conectado ni API real.'),
-        h('div', { class: 'tarjetas' },
-          DEMO_STATUSES.map((status) => h(StatusCard, { key: status.id, status }))),
-        h('p', { class: 'nota' }, 'Contexto: AP y STA comparten canal. El equipo fija el canal y la STA debe seguirlo; aquí es un dato informativo, no un campo editable.')
-      )
-    )
+    device.unlocked
+      ? h(StatusView, null)
+      : h(AccessGate, { error, onSubmit: handleSubmit })
   );
 }
