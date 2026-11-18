@@ -15,8 +15,7 @@ dispositivo y no escribe nada.
 
 La demo arranca **cerrada**: una puerta de primer acceso pide la credencial
 única del equipo (valor de demostración `acceso-inicial`, mostrado en pantalla
-porque no hay equipo real). Desbloqueada, muestra cuatro tarjetas de estado,
-con datos de ejemplo fijos:
+porque no hay equipo real). Desbloqueada, ofrece tres vistas:
 
 | Tarjeta | Estado mostrado |
 |---|---|
@@ -25,13 +24,18 @@ con datos de ejemplo fijos:
 | Acceso local | Disponible por AP |
 | Internet | No necesario |
 
-Quedan **fuera de esta entrega**: los formularios de configuración de AP y STA
-con su aplicación simulada, el cambio de credenciales y la recuperación (cortes
-siguientes de la cadena de #68).
+- **Estado de red**: cuatro tarjetas con datos de ejemplo fijos (AP, STA
+  opcional, acceso local, Internet no necesario), de solo lectura.
+- **Configuración**: formulario AP/STA con SSID y claves editables y canal e
+  IP de solo lectura (los fija el equipo). La aplicación es simulada: un
+  control de demo permite forzar el fallo; con fallo, la configuración
+  anterior sigue activa (esa es la vía de recuperación).
+- **Credencial**: cambio de la credencial única, con propuesta en el primer
+  uso. Desde la puerta cerrada, «Recuperar acceso» simula reentrar por el AP
+  del equipo y restaura la credencial inicial sin tocar la configuración.
 
-No se fija ningún valor de red: no hay SSID, contraseña, dirección IP ni canal,
-porque todavía no hay valores aprobados. El canal compartido entre AP y STA se
-menciona solo como contexto informativo.
+Quedan **fuera de esta entrega**: la integración real con el gateway (API,
+SPIFFS, dispositivo), que vive en otra issue.
 
 ## Requisitos
 
@@ -72,17 +76,20 @@ npm --prefix firmware/gateway/web test
 ```
 
 Las pruebas usan el runner de Node (`node --test`) y `preact-render-to-string`:
-renderizan la puerta y la vista de estado y comprueban la **salida pública** de
-render (el campo etiquetado de la puerta, las transiciones puras de desbloqueo,
-las cuatro tarjetas y sus estados, la ausencia de controles en la vista de
-estado y la ausencia de valores de red fijados). No consultan el estado interno
-ni el historial de Git.
+renderizan la puerta, el formulario y las vistas, y comprueban la **salida
+pública** de render y las **transiciones puras** del estado simulado
+(desbloqueo, aplicación de configuración con éxito y fallo, cambio y
+recuperación de credencial). No consultan el estado interno ni el historial de
+Git. Los valores de red aparecen solo en la vista de configuración, marcados
+como demostración; la vista de estado sigue sin fijar valores.
 
 Son comprobaciones de render, **no** de navegador: el layout, los viewports y
 la navegación con teclado quedan para revisión humana.
 
 ## Limitaciones
 
-- Sin dispositivo, sin red y sin API.
+- Sin dispositivo, sin red y sin API: el código no hace llamadas de red.
 - Sin persistencia: el estado vive en memoria y recargar vuelve a cerrar la puerta.
-- Sin verificación visual automatizada: no hay navegador en este entorno.
+- Comprobaciones estáticas de accesibilidad (controles nativos, foco visible,
+  media query móvil); sin verificación visual automatizada: no hay navegador en
+  este entorno y la revisión visual queda para el humano.
