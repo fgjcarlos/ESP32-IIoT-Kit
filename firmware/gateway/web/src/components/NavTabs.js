@@ -17,6 +17,12 @@ export function NavTabs({ view, onChange }) {
       class: 'vista',
       'aria-current': view === 'configuracion' ? 'page' : null,
       onClick: () => onChange('configuracion')
-    }, 'Configuración')
+    }, 'Configuración'),
+    h('button', {
+      type: 'button',
+      class: 'vista',
+      'aria-current': view === 'credencial' ? 'page' : null,
+      onClick: () => onChange('credencial')
+    }, 'Credencial')
   );
 }
