@@ -1,18 +1,17 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import { DEMO_INITIAL_CREDENTIAL } from '../data/demo-device.js';
 
 /**
- * Puerta de primer acceso: una credencial única por dispositivo (S5),
- * simulada. El error siempre se acompaña de texto, nunca solo de color.
- * Ofrece la recuperación de acceso simulada (reentrar por el AP del equipo).
+ * Puerta de acceso protegido: una credencial única por equipo. La credencial
+ * inicial nunca se pinta aquí: se revela una vez por la consola serie del
+ * gateway (ADR-006). El error siempre se acompaña de texto, nunca solo color.
  */
-export function AccessGate({ error, onSubmit, onReset }) {
+export function AccessGate({ error, onSubmit }) {
   const [credential, setCredential] = useState('');
   return h('main', { class: 'contenido', id: 'contenido' },
     h('section', { class: 'acceso', 'aria-labelledby': 'titulo-acceso' },
       h('h2', { id: 'titulo-acceso' }, 'Primer acceso protegido'),
-      h('p', { class: 'meta' }, 'Credencial única del equipo, como en el dispositivo real; aquí es una simulación sin dispositivo ni credencial real.'),
+      h('p', { class: 'meta' }, 'Credencial única del equipo para entrar en el portal.'),
       h('form', {
         class: 'puerta',
         onSubmit: (e) => {
@@ -31,14 +30,12 @@ export function AccessGate({ error, onSubmit, onReset }) {
       h('button', { type: 'submit' }, 'Entrar'),
       error === 'credencial-incorrecta'
         ? h('p', { class: 'error', role: 'alert' }, 'Credencial incorrecta: no coincide con la del equipo.')
+        : null,
+      error && error !== 'credencial-incorrecta'
+        ? h('p', { class: 'error', role: 'alert' }, 'No hay conexión con el equipo: inténtalo de nuevo.')
         : null
       ),
-      h('p', { class: 'nota' }, `Credencial inicial de demostración: ${DEMO_INITIAL_CREDENTIAL}. En el equipo real viene entregada con él y no se muestra en pantalla.`),
-      h('details', { class: 'recuperacion' },
-        h('summary', null, 'Recuperar acceso'),
-        h('p', { class: 'ayuda' }, 'Sin credencial se reentra por el AP del equipo, como en el dispositivo real. En esta demo el reinicio restaura la credencial inicial y no toca la configuración.'),
-        h('button', { type: 'button', onClick: onReset }, 'Restablecer credencial de demostración')
-      )
+      h('p', { class: 'nota' }, 'Credencial inicial: se muestra una única vez en la consola serie del gateway al arrancar por primera vez. Si se pierde, la recuperación requiere acceso físico al equipo.')
     )
   );
 }
