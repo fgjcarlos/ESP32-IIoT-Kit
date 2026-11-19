@@ -6,7 +6,7 @@ Objetivo: terminar el gateway autónomo ESP32-S3 y sus nodos C3 con historias pe
 ## Por dónde empezar
 
 1. H01 valida la conexión de la nueva placa y pantalla. W01 valida los wireframes de acceso/configuración web; puede avanzar sin conectar el LCD.
-2. W02 entrega un portal protegido alojado realmente en el gateway; W03 permite configurar Wi-Fi conservando acceso local.
+2. W02 entrega un portal protegido alojado realmente en el gateway; W03 permite configurar Wi-Fi conservando acceso local. W02 está implementado (issue #69; cambio `openspec/changes/issue-69-local-portal/`): el portal se sirve desde el flash del gateway, con credencial del propietario y estado real del AP y de la STA.
 3. W04 valida los recorridos web restantes y L01 los wireframes LCD. Cada implementación espera la aprobación explícita de su recorrido.
 4. N01–N04 entregan un nodo real comunicándose con el gateway. Después se incorporan sensores, control, monitorización y mantenimiento según las dependencias.
 5. Q02 y Q03 cierran v1 con evidencias y puesta en marcha reproducible. F01–F08 son opciones posteriores, no requisitos de v1.

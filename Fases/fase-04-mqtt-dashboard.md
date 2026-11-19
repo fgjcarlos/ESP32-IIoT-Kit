@@ -457,6 +457,8 @@ Antes de continuar con la Sub-tarea 4.2, verifica lo siguiente:
 
 ## Sub-tarea 4.2: SPA Preact Embebida en SPIFFS (3 tareas)
 
+> **Nota de estado (W02, 2026-11-19)**: el portal local protegido ya está implementado (issue #69) y **no** usa la partición SPIFFS: sus assets van embebidos en la imagen del firmware, porque la historia exige servirlos «desde flash» sin depender de un sistema de ficheros. La decisión y su rationale están en `openspec/changes/issue-69-local-portal/design.md` (D1); el estado real de la web está en `project.md`. Esta sub-tarea conserva su plan original (SPIFFS, WebSocket, historial) para las historias que quedan.
+
 Preact es una alternativa a React de 3KB que tiene la misma API. Con Vite como bundler, el resultado es una SPA que cabe cómodamente en la partición SPIFFS de 4 MiB del gateway. El código fuente vive en `firmware/gateway/web/` y el proceso de build genera los assets gzipados que se flashean a SPIFFS.
 
 ### Presupuesto de tamaño SPIFFS
