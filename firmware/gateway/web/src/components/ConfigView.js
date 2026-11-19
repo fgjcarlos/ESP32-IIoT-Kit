@@ -1,6 +1,7 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
 
+// No se ofrece en W02: W03 reactiva esta vista de configuración Wi-Fi.
 function Campo({ id, etiqueta, tipo, valor, soloLectura, alCambiar, ayuda }) {
   return h('div', { class: 'campo' },
     h('label', { for: id }, etiqueta),

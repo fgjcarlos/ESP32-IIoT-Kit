@@ -1,16 +1,23 @@
 import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import { DEMO_INITIAL_CREDENTIAL } from '../data/demo-device.js';
+
+/** Mensajes en español de cada error que /api/credential puede devolver. */
+export const MENSAJES_ERROR = Object.freeze({
+  'credencial-incorrecta': 'La credencial actual no coincide: no se cambió nada.',
+  'repeticion-no-coincide': 'La credencial nueva y su repetición no coinciden: no se cambió nada.',
+  'longitud-fuera-de-rango': 'La credencial nueva no está dentro de la longitud permitida: no se cambió nada.',
+  'sin-conexion': 'No hay conexión con el equipo: no se cambió nada.'
+});
 
 /**
- * Cambio de credencial del equipo (S5: credencial única, con propuesta de
- * cambio en el primer uso). Todo simulado; los errores llevan texto.
+ * Cambio de la credencial única (S5: propuesta de cambio en el primer uso).
+ * Las reglas las decide el servidor: aquí solo se envían los tres valores y
+ * se pinta el mensaje que corresponde al código recibido.
  */
-export function CredentialView({ device, onChange }) {
+export function CredentialView({ inicial, resultado, onChange }) {
   const [actual, setActual] = useState('');
   const [nueva, setNueva] = useState('');
   const [repetir, setRepetir] = useState('');
-  const primeraVez = device.credential === DEMO_INITIAL_CREDENTIAL;
 
   const campo = (id, etiqueta, valor, poner) => h('div', { class: 'campo' },
     h('label', { for: id }, etiqueta),
@@ -20,9 +27,9 @@ export function CredentialView({ device, onChange }) {
   return h('main', { class: 'contenido', id: 'contenido' },
     h('section', { class: 'credenciales', 'aria-labelledby': 'titulo-credencial' },
       h('h2', { id: 'titulo-credencial' }, 'Cambiar credencial'),
-      h('p', { class: 'meta' }, 'Credencial única del equipo, simulada: no hay dispositivo y nada se escribe en el firmware.'),
-      primeraVez
-        ? h('p', { class: 'nota' }, 'Propuesta para el primer uso: cambia la credencial inicial por la tuya antes de usar el equipo de verdad.')
+      h('p', { class: 'meta' }, 'Credencial única del equipo: la misma que abre este portal.'),
+      inicial === true
+        ? h('p', { class: 'nota' }, 'Primer uso: cambia la credencial inicial por la tuya antes de seguir usando el equipo.')
         : null,
       h('form', {
         class: 'formulario',
@@ -35,14 +42,11 @@ export function CredentialView({ device, onChange }) {
       campo('credencial-nueva', 'Credencial nueva', nueva, setNueva),
       campo('credencial-repetir', 'Repite la credencial nueva', repetir, setRepetir),
       h('button', { type: 'submit' }, 'Guardar credencial'),
-      device.credentialError === 'credencial-actual-incorrecta'
-        ? h('p', { class: 'fallo', role: 'alert' }, 'La credencial actual no coincide: no se cambió nada.')
+      resultado?.kind === 'error'
+        ? h('p', { class: 'fallo', role: 'alert' }, MENSAJES_ERROR[resultado.code] ?? MENSAJES_ERROR['sin-conexion'])
         : null,
-      device.credentialError === 'no-coinciden'
-        ? h('p', { class: 'fallo', role: 'alert' }, 'La credencial nueva y su repetición no coinciden: no se cambió nada.')
-        : null,
-      device.credentialError === null && device.credentialChanged
-        ? h('p', { class: 'exito', role: 'status' }, 'Credencial cambiada (simulado): usa la nueva la próxima vez.')
+      resultado?.kind === 'exito'
+        ? h('p', { class: 'exito', role: 'status' }, 'Credencial cambiada: usa la nueva la próxima vez.')
         : null
       )
     )
