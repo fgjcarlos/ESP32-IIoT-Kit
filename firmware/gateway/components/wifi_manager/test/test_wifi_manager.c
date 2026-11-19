@@ -126,6 +126,18 @@ TEST_CASE("init rejects an out-of-range AP channel before touching the driver", 
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, wifi_manager_init(&bad));
 }
 
+TEST_CASE("get_status rejects NULL out", "[wifi_manager]")
+{
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, wifi_manager_get_status(NULL));
+}
+
+TEST_CASE("get_status before init returns ESP_ERR_INVALID_STATE", "[wifi_manager]")
+{
+    wifi_manager_status_t status = {0};
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_manager_get_status(&status));
+}
+
 TEST_CASE("deinit without init returns ESP_ERR_INVALID_STATE", "[wifi_manager]")
 {
     /* Forces the linker to retain wifi_manager_deinit so the symbol
