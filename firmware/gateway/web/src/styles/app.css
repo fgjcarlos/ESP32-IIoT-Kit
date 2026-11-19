@@ -126,3 +126,137 @@ h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); }
   margin: 0;
   font-size: var(--text-sm);
 }
+
+/* Navegación y configuración (W01-v0.2) */
+.vistas {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.vista {
+  font: inherit;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.vista[aria-current='page'] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.vista:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.configuracion {
+  max-width: 34rem;
+}
+
+.formulario {
+  display: grid;
+  gap: var(--space-4);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.formulario fieldset {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: var(--space-3) 0 0;
+  margin: 0;
+}
+
+.formulario legend {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  padding-right: var(--space-2);
+}
+
+.campo {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.campo label {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.campo input {
+  font: inherit;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.campo input[readonly] {
+  background: var(--canvas);
+  color: var(--muted);
+}
+
+.campo .ayuda {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.accion-demo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.accion-demo input {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.accion-demo label {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.formulario > button {
+  font: inherit;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.formulario input:focus-visible,
+.formulario button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.exito {
+  color: var(--success);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.fallo {
+  color: var(--error);
+  margin: 0;
+  font-size: var(--text-sm);
+}
