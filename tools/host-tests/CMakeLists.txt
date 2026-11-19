@@ -35,8 +35,9 @@ set(NANOPB_DIR ${REPO_ROOT}/firmware/gateway/managed_components/livekit__nanopb)
 set(SPARKPLUG_DIR ${REPO_ROOT}/firmware/gateway/components/sparkplug_b)
 set(BRAND_DIR ${REPO_ROOT}/firmware/gateway/components/brand_profile)
 set(OTA_MANIFEST_DIR ${REPO_ROOT}/firmware/gateway/components/ota_manifest)
+set(PORTAL_AUTH_DIR ${REPO_ROOT}/firmware/gateway/components/portal_auth)
 
-foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR} ${OTA_MANIFEST_DIR})
+foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR} ${OTA_MANIFEST_DIR} ${PORTAL_AUTH_DIR})
     if(NOT EXISTS ${required})
         message(FATAL_ERROR "Missing ${required}. Pass -DIDF_ROOT=<esp-idf checkout> if it is not in the default location.")
     endif()
@@ -69,6 +70,11 @@ add_library(iot_portable OBJECT
     # The OTA release manifest: the portable rules that decide whether an
     # image may be installed.
     ${OTA_MANIFEST_DIR}/ota_manifest.c
+
+    # The local portal auth: the portable rules of the single-owner
+    # credential. The device glue (hardware RNG, mbedtls) stays out; the
+    # shims provide deterministic ports.
+    ${PORTAL_AUTH_DIR}/portal_auth.c
 )
 
 target_include_directories(iot_portable PUBLIC
@@ -79,6 +85,7 @@ target_include_directories(iot_portable PUBLIC
     ${SPARKPLUG_DIR}/proto
     ${BRAND_DIR}/include
     ${OTA_MANIFEST_DIR}/include
+    ${PORTAL_AUTH_DIR}/include
 )
 
 # The device build embeds the logo of the selected profile; the host build
@@ -106,6 +113,7 @@ add_executable(iot_host_tests
     ${SPARKPLUG_DIR}/test/test_lifecycle.c
     ${BRAND_DIR}/test/test_brand_profile.c
     ${OTA_MANIFEST_DIR}/test/test_ota_manifest.c
+    ${PORTAL_AUTH_DIR}/test/test_portal_auth.c
 )
 
 # Linking the object library propagates its include directories and its
