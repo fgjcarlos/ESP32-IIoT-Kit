@@ -1,95 +1,63 @@
-# Acceso y estado de red — demo local (W01-v0.2)
+# Portal local del gateway (W02)
 
-Aplicación **Preact + Vite** con **datos de demostración** que simula el primer
-acceso protegido y muestra el estado de red y de acceso local del gateway.
+Aplicación **Preact + Vite** que es el portal local protegido que sirve el
+propio gateway desde su flash, accesible por el AP del equipo sin STA ni
+Internet.
 
-**No es el dashboard del producto.** No hay API, ni servidor, ni firmware, ni
-SPIFFS, ni flasheo, ni persistencia: el panel no produce ningún efecto sobre el
-dispositivo y no escribe nada.
+- Historia: W02 — [issue #69](https://github.com/fgjcarlos/ESP32-IIoT-Kit/issues/69).
+- Diseño: `W01-v0.2` (wireframes aprobados en la issue #68); las vistas de W02
+  son las de W01, sin pantallas nuevas.
+- Tokens visuales: [`design/system.md`](../../../design/system.md).
+- Tarea ODD: `odd/tasks/issue-69-portal-local-protegido.md` (T6).
+- Decisión de credencial: [ADR-006](../../../knowledge/Decisiones/006-portal-provision-inicial.md).
 
-- Versión del diseño: `W01-v0.2` (propuesta, **aprobación pendiente**).
-- Tokens visuales: [`design/system.md`](../../../design/system.md) (base visual provisional).
-- Tarea ODD: `odd/tasks/issue-68-web-wireframes.md` (T14).
+## Qué hace
 
-## Alcance de esta entrega
+El recorrido es el de W01-v0.2, contra la API real del firmware:
 
-La demo arranca **cerrada**: una puerta de primer acceso pide la credencial
-única del equipo (valor de demostración `acceso-inicial`, mostrado en pantalla
-porque no hay equipo real). Desbloqueada, ofrece tres vistas:
-
-| Tarjeta | Estado mostrado |
+| Pantalla | Comportamiento |
 |---|---|
-| AP del equipo | Disponible |
-| STA de la red del usuario | Desconectada · opcional |
-| Acceso local | Disponible por AP |
-| Internet | No necesario |
+| Puerta de acceso | Pide la credencial única; `POST /api/login` |
+| Estado | Cuatro tarjetas con los datos en vivo de `GET /api/status` |
+| Credencial | Cambia la credencial; `POST /api/credential` |
 
-- **Estado de red**: cuatro tarjetas con datos de ejemplo fijos (AP, STA
-  opcional, acceso local, Internet no necesario), de solo lectura.
-- **Configuración**: formulario AP/STA con SSID y claves editables y canal e
-  IP de solo lectura (los fija el equipo). La aplicación es simulada: un
-  control de demo permite forzar el fallo; con fallo, la configuración
-  anterior sigue activa (esa es la vía de recuperación).
-- **Credencial**: cambio de la credencial única, con propuesta en el primer
-  uso. Desde la puerta cerrada, «Recuperar acceso» simula reentrar por el AP
-  del equipo y restaura la credencial inicial sin tocar la configuración.
+La sesión vive en el servidor (cookie `portal_session`, `HttpOnly`). La
+interfaz no guarda el estado: cada vista pide lo que necesita.
 
-Quedan **fuera de esta entrega**: la integración real con el gateway (API,
-SPIFFS, dispositivo), que vive en otra issue.
+## La credencial inicial
 
-## Requisitos
+El equipo genera una credencial aleatoria en su primer arranque y **solo la
+muestra una vez por la consola serie** (UART0 / USB-CDC), junto con el aviso
+de cambiarla. En la imagen del firmware no hay ninguna credencial: se guarda
+únicamente su resumen SHA-256 en la partición NVS.
 
-- Node 24 (probado con `v24.14.0`) y npm 11. Las dependencias están fijadas y
-  verificadas con `--engine-strict`: ninguna exige un Node posterior.
-
-## Instalación
-
-```bash
-npm install --prefix firmware/gateway/web --cache "$PWD/build/issue-68-npm-cache" --ignore-scripts --engine-strict
+```text
+I (1234) portal_auth: portal initial credential: 4f2a-91c7-0b8e-6d35 (shown once; change it after the first login)
 ```
 
-Para instalar exactamente lo que fija el lockfile:
+Para recuperarla hay que acceder al equipo físicamente y borrar su NVS: el
+portal vuelve a aprovisionar una credencial nueva.
+
+## Desarrollo local
 
 ```bash
-npm ci --prefix firmware/gateway/web --cache "$PWD/build/issue-68-npm-cache" --ignore-scripts --engine-strict
+npm install
+npm run dev      # vite en 127.0.0.1:5174
+npm test         # node --test
+npm run build    # genera dist/ (se commitea: el firmware lo embebe)
 ```
 
-La caché de npm queda dentro del proyecto (`build/issue-68-npm-cache`, ya
-ignorado por `.gitignore`); no se toca la caché ni la configuración global.
-`node_modules/` y `dist/` están ignorados por `firmware/gateway/web/.gitignore`.
+El `dist/` se commitea a propósito: el firmware embebe esos bytes en la
+imagen y el build de firmware no debe depender de Node.
 
-## Scripts
+## W03
 
-| Comando | Qué hace |
-|---|---|
-| `npm --prefix firmware/gateway/web test` | Pruebas de render con el runner de Node |
-| `npm --prefix firmware/gateway/web run build` | Bundle de producción en `firmware/gateway/web/dist` |
-| `npm --prefix firmware/gateway/web run dev` | Servidor de desarrollo en `http://127.0.0.1:5174` |
-| `npm --prefix firmware/gateway/web run preview` | Sirve `dist/` en `http://127.0.0.1:4174` |
+La vista de configuración de Wi-Fi (`ConfigView.js`) no se ofrece en W02: la
+configuración de la red del usuario es la historia siguiente, que debe
+conservar el acceso local. El archivo se conserva para esa entrega.
 
-Todos los servidores escuchan **solo en loopback** (`127.0.0.1`).
+## Límites
 
-## Pruebas
-
-```bash
-npm --prefix firmware/gateway/web test
-```
-
-Las pruebas usan el runner de Node (`node --test`) y `preact-render-to-string`:
-renderizan la puerta, el formulario y las vistas, y comprueban la **salida
-pública** de render y las **transiciones puras** del estado simulado
-(desbloqueo, aplicación de configuración con éxito y fallo, cambio y
-recuperación de credencial). No consultan el estado interno ni el historial de
-Git. Los valores de red aparecen solo en la vista de configuración, marcados
-como demostración; la vista de estado sigue sin fijar valores.
-
-Son comprobaciones de render, **no** de navegador: el layout, los viewports y
-la navegación con teclado quedan para revisión humana.
-
-## Limitaciones
-
-- Sin dispositivo, sin red y sin API: el código no hace llamadas de red.
-- Sin persistencia: el estado vive en memoria y recargar vuelve a cerrar la puerta.
-- Comprobaciones estáticas de accesibilidad (controles nativos, foco visible,
-  media query móvil); sin verificación visual automatizada: no hay navegador en
-  este entorno y la revisión visual queda para el humano.
+- Un solo propietario: no hay cuentas, ni historial, ni permisos por rol.
+- Sin WebSocket ni push: el estado se lee cuando la vista lo pide.
+- El portal no sustituye al LCD: el runtime de display sigue diferido (#16).
