@@ -23,6 +23,11 @@ if(http_server_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "http_server")
 endif()
 
+list(FIND TEST_COMPONENTS "portal_auth" portal_auth_test_component_index)
+if(portal_auth_test_component_index EQUAL -1)
+    list(APPEND TEST_COMPONENTS "portal_auth")
+endif()
+
 list(FIND TEST_COMPONENTS "mqtt_bridge" mqtt_bridge_test_component_index)
 if(mqtt_bridge_test_component_index EQUAL -1)
     list(APPEND TEST_COMPONENTS "mqtt_bridge")
