@@ -17,6 +17,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(iot_host_tests C)
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 # ESP-IDF is used for its portable Unity core and its Linux port. The path can
@@ -36,12 +38,32 @@ set(SPARKPLUG_DIR ${REPO_ROOT}/firmware/gateway/components/sparkplug_b)
 set(BRAND_DIR ${REPO_ROOT}/firmware/gateway/components/brand_profile)
 set(OTA_MANIFEST_DIR ${REPO_ROOT}/firmware/gateway/components/ota_manifest)
 set(PORTAL_AUTH_DIR ${REPO_ROOT}/firmware/gateway/components/portal_auth)
+set(HTTP_SERVER_DIR ${REPO_ROOT}/firmware/gateway/components/http_server)
+set(WIFI_MANAGER_DIR ${REPO_ROOT}/firmware/gateway/components/wifi_manager)
 
-foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR} ${OTA_MANIFEST_DIR} ${PORTAL_AUTH_DIR})
+foreach(required ${UNITY_DIR} ${NANOPB_DIR} ${SPARKPLUG_DIR} ${BRAND_DIR} ${OTA_MANIFEST_DIR} ${PORTAL_AUTH_DIR} ${HTTP_SERVER_DIR} ${WIFI_MANAGER_DIR})
     if(NOT EXISTS ${required})
         message(FATAL_ERROR "Missing ${required}. Pass -DIDF_ROOT=<esp-idf checkout> if it is not in the default location.")
     endif()
 endforeach()
+
+# The embedded portal asset table (issue #69): the same generator the
+# http_server component build runs, so the host integrity tests check the
+# committed web/dist bundle.
+set(PORTAL_DIST_DIR ${REPO_ROOT}/firmware/gateway/web/dist)
+set(PORTAL_ASSETS_SCRIPT ${REPO_ROOT}/tools/web/embed_assets.py)
+set(PORTAL_ASSETS_DATA_C ${CMAKE_CURRENT_BINARY_DIR}/generated/portal_assets_data.c)
+
+add_custom_command(
+    OUTPUT ${PORTAL_ASSETS_DATA_C}
+    COMMAND ${Python3_EXECUTABLE} ${PORTAL_ASSETS_SCRIPT}
+            --dist ${PORTAL_DIST_DIR} --out ${PORTAL_ASSETS_DATA_C}
+    DEPENDS ${PORTAL_DIST_DIR}/index.html
+            ${PORTAL_DIST_DIR}/app.js
+            ${PORTAL_DIST_DIR}/assets/index.css
+            ${PORTAL_ASSETS_SCRIPT}
+    COMMENT "Embedding the committed portal bundle (issue #69)"
+    VERBATIM)
 
 # The portable code under test: the components of the gateway that do not
 # need an ESP-IDF runtime. Both binaries link against it.
@@ -75,6 +97,13 @@ add_library(iot_portable OBJECT
     # credential. The device glue (hardware RNG, mbedtls) stays out; the
     # shims provide deterministic ports.
     ${PORTAL_AUTH_DIR}/portal_auth.c
+
+    # The local portal API (issue #69): portable JSON/cookie helpers plus
+    # the embedded asset table. Only wifi_manager types are needed, not
+    # wifi_manager.c; the esp_http_server glue stays device-only.
+    ${HTTP_SERVER_DIR}/portal_api.c
+    ${HTTP_SERVER_DIR}/portal_assets.c
+    ${PORTAL_ASSETS_DATA_C}
 )
 
 target_include_directories(iot_portable PUBLIC
@@ -86,6 +115,8 @@ target_include_directories(iot_portable PUBLIC
     ${BRAND_DIR}/include
     ${OTA_MANIFEST_DIR}/include
     ${PORTAL_AUTH_DIR}/include
+    ${HTTP_SERVER_DIR}/include
+    ${WIFI_MANAGER_DIR}/include
 )
 
 # The device build embeds the logo of the selected profile; the host build
@@ -114,6 +145,8 @@ add_executable(iot_host_tests
     ${BRAND_DIR}/test/test_brand_profile.c
     ${OTA_MANIFEST_DIR}/test/test_ota_manifest.c
     ${PORTAL_AUTH_DIR}/test/test_portal_auth.c
+    ${HTTP_SERVER_DIR}/test/test_portal_assets.c
+    ${HTTP_SERVER_DIR}/test/test_portal_api.c
 )
 
 # Linking the object library propagates its include directories and its
