@@ -11,6 +11,7 @@
  * - "ota": OTA configuration.
  * - "display": display configuration.
  * - "node": sensor-node configuration.
+ * - "portal": local web portal credential (W02, issue #69).
  *
  * The documented default key is `mqtt_namespace = "iiot-kit"` (source:
  * `docs/replanificacion/02-protocolo-unificado.md`). Typed accessors and
