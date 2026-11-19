@@ -5,7 +5,8 @@ import { StatusView } from './components/StatusView.js';
 import { AccessGate } from './components/AccessGate.js';
 import { NavTabs } from './components/NavTabs.js';
 import { ConfigView } from './components/ConfigView.js';
-import { createDemoDevice, tryUnlock, applyConfig } from './data/demo-device.js';
+import { CredentialView } from './components/CredentialView.js';
+import { createDemoDevice, tryUnlock, applyConfig, changeCredential, resetCredential } from './data/demo-device.js';
 
 /**
  * Demo de acceso y estado del gateway (W01-v0.2). El estado del dispositivo
@@ -28,6 +29,11 @@ export function App() {
     setDevice(result.device);
   }
 
+  function handleCredentialChange(actual, nueva, repetir) {
+    const result = changeCredential(device, actual, nueva, repetir);
+    setDevice(Object.freeze({ ...result.device, credentialError: result.error }));
+  }
+
   return h('div', { class: 'app' },
     h(Header, null),
     device.unlocked
@@ -35,8 +41,10 @@ export function App() {
         h(NavTabs, { view, onChange: setView }),
         view === 'configuracion'
           ? h(ConfigView, { device, onApply: handleApply })
-          : h(StatusView, null)
+          : view === 'credencial'
+            ? h(CredentialView, { device, onChange: handleCredentialChange })
+            : h(StatusView, null)
       )
-      : h(AccessGate, { error, onSubmit: handleSubmit })
+      : h(AccessGate, { error, onSubmit: handleSubmit, onReset: () => setDevice(resetCredential(device)) })
   );
 }

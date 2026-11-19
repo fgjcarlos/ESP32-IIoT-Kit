@@ -45,6 +45,37 @@ export function tryUnlock(device, credential) {
 }
 
 /**
+ * Cambia la credencial del equipo (simulado). La actual debe coincidir y
+ * la nueva repetirse: sin políticas inventadas de longitud o bloqueo.
+ * @returns {{device: object, error: string|null}}
+ */
+export function changeCredential(device, actual, nueva, repetir) {
+  if (actual !== device.credential) {
+    return { device, error: 'credencial-actual-incorrecta' };
+  }
+  if (!nueva || nueva !== repetir) {
+    return { device, error: 'no-coinciden' };
+  }
+  return {
+    device: Object.freeze({ ...device, credential: nueva, credentialChanged: true }),
+    error: null
+  };
+}
+
+/**
+ * Recuperación de acceso simulada: como reentrar por el AP del equipo y
+ * volver a la credencial inicial. No toca la configuración de red.
+ */
+export function resetCredential(device) {
+  return Object.freeze({
+    ...device,
+    credential: DEMO_INITIAL_CREDENTIAL,
+    attempts: 0,
+    credentialChanged: false
+  });
+}
+
+/**
  * Aplica un borrador de configuración de forma simulada.
  * Con fallo simulado, la configuración anterior queda intacta: esa es la
  * vía de recuperación (el equipo sigue con los valores previos).
