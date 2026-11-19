@@ -28,6 +28,8 @@ extern "C" {
 #define WIFI_MANAGER_PASSWORD_MAX_LEN     64u
 /** Rendered MAC length: 6 * 2 hex + 5 colons + NUL = 18 bytes. */
 #define WIFI_MANAGER_MAC_STR_LEN          18u
+/** Rendered IPv4 length: 15 characters + NUL. */
+#define WIFI_MANAGER_IPV4_STR_LEN         16u
 /** Lowest 2.4 GHz channel allowed for the soft-AP. */
 #define WIFI_MANAGER_AP_CHANNEL_MIN       1u
 /** Highest 2.4 GHz channel allowed for the soft-AP. */
@@ -105,6 +107,34 @@ esp_err_t wifi_manager_format_mac(const uint8_t mac[6], char *out, size_t out_le
  */
 esp_err_t wifi_manager_apply_credentials(const wifi_manager_credentials_t *in,
                                          wifi_manager_credentials_t *out);
+
+/** STA association state, mirrored from Wi-Fi/IP events. */
+typedef enum {
+    WIFI_MANAGER_STA_IDLE = 0,      /**< No STA SSID configured. */
+    WIFI_MANAGER_STA_CONNECTING,    /**< Driver started, not yet connected. */
+    WIFI_MANAGER_STA_CONNECTED,    /**< Associated with the AP. */
+    WIFI_MANAGER_STA_DISCONNECTED, /**< Association lost; reconnect pending. */
+} wifi_manager_sta_state_t;
+
+/** Read-only snapshot of the AP+STA runtime state. */
+typedef struct {
+    bool ap_up;                    /**< True once `wifi_manager_init` succeeded. */
+    char ap_ssid[WIFI_MANAGER_SSID_MAX_LEN + 1u];
+    uint8_t ap_channel;
+    char ap_ip[WIFI_MANAGER_IPV4_STR_LEN];
+    char ap_mac[WIFI_MANAGER_MAC_STR_LEN];
+    wifi_manager_sta_state_t sta_state;
+    char sta_ssid[WIFI_MANAGER_SSID_MAX_LEN + 1u];
+    char sta_ip[WIFI_MANAGER_IPV4_STR_LEN];
+} wifi_manager_status_t;
+
+/**
+ * @brief Fill `out` with a snapshot of the current AP+STA state.
+ *
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG on NULL `out`,
+ *         ESP_ERR_INVALID_STATE when Wi-Fi is not initialized.
+ */
+esp_err_t wifi_manager_get_status(wifi_manager_status_t *out);
 
 #ifdef __cplusplus
 }
