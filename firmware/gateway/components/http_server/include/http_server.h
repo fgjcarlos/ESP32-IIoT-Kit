@@ -18,20 +18,21 @@ extern "C" {
 #define HTTP_SERVER_BRAND_PAYLOAD_MAX_LEN 768u
 
 /**
- * @brief Start the HTTP server contract.
+ * @brief Start the local portal HTTP server (W02, issue #69).
  *
- * Interface only — full implementation owned by the Fase 4 runtime.
+ * Initializes the portal credential store (`portal_auth_init`) and serves
+ * the embedded portal assets and API over esp_http_server.
  *
- * @return ESP_OK for the contract-only placeholder.
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE when already running,
+ *         otherwise the esp_http_server / portal_auth error.
  */
 esp_err_t http_server_start(void);
 
 /**
- * @brief Stop the HTTP server contract.
+ * @brief Stop the portal HTTP server and reset its state.
  *
- * Interface only — full implementation owned by the Fase 4 runtime.
- *
- * @return ESP_OK for the contract-only placeholder.
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE when not running,
+ *         otherwise the httpd error.
  */
 esp_err_t http_server_stop(void);
 

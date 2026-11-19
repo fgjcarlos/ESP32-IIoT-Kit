@@ -1,11 +1,20 @@
 #include "http_server.h"
 
+#include "esp_netif.h"
+#include "nvs_flash.h"
 #include "unity.h"
 
 #include <string.h>
 
 TEST_CASE("http_server contract entry points return success", "[http_server]")
 {
+    /* The real start() provisions the portal credential through NVS and
+     * binds the httpd sockets, so both stacks must be up first. The device
+     * runner initializes neither by itself (test_portal_auth.c does the
+     * same for NVS). */
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_flash_init());
+    TEST_ASSERT_EQUAL(ESP_OK, esp_netif_init());
+
     TEST_ASSERT_EQUAL(ESP_OK, http_server_start());
     TEST_ASSERT_EQUAL(ESP_OK, http_server_stop());
 }
