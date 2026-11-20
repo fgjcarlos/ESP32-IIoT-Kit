@@ -7,6 +7,8 @@
 #include "ui_screens.h"
 #include "assets_brand.h"
 #include "wifi_manager.h"
+#include "http_server.h"
+#include "portal_auth.h"
 #include "mqtt_bridge.h"
 #include "ota_manager.h"
 #include "freertos/FreeRTOS.h"
@@ -148,6 +150,24 @@ void app_main(void)
     const esp_err_t wifi_err = wifi_manager_init(&wifi_credentials);
     if (wifi_err != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi manager init failed: %s", esp_err_to_name(wifi_err));
+        return;
+    }
+
+    /* Issue #69 (W02): the protected local portal.
+     *
+     * The portal is served from flash over the AP, so it starts once the
+     * AP is up. The credential store is initialised first: on a fresh
+     * device it provisions the initial credential and reveals it once on
+     * the serial console (ADR-006). */
+    const esp_err_t auth_err = portal_auth_init();
+    if (auth_err != ESP_OK) {
+        ESP_LOGE(TAG, "Portal auth init failed: %s", esp_err_to_name(auth_err));
+        return;
+    }
+
+    const esp_err_t http_err = http_server_start();
+    if (http_err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP server start failed: %s", esp_err_to_name(http_err));
         return;
     }
 
