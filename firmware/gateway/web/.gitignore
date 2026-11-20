@@ -1,4 +1,5 @@
-# Dependencias y artefactos locales de la demo web
+# Dependencias y artefactos locales de la web
+# dist/ SÍ se commitea (issue #69): el firmware embebe esos bytes desde
+# flash y el build debe ser hermético sin Node en el CI de firmware.
 node_modules/
-dist/
 .vite/
