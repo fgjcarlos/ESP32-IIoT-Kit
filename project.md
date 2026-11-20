@@ -57,7 +57,7 @@ El proyecto tiene una vocación **didáctica**: enseñar ESP-IDF, comunicaciones
 
 | Aspecto | Beneficio |
 |---------|-----------|
-| **Autonomía** | Gateway completamente autónomo: Preact SPA + REST API + WebSocket embebidos en SPIFFS |
+| **Autonomía** | Gateway completamente autónomo: Preact SPA + REST API embebidos en el firmware (WebSocket pendiente) |
 | **Escalabilidad** | De 2 a 20+ nodos sin infraestructura adicional |
 | **Fiabilidad** | Operación continua sin dependencia de conectividad a Internet |
 | **Autonomía de nodos** | 12+ meses con baterías 18650 (wake cada 5 minutos) |
@@ -105,9 +105,9 @@ El gateway candidato ESP32-S3-WROOM-1-N16R8 es el corazón previsto del sistema.
                 (cualquier sensor + deep sleep)
 ```
 
-**Principio de diseño clave**: el gateway es completamente funcional sin conectividad a Internet. Un navegador se conecta directamente al WiFi AP del gateway y carga la Preact SPA desde SPIFFS. Los datos fluyen por WebSocket en tiempo real y por REST para configuración e historial. MQTT es una integración opcional para conectividad cloud o LAN.
+**Principio de diseño clave**: el gateway es completamente funcional sin conectividad a Internet. Un navegador se conecta directamente al WiFi AP del gateway y carga la Preact SPA desde el flash del gateway. Los datos fluyen por WebSocket en tiempo real y por REST para configuración e historial. MQTT es una integración opcional para conectividad cloud o LAN.
 
-**Estado de implementacion**: el diagrama describe la arquitectura *objetivo*. El firmware del gateway ya existe como base modular (`firmware/gateway/components/`), pero `firmware/gateway/web/` solo contiene una **demo local de solo lectura** del estado de red y del acceso local (Preact + Vite, datos de demostración, sin API, sin dispositivo y sin escritura en el firmware; ver `firmware/gateway/web/README.md`) y el firmware de los nodos (`firmware/node/`) **aun no esta en disco**. No declares como implementado nada que no tenga evidencia en `firmware/gateway/`.
+**Estado de implementacion**: el diagrama describe la arquitectura *objetivo*. El firmware del gateway ya existe como base modular (`firmware/gateway/components/`) y `firmware/gateway/web/` ya es el **portal local protegido real** (W02, issue #69): la SPA se sirve embebida en la imagen del firmware, el acceso exige la credencial del propietario y la API REST informa del estado real del AP y de la STA (ver `firmware/gateway/web/README.md` y `openspec/changes/issue-69-local-portal/`). Siguen pendientes el WebSocket en tiempo real, el historial, la configuración de la red del usuario (W03) y el firmware de los nodos (`firmware/node/`), que **aun no esta en disco**. No declares como implementado nada que no tenga evidencia en `firmware/gateway/`.
 
 ### 2.2 Protocolos de Comunicación
 
