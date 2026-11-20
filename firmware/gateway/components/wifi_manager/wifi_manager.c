@@ -46,6 +46,13 @@ static const char *TAG = "wifi_manager";
 static bool s_wifi_started = false;
 static wifi_manager_credentials_t s_credentials = {0};
 
+/* Runtime state mirrored from Wi-Fi/IP events for the status snapshot
+ * (issue #69). Guarded by a spinlock: events arrive on the event-loop
+ * task while the HTTP server reads the snapshot from its own task. */
+static portMUX_TYPE s_status_mux = portMUX_INITIALIZER_UNLOCKED;
+static wifi_manager_sta_state_t s_sta_state = WIFI_MANAGER_STA_IDLE;
+static char s_sta_ip[WIFI_MANAGER_IPV4_STR_LEN] = {0};
+
 /* Reconnect timer used by the STA disconnect handler. */
 static esp_timer_handle_t s_sta_reconnect_timer = NULL;
 
@@ -143,6 +150,48 @@ esp_err_t wifi_manager_apply_credentials(const wifi_manager_credentials_t *in,
         out->ap_max_connection = in->ap_max_connection;
     }
 
+    return ESP_OK;
+}
+
+esp_err_t wifi_manager_get_status(wifi_manager_status_t *out)
+{
+    if (out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!s_wifi_started) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    memset(out, 0, sizeof(*out));
+    out->ap_up = true;
+    out->ap_channel = s_credentials.ap_channel;
+    if (s_credentials.ap_ssid != NULL) {
+        snprintf(out->ap_ssid, sizeof(out->ap_ssid), "%s",
+                 s_credentials.ap_ssid);
+    }
+    if (s_credentials.sta_ssid != NULL) {
+        snprintf(out->sta_ssid, sizeof(out->sta_ssid), "%s",
+                 s_credentials.sta_ssid);
+    }
+
+    portENTER_CRITICAL(&s_status_mux);
+    out->sta_state = s_sta_state;
+    snprintf(out->sta_ip, sizeof(out->sta_ip), "%s", s_sta_ip);
+    portEXIT_CRITICAL(&s_status_mux);
+
+    uint8_t ap_mac[6] = {0};
+    if (esp_wifi_get_mac(WIFI_IF_AP, ap_mac) == ESP_OK) {
+        (void)wifi_manager_format_mac(ap_mac, out->ap_mac, sizeof(out->ap_mac));
+    }
+
+    esp_netif_t *ap_netif = esp_netif_get_handle_from_ifkey("WIFI_AP");
+    if (ap_netif != NULL) {
+        esp_netif_ip_info_t ip_info = {0};
+        if (esp_netif_get_ip_info(ap_netif, &ip_info) == ESP_OK) {
+            snprintf(out->ap_ip, sizeof(out->ap_ip), IPSTR,
+                     IP2STR(&ip_info.ip));
+        }
+    }
     return ESP_OK;
 }
 
@@ -285,6 +334,14 @@ esp_err_t wifi_manager_init(const wifi_manager_credentials_t *credentials)
 
     s_wifi_started = true;
 
+    portENTER_CRITICAL(&s_status_mux);
+    s_sta_state =
+        (effective.sta_ssid != NULL && effective.sta_ssid[0] != '\0')
+            ? WIFI_MANAGER_STA_CONNECTING
+            : WIFI_MANAGER_STA_IDLE;
+    s_sta_ip[0] = '\0';
+    portEXIT_CRITICAL(&s_status_mux);
+
     ESP_LOGI(TAG, "wifi_manager_init OK: AP='%s' channel=%u max_conn=%u STA=%s",
              effective.ap_ssid,
              effective.ap_channel,
@@ -320,6 +377,12 @@ esp_err_t wifi_manager_deinit(void)
     }
 
     s_wifi_started = false;
+
+    portENTER_CRITICAL(&s_status_mux);
+    s_sta_state = WIFI_MANAGER_STA_IDLE;
+    s_sta_ip[0] = '\0';
+    portEXIT_CRITICAL(&s_status_mux);
+
     ESP_LOGI(TAG, "wifi_manager_deinit OK");
     return ESP_OK;
 }
@@ -361,6 +424,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
             esp_wifi_get_channel(&primary_channel, &second);
             ESP_LOGI(TAG, "STA start: AP/STA primary channel=%u", primary_channel);
+            portENTER_CRITICAL(&s_status_mux);
+            s_sta_state = WIFI_MANAGER_STA_CONNECTING;
+            portEXIT_CRITICAL(&s_status_mux);
             break;
         }
         case WIFI_EVENT_STA_CONNECTED: {
@@ -368,6 +434,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 (wifi_event_sta_connected_t *)event_data;
             ESP_LOGI(TAG, "STA connected: SSID='%s' channel=%u authmode=%d",
                      event->ssid, event->channel, event->authmode);
+            portENTER_CRITICAL(&s_status_mux);
+            s_sta_state = WIFI_MANAGER_STA_CONNECTED;
+            portEXIT_CRITICAL(&s_status_mux);
             break;
         }
         case WIFI_EVENT_STA_DISCONNECTED: {
@@ -375,6 +444,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 (wifi_event_sta_disconnected_t *)event_data;
             ESP_LOGW(TAG, "STA disconnected: reason=%d rssi=%d ssid='%s'",
                      event->reason, event->rssi, event->ssid);
+            portENTER_CRITICAL(&s_status_mux);
+            s_sta_state = WIFI_MANAGER_STA_DISCONNECTED;
+            portEXIT_CRITICAL(&s_status_mux);
             if (s_sta_reconnect_timer != NULL) {
                 esp_timer_stop(s_sta_reconnect_timer);
                 esp_timer_start_once(s_sta_reconnect_timer, 1000 * 1000);
@@ -389,10 +461,17 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
             ESP_LOGI(TAG, "STA got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            portENTER_CRITICAL(&s_status_mux);
+            snprintf(s_sta_ip, sizeof(s_sta_ip), IPSTR,
+                     IP2STR(&event->ip_info.ip));
+            portEXIT_CRITICAL(&s_status_mux);
             break;
         }
         case IP_EVENT_STA_LOST_IP: {
             ESP_LOGW(TAG, "STA lost IP");
+            portENTER_CRITICAL(&s_status_mux);
+            s_sta_ip[0] = '\0';
+            portEXIT_CRITICAL(&s_status_mux);
             break;
         }
         default:
