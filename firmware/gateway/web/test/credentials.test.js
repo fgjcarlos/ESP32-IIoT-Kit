@@ -3,67 +3,44 @@ import assert from 'node:assert/strict';
 import { h } from 'preact';
 import { render } from 'preact-render-to-string';
 import { CredentialView } from '../src/components/CredentialView.js';
-import { AccessGate } from '../src/components/AccessGate.js';
-import {
-  DEMO_INITIAL_CREDENTIAL,
-  createDemoDevice,
-  changeCredential,
-  resetCredential,
-  tryUnlock
-} from '../src/data/demo-device.js';
 
-const html = render(h(CredentialView, { device: createDemoDevice(), onChange: () => {} }));
-const puerta = render(h(AccessGate, { error: null, onSubmit: () => {}, onReset: () => {} }));
+const base = { inicial: false, resultado: null, onChange: () => {} };
+const html = render(h(CredentialView, base));
 
-test('el formulario de credencial pide actual, nueva y repeticion', () => {
+test('el formulario pide actual, nueva y repeticion', () => {
   for (const id of ['credencial-actual', 'credencial-nueva', 'credencial-repetir']) {
     assert.ok(html.includes(`id="${id}"`), `falta el campo «${id}»`);
   }
   assert.ok(html.includes('Cambiar credencial'));
 });
 
-test('propone el cambio en el primer uso mientras dura la inicial (S5)', () => {
-  assert.ok(html.includes('primer uso'));
-  const cambiada = render(h(CredentialView, {
-    device: { ...createDemoDevice(), credential: 'otra' },
-    onChange: () => {}
-  }));
-  assert.ok(!cambiada.includes('primer uso'));
+test('la propuesta de primer uso depende del indicador del servidor', () => {
+  const primera = render(h(CredentialView, { ...base, inicial: true }));
+  assert.ok(primera.includes('Primer uso'));
+  assert.ok(!html.includes('Primer uso'));
 });
 
-test('cambiar con exito actualiza la credencial y la anterior deja de abrir', () => {
-  const trasCambio = changeCredential(createDemoDevice(), DEMO_INITIAL_CREDENTIAL, 'nueva-demo', 'nueva-demo').device;
-  assert.equal(trasCambio.credential, 'nueva-demo');
-  const sesionNueva = { ...trasCambio, unlocked: false };
-  assert.equal(tryUnlock(sesionNueva, 'nueva-demo').device.unlocked, true);
-  assert.equal(tryUnlock(sesionNueva, DEMO_INITIAL_CREDENTIAL).device.unlocked, false);
-  assert.equal(tryUnlock(sesionNueva, DEMO_INITIAL_CREDENTIAL).error, 'credencial-incorrecta');
+test('cada error del servidor se explica con su mensaje en espanol', () => {
+  const mensajes = {
+    'credencial-incorrecta': 'La credencial actual no coincide',
+    'repeticion-no-coincide': 'no coinciden',
+    'longitud-fuera-de-rango': 'longitud',
+    'sin-conexion': 'No hay conexión'
+  };
+  for (const [code, fragmento] of Object.entries(mensajes)) {
+    const conError = render(h(CredentialView, { ...base, resultado: { kind: 'error', code } }));
+    assert.ok(conError.includes(fragmento), `falta el mensaje para «${code}»`);
+    assert.ok(conError.includes('role="alert"'));
+  }
 });
 
-test('la credencial actual incorrecta no cambia nada', () => {
-  const device = createDemoDevice();
-  const { device: nuevo, error } = changeCredential(device, 'equivocada', 'nueva', 'nueva');
-  assert.equal(error, 'credencial-actual-incorrecta');
-  assert.equal(JSON.stringify(nuevo), JSON.stringify(device));
+test('el exito confirma el cambio y no muestra error', () => {
+  const exito = render(h(CredentialView, { ...base, resultado: { kind: 'exito' } }));
+  assert.ok(exito.includes('role="status"'));
+  assert.ok(exito.includes('Credencial cambiada'));
+  assert.ok(!exito.includes('role="alert"'));
 });
 
-test('la repeticion que no coincide no cambia nada', () => {
-  const device = createDemoDevice();
-  const { device: nuevo, error } = changeCredential(device, DEMO_INITIAL_CREDENTIAL, 'nueva', 'otra');
-  assert.equal(error, 'no-coinciden');
-  assert.equal(JSON.stringify(nuevo), JSON.stringify(device));
-});
-
-test('la puerta cerrada ofrece recuperacion via AP del equipo', () => {
-  assert.ok(puerta.includes('Recuperar acceso'));
-  assert.ok(puerta.includes('AP del equipo'));
-});
-
-test('resetear restaura la credencial inicial y los intentos', () => {
-  const conCambio = changeCredential(createDemoDevice(), DEMO_INITIAL_CREDENTIAL, 'nueva', 'nueva').device;
-  const fallidos = tryUnlock(conCambio, 'incorrecta').device;
-  const reseteado = resetCredential(fallidos);
-  assert.equal(reseteado.credential, DEMO_INITIAL_CREDENTIAL);
-  assert.equal(reseteado.attempts, 0);
-  assert.equal(JSON.stringify(fallidos.config), JSON.stringify(reseteado.config));
+test('la copia no promete simulacion: las reglas las decide el servidor', () => {
+  assert.ok(!/simulad/i.test(html));
 });
