@@ -1,0 +1,29 @@
+change: issue-69-local-portal
+status: completed
+current_phase: archive
+completed_phases:
+  - proposal
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+next_phase: null
+artifact_store: openspec
+execution_mode: interactive
+delivery_strategy: ask-on-risk
+chain_strategy: feature-branch-chain
+created: 2026-11-19
+tasks_completed: 2026-11-20
+tasks_done: [T-01.01, T-01.02, T-02.01, T-02.02, T-03.01, T-03.02, T-04.01, T-04.02]
+tasks_remaining: []
+tasks_total: 9
+archived_at: 2026-11-20
+archive_path: openspec/changes/archive/2026-11-20-issue-69-local-portal
+notes:
+  - 'Gate T-01.01 (provisioning mechanism) resolved 2026-11-19: option A approved by the owner; ADR-006 in knowledge/Decisiones/006-portal-provision-inicial.md.'
+  - 'Implementation plan of record: odd/tasks/issue-69-portal-local-protegido.md (T1-T9).'
+  - 'Delivered as a 13-slice feature-branch chain, merged into main as PRs #121 and #134-#145.'
+  - 'Two build defects of the slicing were found and fixed while merging: the auth component listed a source file that arrived in the next slice, and the http_server test component pointed at an include directory that never existed. Both are fixed in the merged main.'
+  - 'The independent security review (high-risk item: auth) found no blocker. Its only critical finding, a missing stdio.h for the snprintf declarations in portal_auth.c, was corrected.'

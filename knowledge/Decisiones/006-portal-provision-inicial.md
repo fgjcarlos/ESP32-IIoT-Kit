@@ -48,4 +48,4 @@ tiempo constante sobre el digest.
   altera lo almacenado
 - W03 y posteriores heredan este mecanismo sin cambios
 
-Related: [[ADR-004-iiot-kit-transformation]] · issue #69 · `openspec/changes/issue-69-local-portal/design.md` (D3)
+Related: [[ADR-004-iiot-kit-transformation]] · issue #69 · `openspec/changes/archive/2026-11-20-issue-69-local-portal/design.md` (D3)
