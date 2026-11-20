@@ -263,7 +263,7 @@ esp_err_t http_server_start(void)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     /* AGENTS.md keeps tasks within the 4 KB default; the handlers only hold
-     * the bounded status/body buffers (largest: 512 bytes). */
+     * the bounded status/body buffers (largest: 1024 bytes). */
     config.stack_size = 4096;
 
     esp_err_t err = httpd_start(&s_server, &config);
