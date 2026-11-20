@@ -5,10 +5,11 @@
 # itself is registered after it.
 set(PORTAL_ASSETS_DATA_C ${CMAKE_CURRENT_BINARY_DIR}/generated/portal_assets_data.c)
 
-idf_component_register(SRCS "http_server.c" "portal_assets.c"
+idf_component_register(SRCS "http_server.c" "portal_api.c" "portal_assets.c"
                               ${PORTAL_ASSETS_DATA_C}
                     INCLUDE_DIRS "include"
-                    REQUIRES esp_common log brand_profile)
+                    REQUIRES esp_common log brand_profile esp_http_server
+                             portal_auth wifi_manager esp_timer json)
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
