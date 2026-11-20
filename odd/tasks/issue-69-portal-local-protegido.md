@@ -2,7 +2,7 @@
 
 Vertical delivery: firmware, embedded assets, auth, status API, tests and docs
 for the protected local portal over the gateway AP. Plan of record for the goal
-"resuelve la issue #69". Change openspec: `openspec/changes/issue-69-local-portal/`.
+"resuelve la issue #69". Change openspec (archivado): `openspec/changes/archive/2026-11-20-issue-69-local-portal/`.
 
 ## Specs
 
