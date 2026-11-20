@@ -39,18 +39,18 @@ las tareas T1 a T9.
 | Slice | Rama | Unidad | Líneas |
 |---|---|---|---|
 | 01 | `feature/issue-69-01-openspec` | change de OpenSpec (propuesta, diseño, tareas, spec) | 341 |
-| 02 | `feature/issue-69-02-plan-adr` | este plan + ADR-006 | 112 |
-| 03 | `feature/issue-69-03-auth-core` | `portal_auth`: reglas de credencial y sesión | 385 |
-| 04 | `feature/issue-69-04-auth-tests` | glue de dispositivo y suite Unity del auth | 271 |
-| 05 | `feature/issue-69-05-host-shims` | shims de NVS y ports deterministas del host | 223 |
-| 06 | `feature/issue-69-06-wifi-status` | getters de estado de `wifi_manager` | 121 |
-| 07 | `feature/issue-69-07-assets` | bundle estable, generador y tabla de assets | 313 |
-| 08 | `feature/issue-69-08-portal-api` | reglas portables de JSON y cookie | 303 |
-| 09 | `feature/issue-69-09-portal-api-tests` | contrato de bytes de la API y su suite | 233 |
-| 10 | `feature/issue-69-10-server` | servidor HTTP real y arranque en `app_main` | 337 |
-| 11 | `feature/issue-69-11-web-api` | el cliente de la API de la interfaz | 112 |
-| 12 | `feature/issue-69-12-web-app` | la interfaz contra la API real, con sus tests | 733 (excepción de pantalla propia) |
-| 13 | `feature/issue-69-13-docs` | fuentes canónicas y README de la web | 128 |
+| 02 | `feature/issue-69-02-plan-adr-r2` | este plan + ADR-006 | 112 |
+| 03 | `feature/issue-69-03-auth-core-r2` | `portal_auth`: reglas de credencial y sesión | 385 |
+| 04 | `feature/issue-69-04-auth-tests-r2` | glue de dispositivo y suite Unity del auth | 271 |
+| 05 | `feature/issue-69-05-host-shims-r2` | shims de NVS y ports deterministas del host | 223 |
+| 06 | `feature/issue-69-06-wifi-status-r2` | getters de estado de `wifi_manager` | 121 |
+| 07 | `feature/issue-69-07-assets-r2` | bundle estable, generador y tabla de assets | 313 |
+| 08 | `feature/issue-69-08-portal-api-r2` | reglas portables de JSON y cookie | 303 |
+| 09 | `feature/issue-69-09-portal-api-tests-r2` | contrato de bytes de la API y su suite | 233 |
+| 10 | `feature/issue-69-10-server-r2` | servidor HTTP real y arranque en `app_main` | 337 |
+| 11 | `feature/issue-69-11-web-api-r2` | el cliente de la API de la interfaz | 112 |
+| 12 | `feature/issue-69-12-web-app-r2` | la interfaz contra la API real, con sus tests | 733 (excepción de pantalla propia) |
+| 13 | `feature/issue-69-13-docs-r2` | fuentes canónicas y README de la web | 128 |
 
 ## Log
 
